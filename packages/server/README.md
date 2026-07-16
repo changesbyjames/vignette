@@ -38,4 +38,4 @@ Attach the HTTP server before `start()`. `connect(runtime)` transfers runtime ow
 `@cbj/vignette-frame/vite` in development or `@cbj/vignette-frame/server` in production.
 
 For a deployable host/worker split, the worker consumes the host's SSE URL with the DOM or OBS
-target package. See the repository Studio example for Vite client and SSR builds.
+target package. See the repository kitchen-sink example for Vite client and SSR builds.

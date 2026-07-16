@@ -6,7 +6,13 @@ Install Node.js 22 or newer, then install and verify the workspace:
 corepack pnpm install
 corepack pnpm build
 corepack pnpm test
-corepack pnpm --filter @cbj/vignette-studio dev
+corepack pnpm --filter @cbj/vignette-simple-example start
+```
+
+This prints a compiled snapshot without starting any services. For the complete application:
+
+```sh
+corepack pnpm --filter @cbj/vignette-kitchen-sink dev
 ```
 
 Open `http://127.0.0.1:4173`. The Vite backend owns a persistent custom React root. A timer inside
@@ -35,13 +41,13 @@ const runtime = new OBSRuntime({ projectId, url, password });
 await consumeRuntimeMessages(runtime, messageBus.subscribe());
 ```
 
-Enable it while running the studio with:
+Enable it while running the kitchen sink with:
 
 ```sh
 VIGNETTE_ENABLE_EMBEDDED=1 \
 VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
 VIGNETTE_OBS_PASSWORD='runtime-only' \
-corepack pnpm --filter @cbj/vignette-studio dev
+corepack pnpm --filter @cbj/vignette-kitchen-sink dev
 ```
 
 A standalone OBS process uses the same `OBSRuntime`; only `messageBus.subscribe()` changes to an SSE
@@ -63,10 +69,10 @@ and settlement APIs for its own operator, tests, and UI.
 
 ## Real React DOM content
 
-The studio's overlay is defined with `frame({ params, view })` and placed with `<View>`. Its URL is
-a normal browser source in the compiled snapshot, but the backend serves server-rendered HTML and a
-hydration module for the original React component. Open the studio and inspect the gradient “Hello
-James!” panel; its seconds counter is state owned by the iframe React root.
+The kitchen sink's panels are defined with `frame({ params, view })` and placed with `<View>`. Their
+URLs are a normal browser source in the compiled snapshot, but the backend serves server-rendered
+HTML and a hydration modules for the original React components. Open the kitchen sink and inspect
+the clock; its seconds counter is state owned by the iframe React root.
 
 See [`react-frames.md`](react-frames.md) for the typed API, Vite setup, lifecycle, and security
 constraints.

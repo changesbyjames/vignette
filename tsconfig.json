@@ -9,6 +9,7 @@
     { "path": "./packages/frame" },
     { "path": "./packages/server" },
     { "path": "./packages/moq" },
-    { "path": "./examples/studio" }
+    { "path": "./examples/simple" },
+    { "path": "./examples/kitchen-sink" }
   ]
 }

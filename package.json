@@ -12,12 +12,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b && pnpm --filter @cbj/vignette-studio build:app",
+    "build": "tsc -b && pnpm --filter @cbj/vignette-kitchen-sink build:app",
     "clean": "tsc -b --clean && pnpm -r --if-present clean",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
-    "test:e2e": "playwright test examples/studio/tests/dom.spec.ts",
-    "test:obs-integration": "playwright test examples/studio/tests/obs-integration.spec.ts",
+    "test:e2e": "playwright test examples/kitchen-sink/tests/dom.spec.ts",
+    "test:obs-integration": "playwright test examples/kitchen-sink/tests/obs-integration.spec.ts",
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",

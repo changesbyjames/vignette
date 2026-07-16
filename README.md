@@ -20,9 +20,9 @@ pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core \
 
 Add `jsr:@cbj/vignette-target-obs` for OBS output, `jsr:@cbj/vignette-moq` for Media over QUIC, or
 `jsr:@cbj/vignette-testkit` for target and planner tests. Each package README documents its
-entrypoints and extension seams. [`examples/studio`](examples/studio) is a complete Vite client,
-Node composer, frame SSR/hydration, SSE, and optional OBS worker that can be used as an application
-template.
+entrypoints and extension seams. Start with the intentionally small
+[`examples/simple`](examples/simple), then use [`examples/kitchen-sink`](examples/kitchen-sink) as a
+Vite, frame, SSE, MoQ, and optional OBS application template.
 
 Maintainers can find package ordering and tokenless GitHub OIDC release instructions in
 [`docs/publishing.md`](docs/publishing.md).
@@ -36,7 +36,9 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
 - `packages/moq` — optional Media over QUIC source extension for all three layers.
 - `packages/testkit` — target and OBS fakes shared by package tests.
-- `examples/studio` — Node composer, SSE endpoint, DOM consumer, and embedded OBS example.
+- `examples/simple` — minimal local composition that prints one compiled snapshot.
+- `examples/kitchen-sink` — Node composer, SSE, frames, DOM, public MoQ demo, and optional OBS
+  example.
 - `docs` — architecture decisions and supported compatibility contract.
 - `reference` — pinned upstream documentation used to design and maintain the runtime.
 - `plans` — staged implementation handoffs and completion state.

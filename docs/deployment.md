@@ -1,15 +1,15 @@
 # Production deployment
 
-The studio production build creates a static client and two independent Node entries:
+The kitchen-sink production build creates a static client and two independent Node entries:
 
 - `dist/server/host.js`: composer, `/runtime` SSE, frame SSR, hydration routes, and static client.
 - `dist/server/obs-worker.js`: consumes `/runtime` and owns the OBS WebSocket connection.
 
 ```sh
 pnpm build
-pnpm --filter @cbj/vignette-studio start:host
+pnpm --filter @cbj/vignette-kitchen-sink start:host
 VIGNETTE_RUNTIME_URL=http://127.0.0.1:4173/runtime \
-  pnpm --filter @cbj/vignette-studio start:obs
+  pnpm --filter @cbj/vignette-kitchen-sink start:obs
 ```
 
 Configure `PORT`, `HOST`, and `VIGNETTE_ORIGIN` on the host. Configure `VIGNETTE_RUNTIME_URL`,
@@ -26,14 +26,14 @@ the internal service URL (`http://vignette-host:4173`); it does not leak into UI
 Run both services with Compose:
 
 ```sh
-VIGNETTE_OBS_PASSWORD=runtime-only docker compose -f examples/studio/compose.yaml up --build
+VIGNETTE_OBS_PASSWORD=runtime-only docker compose -f examples/kitchen-sink/compose.yaml up --build
 ```
 
 Or build the images separately from the repository root:
 
 ```sh
-docker build -f examples/studio/Dockerfile.host -t vignette-host .
-docker build -f examples/studio/Dockerfile.obs -t vignette-worker .
+docker build -f examples/kitchen-sink/Dockerfile.host -t vignette-host .
+docker build -f examples/kitchen-sink/Dockerfile.obs -t vignette-worker .
 ```
 
 The Compose example reaches host OBS through `host.docker.internal` and includes Linux's
