@@ -8,22 +8,26 @@ import type {
   ObsTransport,
 } from "@cbj/vignette-target-obs";
 
+/** OBS request captured by `FakeObsTransport`. */
 export interface FakeObsRequest {
   readonly requestType: string;
   readonly requestData?: ObsJsonObject;
 }
 
+/** Queued fake response value, error, promise, or request-data handler. */
 export type FakeResponse =
   | ObsJsonObject
   | Error
   | Promise<ObsJsonObject>
   | ((data: ObsJsonObject | undefined) => ObsJsonObject | Promise<ObsJsonObject>);
 
+/** Connection options captured by the fake transport. */
 export interface FakeObsConnectionAttempt {
   readonly url: string;
   readonly rpcVersion?: number;
 }
 
+/** Deterministic programmable OBS transport for unit tests. */
 export class FakeObsTransport implements ObsTransport {
   readonly requests: FakeObsRequest[] = [];
   readonly connections: FakeObsConnectionAttempt[] = [];

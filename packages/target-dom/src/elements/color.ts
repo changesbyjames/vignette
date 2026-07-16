@@ -2,6 +2,7 @@ import type { ColorSource } from "@cbj/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
+/** Built-in element renderer for solid color sources. */
 export const colorRenderer: DomSourceRenderer<ColorSource> = {
   kind: "source:color",
   create(document) {

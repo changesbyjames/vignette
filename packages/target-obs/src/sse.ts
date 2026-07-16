@@ -6,6 +6,7 @@ import {
   type RuntimeSseEvent,
 } from "@cbj/vignette-core";
 
+/** Reconnection behavior and error observation for an SSE runtime source. */
 export interface SseRuntimeSourceOptions {
   readonly retryDelayMs?: number;
   readonly onError?: (error: Error) => void;

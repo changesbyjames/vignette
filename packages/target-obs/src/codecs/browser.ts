@@ -2,6 +2,7 @@ import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-co
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
+/** Built-in OBS browser-source codec. */
 export const browserCodec: ObsSourceCodec<BrowserSource> = {
   kind: "source:browser",
   inputKinds: ["browser_source"],

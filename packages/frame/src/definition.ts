@@ -1,9 +1,11 @@
 import type { ComponentType } from "react";
 
+/** Parser contract used to validate serialized frame parameters. */
 export interface FrameParamsSchema<Params extends object> {
   parse(input: unknown): Params;
 }
 
+/** Parameter schema and React component used to define a frame. */
 export interface FrameOptions<Params extends object> {
   readonly params: FrameParamsSchema<Params>;
   readonly view: ComponentType<Params>;
@@ -15,6 +17,7 @@ export interface FrameMetadata {
   readonly exportName: string;
 }
 
+/** Typed frame definition consumed by `<View>` and frame hosts. */
 export interface FrameDefinition<Params extends object> {
   readonly params: FrameParamsSchema<Params>;
   readonly view: ComponentType<Params>;
@@ -39,6 +42,7 @@ function defineFrame<Params extends object>(
   });
 }
 
+/** Defines a typed React DOM frame for placement in Vignette scenes. */
 export const frame: FrameFactory = Object.assign(
   <Params extends object>(options: FrameOptions<Params>) => defineFrame(options),
   {
@@ -49,6 +53,7 @@ export const frame: FrameFactory = Object.assign(
   },
 );
 
+/** Tests whether a value has the structural frame-definition contract. */
 export function isFrameDefinition(value: unknown): value is FrameDefinition<object> {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<FrameDefinition<object>>;

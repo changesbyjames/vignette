@@ -20,18 +20,21 @@ interface SceneItemAddress {
   readonly sceneItemId: number;
 }
 
+/** Project namespace and validity guards used during plan execution. */
 export interface ObsExecutionContext {
   readonly projectId: ProjectId;
   readonly isCurrentRevision: (revision: number) => boolean;
   readonly isExecutionValid?: () => boolean;
 }
 
+/** Confirmed operation keys and interruption state from one execution. */
 export interface ObsExecutionResult {
   readonly completedOperationKeys: readonly string[];
   readonly skippedDestructiveWork: boolean;
   readonly interrupted: boolean;
 }
 
+/** Executes an OBS plan phase-by-phase while guarding stale destructive work. */
 export async function executeObsPlan(
   transport: ObsTransport,
   plan: ObsPlan,

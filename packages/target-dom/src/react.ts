@@ -9,15 +9,18 @@ import { useMemo, useSyncExternalStore, type RefCallback } from "react";
 
 import { DOMRuntime, type DOMRuntimeOptions } from "./runtime.js";
 
+/** DOM runtime options plus the scene and runtime-message transport to consume. */
 export interface UseCompositorOptions extends Omit<DOMRuntimeOptions, "container" | "sceneId"> {
   readonly sceneId: string;
   /** The transport delivering runtime messages, e.g. `sseRuntimeSource("/runtime")`. */
   readonly transport: RuntimeMessageSource;
 }
 
+/** Browser compositor lifecycle, including pre-runtime setup phases. */
 export type CompositorPhase =
   "waiting-for-container" | "connecting" | "downloading-assets" | TargetPhase;
 
+/** Stable React external-store snapshot for a mounted compositor. */
 export interface CompositorSnapshot {
   readonly targetId: string;
   readonly sceneId: string;
@@ -28,7 +31,9 @@ export interface CompositorSnapshot {
   readonly message?: string;
 }
 
+/** Ref callback that owns the lifetime of a DOM compositor container. */
 export type CompositorRef = RefCallback<HTMLDivElement>;
+/** Container ref and current compositor status returned by `useCompositor`. */
 export type CompositorResult = readonly [ref: CompositorRef, snapshot: CompositorSnapshot];
 
 /**

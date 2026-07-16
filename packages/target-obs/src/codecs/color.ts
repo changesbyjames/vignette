@@ -2,6 +2,7 @@ import type { ColorSource } from "@cbj/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
+/** Built-in OBS color-source codec. */
 export const colorCodec: ObsSourceCodec<ColorSource> = {
   kind: "source:color",
   inputKinds: ["color_source_v3", "color_source"],

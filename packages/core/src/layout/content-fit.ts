@@ -10,6 +10,7 @@ import {
 import type { ContentPlacement } from "../snapshot.js";
 import { roundInsets, roundRect } from "./rounding.js";
 
+/** Source and destination geometry used for content fitting. */
 export interface ContentFitInput {
   readonly destination: Rect;
   readonly sourceSize?: Size;
@@ -18,10 +19,12 @@ export interface ContentFitInput {
   readonly manualCrop?: Partial<Insets>;
 }
 
+/** A calculated placement or an explanation of invalid fitting inputs. */
 export type ContentFitResult =
   | { readonly ok: true; readonly placement: ContentPlacement }
   | { readonly ok: false; readonly message: string };
 
+/** Calculates deterministic contain, cover, or fill placement and crop geometry. */
 export function calculateContentPlacement(input: ContentFitInput): ContentFitResult {
   const alignment = input.alignment ?? CENTER_ALIGNMENT;
   const crop = completeCrop(input.manualCrop);

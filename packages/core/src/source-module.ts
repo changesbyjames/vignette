@@ -17,6 +17,7 @@ export interface SourceModule<Source extends AnySourceDefinition = AnySourceDefi
   validate?(source: Source, path: string): readonly Diagnostic[];
 }
 
+/** Source modules indexed by their source-kind discriminator. */
 export type SourceModuleMap = ReadonlyMap<string, SourceModule>;
 
 /** Merges extension modules over the built-in ones. Later entries win per kind. */
@@ -63,6 +64,7 @@ function compactDiagnostics(...items: readonly (Diagnostic | undefined)[]): read
   return items.filter((item) => item !== undefined);
 }
 
+/** Built-in image-source validation and metadata behavior. */
 export const imageSourceModule: SourceModule<SourceKinds["source:image"]> = {
   kind: "source:image",
   intrinsicSize: (source) => source.size,
@@ -74,6 +76,7 @@ export const imageSourceModule: SourceModule<SourceKinds["source:image"]> = {
     ),
 };
 
+/** Built-in media-file validation and metadata behavior. */
 export const mediaFileSourceModule: SourceModule<SourceKinds["source:media-file"]> = {
   kind: "source:media-file",
   intrinsicSize: (source) => source.size,
@@ -94,6 +97,7 @@ export const mediaFileSourceModule: SourceModule<SourceKinds["source:media-file"
     ),
 };
 
+/** Built-in browser-source validation and metadata behavior. */
 export const browserSourceModule: SourceModule<SourceKinds["source:browser"]> = {
   kind: "source:browser",
   intrinsicSize: (source) => source.viewport,
@@ -104,6 +108,7 @@ export const browserSourceModule: SourceModule<SourceKinds["source:browser"]> = 
     ),
 };
 
+/** Built-in color-source validation and metadata behavior. */
 export const colorSourceModule: SourceModule<SourceKinds["source:color"]> = {
   kind: "source:color",
   intrinsicSize: (source) => source.size,
@@ -121,6 +126,7 @@ export const colorSourceModule: SourceModule<SourceKinds["source:color"]> = {
     ),
 };
 
+/** Source modules available without registering extensions. */
 export const BUILTIN_SOURCE_MODULES: readonly SourceModule[] = [
   imageSourceModule,
   mediaFileSourceModule,

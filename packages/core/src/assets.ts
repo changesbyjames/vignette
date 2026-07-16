@@ -1,26 +1,33 @@
+/** A project-relative asset reference resolved independently by each target. */
 export interface AssetRef {
   readonly kind: "asset";
   readonly name: string;
 }
 
+/** Creates a project-relative asset reference. */
 export function asset(name: string): AssetRef {
   return { kind: "asset", name };
 }
 
+/** Target category requesting an asset resolution. */
 export type AssetTargetKind = "dom" | "obs";
 
+/** Identifies the target for which an asset is being resolved. */
 export interface AssetResolutionContext {
   readonly targetId: string;
   readonly targetKind: AssetTargetKind;
 }
 
+/** A target-ready HTTP URL or local file path. */
 export type ResolvedAsset =
   { readonly kind: "url"; readonly url: string } | { readonly kind: "file"; readonly path: string };
 
+/** Resolves project assets into locations consumable by a specific target. */
 export interface AssetResolver {
   resolve(asset: AssetRef, context: AssetResolutionContext): Promise<ResolvedAsset>;
 }
 
+/** Returns an error message when an asset name is not normalized and project-relative. */
 export function validateAssetName(name: string): string | undefined {
   if (name.length === 0) return "Asset name must not be empty.";
   if (name !== name.trim()) return "Asset name must not have surrounding whitespace.";

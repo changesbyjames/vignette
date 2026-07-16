@@ -12,6 +12,7 @@ import { DomAssetStore, type DomAssetStoreOptions } from "./asset-store.js";
 import { DomTarget } from "./dom-target.js";
 import type { DomSourceRenderer } from "./elements/index.js";
 
+/** Configuration for a transport-agnostic DOM snapshot runtime. */
 export interface DOMRuntimeOptions extends DomAssetStoreOptions {
   readonly id?: string;
   readonly container: HTMLElement;
@@ -21,6 +22,7 @@ export interface DOMRuntimeOptions extends DomAssetStoreOptions {
   readonly onError?: (error: Error) => void;
 }
 
+/** Applies setup, update, and event messages to a browser DOM target. */
 export class DOMRuntime implements SnapshotRuntime {
   readonly #assets: DomAssetStore;
   readonly #target: DomTarget;

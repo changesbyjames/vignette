@@ -15,6 +15,7 @@ import type { HostContainer } from "./host-types.js";
 import { reconciler } from "./reconciler.js";
 import { RootStatusStore, type BroadcastRootStatus } from "./status.js";
 
+/** Identity, canvas, extensions, and error handling for a composer root. */
 export interface ComposerRootOptions {
   readonly projectId: ProjectId;
   readonly canvas: BroadcastCanvas;
@@ -24,12 +25,14 @@ export interface ComposerRootOptions {
   readonly onError?: (error: Error) => void;
 }
 
+/** Revisions associated with one completed React commit and compilation. */
 export interface CommitReceipt {
   readonly requestedRevision: number;
   readonly compiledRevision: number;
   readonly compiledAt: number;
 }
 
+/** Persistent Node-side React root that publishes compiled snapshots. */
 export interface ComposerRoot {
   render(element: ReactNode): Promise<CommitReceipt>;
   getSnapshot(): CompiledSnapshot | undefined;
@@ -46,6 +49,7 @@ interface CompileWaiter {
   readonly reject: (error: Error) => void;
 }
 
+/** Creates a persistent React composer for one Vignette project. */
 export function createComposerRoot(options: ComposerRootOptions): ComposerRoot {
   return new ComposerRootImpl(options);
 }

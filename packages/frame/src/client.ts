@@ -8,6 +8,7 @@ import { hydrateRoot, type Root } from "react-dom/client";
 
 import type { FrameDefinition } from "./definition.js";
 
+/** Hydrates a server-rendered frame after validating its serialized parameters. */
 export function hydrateFrame<Params extends object>(
   definition: FrameDefinition<Params>,
   input: unknown,

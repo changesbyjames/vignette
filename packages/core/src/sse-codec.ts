@@ -8,8 +8,10 @@ import type { CompiledSnapshot } from "./snapshot.js";
  */
 export const RUNTIME_SSE_EVENTS = ["setup", "update", "event"] as const;
 
+/** Named SSE event corresponding to a runtime message kind. */
 export type RuntimeSseEvent = (typeof RUNTIME_SSE_EVENTS)[number];
 
+/** Encodes one runtime message as a named SSE record. */
 export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
   const [id, payload] =
     message.kind === "setup"
@@ -20,6 +22,7 @@ export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
   return `id: ${id}\nevent: ${message.kind}\ndata: ${JSON.stringify(payload)}\n\n`;
 }
 
+/** Decodes trusted SSE event data into a runtime message. */
 export function decodeRuntimeSseEvent(event: RuntimeSseEvent, data: string): RuntimeMessage {
   switch (event) {
     case "setup":

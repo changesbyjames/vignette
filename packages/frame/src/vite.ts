@@ -33,6 +33,7 @@ export function createDevServerModuleHost(server: ViteDevServer): ModuleHost {
   };
 }
 
+/** Creates the Vite plugin that discovers, serves, and transforms frame modules. */
 export function vignetteFrames(registry: FrameRouteRegistry = new FrameRouteRegistry()): Plugin {
   let config: ResolvedConfig | undefined;
   return {
@@ -63,6 +64,7 @@ export function vignetteFrames(registry: FrameRouteRegistry = new FrameRouteRegi
   };
 }
 
+/** Injects deterministic client metadata into exported `frame()` definitions. */
 export function transformFrameModule(
   code: string,
   id: string,

@@ -7,6 +7,7 @@ import type {
   TargetStatus,
 } from "@cbj/vignette-core";
 
+/** In-memory render target that records every published snapshot. */
 export class FakeRenderTarget implements RenderTarget {
   readonly id: string;
   readonly kind: TargetKind;

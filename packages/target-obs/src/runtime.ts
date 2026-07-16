@@ -15,6 +15,7 @@ import { ObsWebSocketTransport } from "./obs-websocket-transport.js";
 import type { ObsConvergenceScheduler, ObsRetryOptions, ObsSchedulerRuntime } from "./scheduler.js";
 import type { ObsTransport } from "./transport.js";
 
+/** Asset, connection, retry, extension, and test seams for an OBS runtime. */
 export interface OBSRuntimeOptions extends ObsAssetStoreOptions {
   readonly id?: string;
   readonly url?: string;
@@ -28,6 +29,7 @@ export interface OBSRuntimeOptions extends ObsAssetStoreOptions {
   readonly schedulerRuntime?: ObsSchedulerRuntime;
 }
 
+/** Applies runtime messages to OBS through dependency-aware convergence planning. */
 export class OBSRuntime implements SnapshotRuntime {
   readonly #assets: ObsAssetStore;
   readonly #scheduler: ObsConvergenceScheduler;

@@ -4,6 +4,7 @@ import { imageCodec } from "./image.js";
 import { mediaCodec } from "./media.js";
 import type { ObsSourceCodec } from "./types.js";
 
+/** Source codecs available without registering extensions. */
 export const BUILTIN_OBS_CODECS: readonly ObsSourceCodec[] = [
   imageCodec,
   mediaCodec,
@@ -11,6 +12,7 @@ export const BUILTIN_OBS_CODECS: readonly ObsSourceCodec[] = [
   colorCodec,
 ];
 
+/** OBS source codecs indexed by source kind. */
 export type ObsCodecMap = ReadonlyMap<`source:${string}`, ObsSourceCodec>;
 
 /** Merges extension codecs over the built-in ones. Later entries win per kind. */

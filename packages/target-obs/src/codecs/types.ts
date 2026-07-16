@@ -2,12 +2,14 @@ import type { AnySourceDefinition, Size } from "@cbj/vignette-core";
 
 import type { ObsJsonObject } from "../operations.js";
 
+/** OBS capabilities and resolved metadata available while compiling a source. */
 export interface ObsCodecContext {
   readonly availableInputKinds: ReadonlySet<string>;
   readonly resolvedAsset?: string;
   readonly browserViewport?: Size;
 }
 
+/** Supported OBS input settings or a deterministic unsupported reason. */
 export type ObsCodecResult =
   | {
       readonly supported: true;
@@ -28,6 +30,7 @@ export interface ObsSourceCodec<Source extends AnySourceDefinition = AnySourceDe
   compile(source: Source, context: ObsCodecContext): ObsCodecResult;
 }
 
+/** Selects the first candidate input kind advertised by OBS. */
 export function selectInputKind(
   candidates: readonly string[],
   available: ReadonlySet<string>,

@@ -1,7 +1,9 @@
 import type { Diagnostic } from "@cbj/vignette-core";
 
+/** Synchronous lifecycle phase of the Node composer root. */
 export type BroadcastRootPhase = "idle" | "compiling" | "ready" | "error" | "disposed";
 
+/** Current React commit, compilation, and diagnostic state. */
 export interface BroadcastRootStatus {
   readonly phase: BroadcastRootPhase;
   readonly commitRevision: number;
@@ -10,6 +12,7 @@ export interface BroadcastRootStatus {
   readonly message?: string;
 }
 
+/** Observable external store for composer status. */
 export class RootStatusStore {
   readonly #listeners = new Set<() => void>();
   #status: BroadcastRootStatus = {

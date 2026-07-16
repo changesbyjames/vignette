@@ -2,6 +2,7 @@ import type { MediaFileSource } from "@cbj/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
+/** Built-in video element renderer for resolved media assets. */
 export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
   kind: "source:media-file",
   create(document) {

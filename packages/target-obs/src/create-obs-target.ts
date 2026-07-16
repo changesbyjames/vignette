@@ -14,6 +14,7 @@ import {
 } from "./scheduler.js";
 import type { ObsTransport } from "./transport.js";
 
+/** Connection and dependency options for a directly published OBS target. */
 export interface CreateObsTargetOptions {
   readonly id?: string;
   readonly url?: string;
@@ -25,6 +26,7 @@ export interface CreateObsTargetOptions {
   readonly onError?: (error: Error) => void;
 }
 
+/** Creates an OBS render target backed by the production WebSocket transport. */
 export function createObsTarget(options: CreateObsTargetOptions): RenderTarget {
   return createObsScheduler(options, new ObsWebSocketTransport());
 }

@@ -1,5 +1,7 @@
+/** Severity assigned to an authoring or compilation diagnostic. */
 export type DiagnosticSeverity = "warning" | "error";
 
+/** Stable machine-readable code for a Vignette diagnostic. */
 export type DiagnosticCode =
   | "INVALID_PROJECT_ID"
   | "INVALID_SCENE_ID"
@@ -24,6 +26,7 @@ export type DiagnosticCode =
   | "UNREACHABLE_SOURCE"
   | "UNSUPPORTED_TARGET_CAPABILITY";
 
+/** Deterministic authoring or compilation problem. */
 export interface Diagnostic {
   readonly code: DiagnosticCode;
   readonly severity: DiagnosticSeverity;
@@ -32,6 +35,7 @@ export interface Diagnostic {
   readonly relatedIds?: readonly string[];
 }
 
+/** Diagnostics grouped by severity after authoring validation. */
 export interface ValidationResult {
   readonly valid: boolean;
   readonly diagnostics: readonly Diagnostic[];
@@ -39,6 +43,7 @@ export interface ValidationResult {
   readonly warnings: readonly Diagnostic[];
 }
 
+/** Creates a diagnostic, omitting related IDs when none are provided. */
 export function diagnostic(
   code: DiagnosticCode,
   severity: DiagnosticSeverity,

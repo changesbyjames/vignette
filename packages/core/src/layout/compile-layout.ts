@@ -10,11 +10,13 @@ import { calculateContentPlacement } from "./content-fit.js";
 import { roundRect } from "./rounding.js";
 import { YogaSceneTree, type YogaLayoutRecord } from "./yoga-runtime.js";
 
+/** Inputs controlling one authoring-graph compilation. */
 export interface CompileOptions {
   readonly revision: number;
   readonly modules?: SourceModuleMap;
 }
 
+/** Successful immutable snapshot compilation or deterministic diagnostics. */
 export type CompileResult =
   | {
       readonly ok: true;
@@ -23,6 +25,7 @@ export type CompileResult =
     }
   | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] };
 
+/** Validates and compiles an authoring graph into a target-neutral snapshot. */
 export function compileBroadcast(root: BroadcastNode, options: CompileOptions): CompileResult {
   const modules = options.modules ?? resolveSourceModules();
   const validation = validateBroadcast(root, { modules });

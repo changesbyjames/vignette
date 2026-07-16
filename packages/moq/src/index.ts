@@ -14,6 +14,7 @@ import {
   type SourceModule,
 } from "@cbj/vignette-core";
 
+/** Default end-to-end latency requested from a MoQ source. */
 export const DEFAULT_MOQ_LATENCY_MS = 100;
 
 /** One Media-over-QUIC broadcast rendered as a video source. */
@@ -29,6 +30,7 @@ export interface MoqSource extends SourceBase {
   readonly disableWhenHidden?: boolean;
 }
 
+/** Creates a validated MoQ source definition with stable defaults. */
 export function moqSource(
   input: Omit<MoqSource, "kind" | "id"> & { readonly id: string },
 ): MoqSource {

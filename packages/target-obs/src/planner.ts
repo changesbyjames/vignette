@@ -41,6 +41,7 @@ import {
 } from "./operations.js";
 import { obsDiagnostic, type ObsDiagnostic, type ObsPlanningResult } from "./plan.js";
 
+/** Desired snapshot, observed OBS state, assets, and codecs supplied to the planner. */
 export interface ObsPlannerInput {
   readonly desired: CompiledSnapshot;
   readonly observed: ObservedObsState;
@@ -63,6 +64,7 @@ interface BrowserGeometry {
   readonly cropScale: Readonly<{ x: number; y: number }>;
 }
 
+/** Purely transforms desired and observed state into a dependency-aware OBS plan. */
 export function planObsUpdate(input: ObsPlannerInput): ObsPlanningResult {
   const diagnostics: ObsDiagnostic[] = [...validateObsCapabilities(input.observed.capabilities)];
   const operations: ObsOperation[] = [];

@@ -1,6 +1,6 @@
 {
   "name": "vignette-workspace",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "repository": {
     "type": "git",
@@ -22,7 +22,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "publish:check": "node scripts/check-jsr-packages.mjs",
+    "publish:check": "node scripts/check-jsr-docs.mjs && node scripts/check-jsr-packages.mjs",
     "ready": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check && pnpm publish:check && pnpm test:e2e"
   },
   "devDependencies": {

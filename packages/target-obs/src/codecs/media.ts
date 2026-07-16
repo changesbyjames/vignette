@@ -2,6 +2,7 @@ import type { MediaFileSource } from "@cbj/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
+/** Built-in OBS media-source codec. */
 export const mediaCodec: ObsSourceCodec<MediaFileSource> = {
   kind: "source:media-file",
   inputKinds: ["ffmpeg_source"],

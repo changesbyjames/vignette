@@ -3,6 +3,7 @@ import type { ProjectId, SceneId, SourceId } from "@cbj/vignette-core";
 import { parseManagedName } from "./naming.js";
 import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
 
+/** Protocol, request, input-kind, and platform capabilities reported by OBS. */
 export interface ObsProtocolCapabilities {
   readonly obsVersion: string;
   readonly obsWebSocketVersion: string;
@@ -12,6 +13,7 @@ export interface ObsProtocolCapabilities {
   readonly platform: string;
 }
 
+/** Scene observed during an authoritative OBS bootstrap. */
 export interface ObservedObsScene {
   readonly sceneName: string;
   readonly sceneUuid: string;
@@ -19,6 +21,7 @@ export interface ObservedObsScene {
   readonly canvasUuid?: string;
 }
 
+/** Input observed during an authoritative OBS bootstrap. */
 export interface ObservedObsInput {
   readonly inputName: string;
   readonly inputUuid: string;
@@ -26,6 +29,7 @@ export interface ObservedObsInput {
   readonly inputSettings: ObsJsonObject;
 }
 
+/** Scene-item placement observed during an authoritative OBS bootstrap. */
 export interface ObservedObsSceneItem {
   readonly sceneUuid: string;
   readonly sceneItemId: number;
@@ -36,6 +40,7 @@ export interface ObservedObsSceneItem {
   readonly sceneItemTransform?: ObsSceneItemTransform;
 }
 
+/** Complete authoritative OBS state used by the pure planner. */
 export interface ObservedObsState {
   readonly observationEpoch: number;
   readonly capabilities: ObsProtocolCapabilities;
@@ -44,6 +49,7 @@ export interface ObservedObsState {
   readonly sceneItems: readonly ObservedObsSceneItem[];
 }
 
+/** Managed subset of observed OBS state indexed by Vignette IDs. */
 export interface ManagedObservedIndex {
   readonly registry?: ObservedObsScene;
   readonly scenes: ReadonlyMap<SceneId, ObservedObsScene>;
@@ -56,6 +62,7 @@ export interface ManagedObservedIndex {
   }[];
 }
 
+/** Indexes only resources belonging to a managed project namespace. */
 export function indexManagedObservedState(
   state: ObservedObsState,
   project: ProjectId,

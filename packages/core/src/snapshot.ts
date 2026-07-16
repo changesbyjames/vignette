@@ -4,6 +4,7 @@ import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
 import type { AnySourceDefinition } from "./sources.js";
 import type { Diagnostic } from "./diagnostics.js";
 
+/** Fitted destination, source crop, and alignment for one source layer. */
 export interface ContentPlacement {
   readonly destination: Rect;
   readonly sourceCrop: Insets;
@@ -21,10 +22,12 @@ export interface CompiledSource {
   readonly asset?: AssetRef;
 }
 
+/** Reference to source or nested-scene content in a compiled item. */
 export type CompiledItemContent =
   | { readonly kind: "source"; readonly sourceId: SourceId }
   | { readonly kind: "scene"; readonly sceneId: SceneId };
 
+/** One absolute, target-neutral layer in a compiled scene. */
 export interface CompiledItem {
   readonly id: LayerId;
   readonly content: CompiledItemContent;
@@ -36,12 +39,14 @@ export interface CompiledItem {
   readonly rotation: number;
 }
 
+/** Compiled scene with its layers in rendering order. */
 export interface CompiledScene {
   readonly id: SceneId;
   readonly label?: string;
   readonly items: readonly CompiledItem[];
 }
 
+/** Complete immutable desired state consumed independently by each target. */
 export interface CompiledSnapshot {
   readonly revision: number;
   readonly projectId: ProjectId;

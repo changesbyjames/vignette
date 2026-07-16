@@ -2,6 +2,7 @@ import type { ImageSource } from "@cbj/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
+/** Built-in OBS image-source codec. */
 export const imageCodec: ObsSourceCodec<ImageSource> = {
   kind: "source:image",
   inputKinds: ["image_source"],

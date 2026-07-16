@@ -1,3 +1,4 @@
+/** Base class for errors raised by the OBS target. */
 export class ObsTargetError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -5,6 +6,7 @@ export class ObsTargetError extends Error {
   }
 }
 
+/** Desired state cannot be represented safely by the connected OBS instance. */
 export class ObsPreflightError extends ObsTargetError {
   constructor(message: string) {
     super(message);
@@ -12,6 +14,7 @@ export class ObsPreflightError extends ObsTargetError {
   }
 }
 
+/** Plan execution failed after remote state may have changed. */
 export class ObsExecutionError extends ObsTargetError {
   readonly operationKey: string;
 
@@ -22,6 +25,7 @@ export class ObsExecutionError extends ObsTargetError {
   }
 }
 
+/** One obs-websocket request returned an unsuccessful status. */
 export class ObsRequestError extends ObsTargetError {
   readonly code: number;
 
@@ -34,6 +38,7 @@ export class ObsRequestError extends ObsTargetError {
   }
 }
 
+/** Operation attempted after an OBS target was disposed. */
 export class ObsTargetDisposedError extends ObsTargetError {
   constructor(targetId: string) {
     super(`OBS target '${targetId}' is disposed.`);

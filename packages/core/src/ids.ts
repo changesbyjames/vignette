@@ -5,56 +5,73 @@ declare const sceneIdBrand: unique symbol;
 declare const sourceIdBrand: unique symbol;
 declare const layerIdBrand: unique symbol;
 
+/** Explicit identifier for a managed Vignette project. */
 export type ProjectId = string & { readonly [projectIdBrand]: "ProjectId" };
+/** Explicit identifier for a scene. */
 export type SceneId = string & { readonly [sceneIdBrand]: "SceneId" };
+/** Explicit identifier for a reusable source. */
 export type SourceId = string & { readonly [sourceIdBrand]: "SourceId" };
+/** Explicit identifier for a layer placement. */
 export type LayerId = string & { readonly [layerIdBrand]: "LayerId" };
 
+/** Any branded identifier used by the authoring graph. */
 export type StableId = ProjectId | SceneId | SourceId | LayerId;
+/** Resource category represented by a stable identifier. */
 export type StableIdKind = "project" | "scene" | "source" | "layer";
 
+/** Details returned when a string cannot be converted to a stable identifier. */
 export interface InvalidStableId {
   readonly kind: StableIdKind;
   readonly value: string;
   readonly reason: string;
 }
 
+/** Successful branded ID parsing or a deterministic validation error. */
 export type StableIdResult<T extends StableId> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: InvalidStableId };
 
+/** Tests whether a string follows the stable ID syntax. */
 export function isStableId(value: string): boolean {
   return ID_PATTERN.test(value);
 }
 
+/** Validates and brands a project identifier without throwing. */
 export function parseProjectId(value: string): StableIdResult<ProjectId> {
   return parseId("project", value, (id) => id as ProjectId);
 }
 
+/** Validates and brands a scene identifier without throwing. */
 export function parseSceneId(value: string): StableIdResult<SceneId> {
   return parseId("scene", value, (id) => id as SceneId);
 }
 
+/** Validates and brands a source identifier without throwing. */
 export function parseSourceId(value: string): StableIdResult<SourceId> {
   return parseId("source", value, (id) => id as SourceId);
 }
 
+/** Validates and brands a layer identifier without throwing. */
 export function parseLayerId(value: string): StableIdResult<LayerId> {
   return parseId("layer", value, (id) => id as LayerId);
 }
 
+/** Validates and returns a project identifier, throwing for invalid input. */
 export function projectId(value: string): ProjectId {
   return unwrapId(parseProjectId(value));
 }
 
+/** Validates and returns a scene identifier, throwing for invalid input. */
 export function sceneId(value: string): SceneId {
   return unwrapId(parseSceneId(value));
 }
 
+/** Validates and returns a source identifier, throwing for invalid input. */
 export function sourceId(value: string): SourceId {
   return unwrapId(parseSourceId(value));
 }
 
+/** Validates and returns a layer identifier, throwing for invalid input. */
 export function layerId(value: string): LayerId {
   return unwrapId(parseLayerId(value));
 }

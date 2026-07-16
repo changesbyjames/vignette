@@ -25,6 +25,7 @@ import { createComposerRoot } from "@cbj/vignette";
 import type { ServerResponse } from "node:http";
 import { createElement, type ReactElement } from "react";
 
+/** Composer, frame, manifest, and runtime options owned by a persistent host. */
 export interface ComposerHostOptions {
   readonly projectId: ProjectId;
   readonly canvas: BroadcastCanvas;
@@ -224,6 +225,7 @@ export class ComposerHost extends EventTarget {
   }
 }
 
+/** Creates a persistent composer host for HTTP and runtime integrations. */
 export function createComposerHost(options: ComposerHostOptions): ComposerHost {
   return new ComposerHost(options);
 }

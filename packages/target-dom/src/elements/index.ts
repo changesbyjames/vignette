@@ -4,6 +4,7 @@ import { imageRenderer } from "./image.js";
 import { mediaRenderer } from "./media.js";
 import type { DomSourceRenderer } from "./types.js";
 
+/** Source renderers available without registering extensions. */
 export const BUILTIN_DOM_RENDERERS: readonly DomSourceRenderer[] = [
   imageRenderer,
   mediaRenderer,
@@ -11,6 +12,7 @@ export const BUILTIN_DOM_RENDERERS: readonly DomSourceRenderer[] = [
   colorRenderer,
 ];
 
+/** DOM source renderers indexed by source kind. */
 export type DomRendererMap = ReadonlyMap<`source:${string}`, DomSourceRenderer>;
 
 /** Merges extension renderers over the built-in ones. Later entries win per kind. */

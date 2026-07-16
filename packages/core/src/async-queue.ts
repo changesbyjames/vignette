@@ -9,6 +9,7 @@ export interface AsyncQueue<T> extends AsyncIterable<T> {
   fail(error: Error): void;
 }
 
+/** Creates a single-consumer asynchronous FIFO queue. */
 export function createAsyncQueue<T>(): AsyncQueue<T> {
   const values: T[] = [];
   let wake: (() => void) | undefined;

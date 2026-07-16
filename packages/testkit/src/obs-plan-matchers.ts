@@ -8,10 +8,12 @@ import {
   type ObservedObsState,
 } from "@cbj/vignette-target-obs";
 
+/** Returns operation discriminators in execution order. */
 export function obsOperationKinds(plan: ObsPlan): readonly ObsOperation["kind"][] {
   return plan.operations.map((operation) => operation.kind);
 }
 
+/** Reports operations that appear before an earlier required execution phase. */
 export function validateObsPhaseOrder(plan: ObsPlan): readonly string[] {
   const phaseIndex = new Map(OBS_PHASES.map((phase, index) => [phase, index]));
   const errors: string[] = [];
@@ -26,6 +28,7 @@ export function validateObsPhaseOrder(plan: ObsPlan): readonly string[] {
   return errors;
 }
 
+/** Reports plan operations that touch OBS resources outside the managed project namespace. */
 export function validateManagedOnlyPlan(
   plan: ObsPlan,
   observed: ObservedObsState,

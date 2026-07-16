@@ -1,11 +1,15 @@
 import type { LayerId, SceneId, SourceId } from "@cbj/vignette-core";
 
+/** JSON primitive accepted by obs-websocket settings. */
 export type ObsJsonPrimitive = string | number | boolean | null;
+/** Recursive JSON value accepted by obs-websocket settings. */
 export type ObsJsonValue = ObsJsonPrimitive | ObsJsonObject | readonly ObsJsonValue[];
+/** String-keyed JSON object accepted by obs-websocket requests. */
 export interface ObsJsonObject {
   readonly [key: string]: ObsJsonValue;
 }
 
+/** OBS scene-item transform compiled from target-neutral placement geometry. */
 export interface ObsSceneItemTransform extends ObsJsonObject {
   readonly positionX: number;
   readonly positionY: number;
@@ -21,6 +25,7 @@ export interface ObsSceneItemTransform extends ObsJsonObject {
   readonly cropLeft: number;
 }
 
+/** Dependency-ordered execution phase for an OBS operation. */
 export type ObsPlanPhase =
   | "scenes"
   | "inputs"
@@ -40,13 +45,16 @@ interface ObsOperationBase {
   readonly destructive: boolean;
 }
 
+/** Symbolic reference to the registry or a managed scene. */
 export type ObsSceneRef =
   { readonly kind: "registry" } | { readonly kind: "scene"; readonly sceneId: SceneId };
 
+/** Symbolic reference to managed input or nested-scene content. */
 export type ObsContentRef =
   | { readonly kind: "input"; readonly sourceId: SourceId }
   | { readonly kind: "scene"; readonly sceneId: SceneId };
 
+/** Existing or newly-created scene-item placement reference. */
 export type ObsPlacementRef =
   | {
       readonly kind: "existing";
@@ -59,6 +67,7 @@ export type ObsPlacementRef =
       readonly scene: ObsSceneRef;
     };
 
+/** Non-destructive operation that creates a managed scene. */
 export interface CreateSceneOperation extends ObsOperationBase {
   readonly kind: "create-scene";
   readonly phase: "scenes";
@@ -66,6 +75,7 @@ export interface CreateSceneOperation extends ObsOperationBase {
   readonly sceneName: string;
 }
 
+/** Non-destructive operation that creates a managed input. */
 export interface CreateInputOperation extends ObsOperationBase {
   readonly kind: "create-input";
   readonly phase: "inputs";
@@ -75,6 +85,7 @@ export interface CreateInputOperation extends ObsOperationBase {
   readonly inputSettings: ObsJsonObject;
 }
 
+/** Non-destructive operation that places content in a scene. */
 export interface CreatePlacementOperation extends ObsOperationBase {
   readonly kind: "create-placement";
   readonly phase: "placements";
@@ -83,6 +94,7 @@ export interface CreatePlacementOperation extends ObsOperationBase {
   readonly content: ObsContentRef;
 }
 
+/** Operation that converges an input's complete settings. */
 export interface SetInputSettingsOperation extends ObsOperationBase {
   readonly kind: "set-input-settings";
   readonly phase: "settings";
@@ -90,6 +102,7 @@ export interface SetInputSettingsOperation extends ObsOperationBase {
   readonly inputSettings: ObsJsonObject;
 }
 
+/** Operation that converges scene-item geometry. */
 export interface SetTransformOperation extends ObsOperationBase {
   readonly kind: "set-transform";
   readonly phase: "transforms";
@@ -97,6 +110,7 @@ export interface SetTransformOperation extends ObsOperationBase {
   readonly transform: ObsSceneItemTransform;
 }
 
+/** Operation that converges scene-item stacking order. */
 export interface SetOrderOperation extends ObsOperationBase {
   readonly kind: "set-order";
   readonly phase: "ordering";
@@ -104,6 +118,7 @@ export interface SetOrderOperation extends ObsOperationBase {
   readonly sceneItemIndex: number;
 }
 
+/** Operation that converges scene-item visibility. */
 export interface SetEnabledOperation extends ObsOperationBase {
   readonly kind: "set-enabled";
   readonly phase: "enable";
@@ -111,6 +126,7 @@ export interface SetEnabledOperation extends ObsOperationBase {
   readonly enabled: boolean;
 }
 
+/** Destructive operation that removes an obsolete placement. */
 export interface RemovePlacementOperation extends ObsOperationBase {
   readonly kind: "remove-placement";
   readonly phase: "remove-placements";
@@ -118,18 +134,21 @@ export interface RemovePlacementOperation extends ObsOperationBase {
   readonly sceneItemId: number;
 }
 
+/** Destructive operation that removes an obsolete managed scene. */
 export interface RemoveSceneOperation extends ObsOperationBase {
   readonly kind: "remove-scene";
   readonly phase: "remove-scenes";
   readonly sceneUuid: string;
 }
 
+/** Destructive operation that removes an obsolete managed input. */
 export interface RemoveInputOperation extends ObsOperationBase {
   readonly kind: "remove-input";
   readonly phase: "remove-inputs";
   readonly inputUuid: string;
 }
 
+/** Closed union of operations emitted by the OBS planner. */
 export type ObsOperation =
   | CreateSceneOperation
   | CreateInputOperation
@@ -142,12 +161,14 @@ export type ObsOperation =
   | RemoveSceneOperation
   | RemoveInputOperation;
 
+/** Pure dependency-aware operation plan for one desired revision. */
 export interface ObsPlan {
   readonly revision: number;
   readonly observationEpoch: number;
   readonly operations: readonly ObsOperation[];
 }
 
+/** OBS execution phases in required order. */
 export const OBS_PHASES: readonly ObsPlanPhase[] = [
   "scenes",
   "inputs",
@@ -161,10 +182,12 @@ export const OBS_PHASES: readonly ObsPlanPhase[] = [
   "remove-inputs",
 ];
 
+/** Selects operations belonging to one execution phase. */
 export function operationsInPhase(plan: ObsPlan, phase: ObsPlanPhase): readonly ObsOperation[] {
   return plan.operations.filter((operation) => operation.phase === phase);
 }
 
+/** Reports duplicate, missing, forward, or cyclic operation dependencies. */
 export function validateOperationDependencies(
   operations: readonly ObsOperation[],
 ): readonly string[] {

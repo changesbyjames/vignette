@@ -14,6 +14,7 @@ export function roundRect(rect: Rect): Rect {
   };
 }
 
+/** Rounds inset values to non-negative whole pixels. */
 export function roundInsets(insets: Insets): Insets {
   return {
     top: Math.max(0, Math.round(insets.top)),

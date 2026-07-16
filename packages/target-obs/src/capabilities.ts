@@ -1,6 +1,7 @@
 import type { ObsProtocolCapabilities } from "./observed-state.js";
 import { obsDiagnostic, type ObsDiagnostic } from "./plan.js";
 
+/** obs-websocket requests required for managed convergence. */
 export const REQUIRED_OBS_REQUESTS: readonly string[] = [
   "GetVersion",
   "GetInputKindList",
@@ -21,6 +22,7 @@ export const REQUIRED_OBS_REQUESTS: readonly string[] = [
   "SetSceneItemEnabled",
 ];
 
+/** Reports required obs-websocket requests that OBS does not advertise. */
 export function validateObsCapabilities(
   capabilities: ObsProtocolCapabilities,
 ): readonly ObsDiagnostic[] {

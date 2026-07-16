@@ -2,6 +2,7 @@ import type { ImageSource } from "@cbj/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
+/** Built-in image element renderer for resolved image assets. */
 export const imageRenderer: DomSourceRenderer<ImageSource> = {
   kind: "source:image",
   create(document) {

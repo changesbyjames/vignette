@@ -10,11 +10,13 @@ const DEFAULT_VIEWPORT: Size = { width: 1920, height: 1080 };
 const FrameOriginContext = createContext<string | undefined>(undefined);
 const FrameRegistrarContext = createContext<FrameRegistrar | undefined>(undefined);
 
+/** Origin and children supplied to frame views during scene composition. */
 export interface FrameProviderProps {
   readonly origin: string;
   readonly children?: ReactNode;
 }
 
+/** Supplies the public HTTP origin used to build frame browser-source URLs. */
 export function FrameProvider(props: FrameProviderProps): ReactElement {
   return createElement(FrameOriginContext.Provider, {
     value: normalizeOrigin(props.origin),
@@ -25,6 +27,7 @@ export function FrameProvider(props: FrameProviderProps): ReactElement {
 /** Receives every frame definition placed by a `<View>` under the provider. */
 export type FrameRegistrar = <Params extends object>(definition: FrameDefinition<Params>) => void;
 
+/** Registrar callback and children supplied by a composer host. */
 export interface FrameRegistrarProviderProps {
   readonly register: FrameRegistrar;
   readonly children?: ReactNode;
@@ -41,6 +44,7 @@ export function FrameRegistrarProvider(props: FrameRegistrarProviderProps): Reac
   });
 }
 
+/** Props for placing a typed React frame as a browser source. */
 export interface ViewProps<Params extends object> extends Omit<
   BrowserViewProps,
   "id" | "sourceId" | "url" | "viewport"
@@ -51,6 +55,7 @@ export interface ViewProps<Params extends object> extends Omit<
   readonly viewport?: Size;
 }
 
+/** Declares and places a typed, parameterized React DOM frame. */
 export function View<Params extends object>(props: ViewProps<Params>): ReactElement {
   const origin = useContext(FrameOriginContext);
   if (origin === undefined) throw new Error("<View> must be rendered inside a <FrameProvider>.");

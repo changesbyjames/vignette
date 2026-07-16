@@ -14,6 +14,7 @@ import { isFrameDefinition, type FrameDefinition, type FrameMetadata } from "./d
 import { serializeFrameParams } from "./serialization.js";
 import { FRAME_ROUTE_PREFIX } from "./view.js";
 
+/** Resolves server and browser modules needed to render and hydrate frames. */
 export interface ModuleHost {
   /**
    * Optional: only needed by hosts that serve frames registered from transform metadata alone
@@ -24,6 +25,7 @@ export interface ModuleHost {
   resolveClientHelper(): string;
 }
 
+/** Node HTTP handler that reports whether it consumed a request. */
 export type NodeRequestHandler = (
   request: IncomingMessage,
   response: ServerResponse,
@@ -34,6 +36,7 @@ interface FrameRouteEntry {
   readonly definition?: FrameDefinition<object>;
 }
 
+/** Registry mapping deterministic frame route keys to frame definitions. */
 export class FrameRouteRegistry {
   readonly #entries = new Map<string, FrameRouteEntry>();
 
@@ -77,6 +80,7 @@ export class FrameRouteRegistry {
   }
 }
 
+/** Creates a Node handler for frame HTML and hydration-module routes. */
 export function createFrameRequestHandler(
   host: ModuleHost,
   registry: FrameRouteRegistry,
@@ -202,6 +206,7 @@ hydrateFrame(definition, JSON.parse(element.textContent));
 `;
 }
 
+/** Vite client manifest location and hydration helper entry. */
 export interface ClientManifestModuleHostOptions {
   /** Directory containing the Vite client build (with `.vite/manifest.json`). */
   readonly clientDirectory: string;

@@ -1,3 +1,4 @@
+/** Deterministic scheduler whose time advances only when requested by a test. */
 export class ManualClock {
   #now = 0;
   readonly #tasks: { at: number; run: () => void }[] = [];

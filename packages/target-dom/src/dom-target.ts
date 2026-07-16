@@ -19,6 +19,7 @@ import {
 import { DomScenePatcher } from "./patch.js";
 import { DomStage } from "./stage.js";
 
+/** Configuration for rendering one compiled scene into a DOM container. */
 export interface DomTargetOptions {
   readonly id?: string;
   readonly container: HTMLElement;
@@ -60,6 +61,7 @@ const DOM_TRANSFORM_CAPABILITIES: readonly Capability[] = [
   "transform:rotation",
 ];
 
+/** Asynchronous DOM render target with latest-wins snapshot convergence. */
 export class DomTarget implements RenderTarget {
   readonly id: string;
   readonly kind = "dom" as const;

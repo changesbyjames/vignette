@@ -22,10 +22,12 @@ interface LocatedSource {
   readonly path: string;
 }
 
+/** Extension source modules used while validating an authoring graph. */
 export interface ValidateBroadcastOptions {
   readonly modules?: SourceModuleMap;
 }
 
+/** Validates IDs, references, sources, layout values, and scene topology. */
 export function validateBroadcast(
   root: BroadcastNode,
   options: ValidateBroadcastOptions = {},

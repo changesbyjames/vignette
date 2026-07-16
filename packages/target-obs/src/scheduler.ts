@@ -24,6 +24,7 @@ import { planObsUpdate } from "./planner.js";
 import { ObsStatusStore } from "./status-store.js";
 import type { ObsTransport } from "./transport.js";
 
+/** Backoff, jitter, and temporary-not-ready retry limits. */
 export interface ObsRetryOptions {
   readonly initialDelayMs?: number;
   readonly maximumDelayMs?: number;
@@ -31,6 +32,7 @@ export interface ObsRetryOptions {
   readonly maximumNotReadyAttempts?: number;
 }
 
+/** Clock, randomness, and timer seam used by the convergence scheduler. */
 export interface ObsSchedulerRuntime {
   readonly now: () => number;
   readonly random: () => number;

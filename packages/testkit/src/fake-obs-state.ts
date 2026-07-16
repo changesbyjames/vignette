@@ -14,6 +14,7 @@ import {
   type ObservedObsState,
 } from "@cbj/vignette-target-obs";
 
+/** Observed state, plan, namespace, and interruption point for fake execution. */
 export interface ApplyFakeObsPlanOptions {
   readonly state: ObservedObsState;
   readonly plan: ObsPlan;
@@ -22,6 +23,7 @@ export interface ApplyFakeObsPlanOptions {
   readonly stopAfter?: number;
 }
 
+/** State and operation keys produced by fake plan execution. */
 export interface FakeObsApplyResult {
   readonly state: ObservedObsState;
   readonly appliedOperationKeys: readonly string[];

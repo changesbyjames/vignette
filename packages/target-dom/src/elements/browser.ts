@@ -2,6 +2,7 @@ import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-co
 
 import type { DomSourceRenderer } from "./types.js";
 
+/** Built-in iframe renderer for browser sources. */
 export const browserRenderer: DomSourceRenderer<BrowserSource> = {
   kind: "source:browser",
   retainWhenHidden(source) {

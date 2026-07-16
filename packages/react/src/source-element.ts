@@ -1,6 +1,7 @@
 import { deepFreeze, type SourceBase } from "@cbj/vignette-core";
 import { createElement, type ReactElement } from "react";
 
+/** Author-facing props for a source definition, excluding its fixed kind discriminator. */
 export type SourceProps<Source extends SourceBase & { readonly kind: `source:${string}` }> = Omit<
   Source,
   "kind"
