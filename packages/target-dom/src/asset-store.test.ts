@@ -9,7 +9,13 @@ describe("DomAssetStore", () => {
   it("downloads named assets and exposes browser-owned blob URLs", async () => {
     const revoked: string[] = [];
     const store = new DomAssetStore({
-      fetch: vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"]), { status: 200 }))),
+      fetch: vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          blob: () => Promise.resolve(new Blob(["image-bytes"])),
+        } as Response),
+      ),
       createObjectURL: () => "blob:vignette/background",
       revokeObjectURL: (url) => revoked.push(url),
     });
