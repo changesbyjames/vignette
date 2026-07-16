@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node composer host, SSE runtime endpoint, and frame routing for Vignette.",
   "private": true,
   "license": "MIT",

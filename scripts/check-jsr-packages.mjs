@@ -59,6 +59,10 @@ for (const candidate of packages) {
       manifest.dependencies?.[dependency] === "workspace:^",
       `${candidate.name} must depend on ${dependency} through workspace:^`,
     );
+    assert(
+      jsr.imports?.[dependency] === `jsr:${dependency}@^${jsr.version}`,
+      `${candidate.name} has a mismatched JSR dependency on ${dependency}`,
+    );
   }
 
   for (const path of ["README.md", "deno.json", "package.json"]) {
