@@ -1,15 +1,12 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
-
 import { createElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { frame, type FrameMetadata } from "./definition.js";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
+  type FrameRequestHandler,
   type ModuleHost,
-  type NodeRequestHandler,
 } from "./server.js";
 
 const metadata: FrameMetadata = {
@@ -18,7 +15,7 @@ const metadata: FrameMetadata = {
   exportName: "greeting",
 };
 
-const greeting = frame.__withMetadata(metadata)({
+const greeting = frame.withMetadata(metadata)({
   params: {
     parse(input: unknown): { name: string } {
       if (
@@ -32,22 +29,6 @@ const greeting = frame.__withMetadata(metadata)({
     },
   },
   view: ({ name }) => createElement("strong", null, `Hello ${name}`),
-});
-
-const servers: ReturnType<typeof createServer>[] = [];
-
-afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve, reject) => {
-          server.close((error) => {
-            if (error === undefined) resolve();
-            else reject(error);
-          });
-        }),
-    ),
-  );
 });
 
 describe("frame request handler", () => {
@@ -181,7 +162,7 @@ function EmptyView(): ReturnType<typeof createElement> {
   return createElement("div");
 }
 
-function createHandler(exports: Record<string, unknown>): NodeRequestHandler {
+function createHandler(exports: Record<string, unknown>): FrameRequestHandler {
   const registry = new FrameRouteRegistry();
   registry.registerFromTransform(metadata);
   return createFrameRequestHandler(
@@ -199,26 +180,11 @@ function createHost(loadModule: NonNullable<ModuleHost["loadModule"]>): ModuleHo
 }
 
 async function request(
-  handler: NodeRequestHandler,
+  handler: FrameRequestHandler,
   path: string,
 ): Promise<{ readonly status: number; readonly headers: Headers; readonly text: string }> {
-  const server = createServer((incoming, outgoing) => {
-    void handleNodeRequest(handler, incoming, outgoing);
-  });
-  servers.push(server);
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
-  const response = await fetch(`http://127.0.0.1:${String(address.port)}${path}`);
+  const response =
+    (await handler(new Request(`https://vignette.test${path}`))) ??
+    new Response("Not handled.", { status: 404 });
   return { status: response.status, headers: response.headers, text: await response.text() };
-}
-
-async function handleNodeRequest(
-  handler: NodeRequestHandler,
-  request: IncomingMessage,
-  response: ServerResponse,
-): Promise<void> {
-  if (!(await handler(request, response))) {
-    response.statusCode = 404;
-    response.end("Not handled.");
-  }
 }

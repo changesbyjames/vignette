@@ -1,7 +1,7 @@
 {
   "name": "@cbj/vignette-server",
-  "version": "0.1.4",
-  "description": "Node composer host, SSE runtime endpoint, and frame routing for Vignette.",
+  "version": "0.2.0",
+  "description": "Fetch API composer host, SSE runtime endpoint, and frame routing for Vignette.",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
     }
   },
   "scripts": {

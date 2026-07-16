@@ -7,7 +7,7 @@ migrations rather than routine dependency bumps.
 ## Data flow
 
 ```text
-Node composer
+Composer host
   React components + hooks
     -> synchronous local authoring graph
     -> validation + Yoga + content fitting
@@ -20,7 +20,7 @@ Node composer
          +-- SSE ----------------------> remote OBSRuntime process (optional)
 ```
 
-React, reconciliation, validation, and common layout run only in the Node composer. The composer
+React, reconciliation, validation, and common layout run only in the composer host. The composer
 does not import a DOM implementation, an OBS client, or runtime status. It publishes one
 target-neutral snapshot after each valid React commit, including commits triggered by hooks and
 timers inside the composed tree.
@@ -77,7 +77,7 @@ protocol. See [`react-frames.md`](react-frames.md).
 
 - `@cbj/vignette-core`: graph vocabulary, immutable snapshots, runtime messages, validation, and
   Yoga.
-- `@cbj/vignette`: Node-side React reconciler, primitives, and `createComposerRoot`.
+- `@cbj/vignette`: host-side React reconciler, primitives, and `createComposerRoot`.
 - `@cbj/vignette-frame`: optional typed browser views, SSR/hydration, and Vite adapter.
 - `@cbj/vignette-target-dom`: browser asset cache and `DOMRuntime`.
 - `@cbj/vignette-target-obs`: temporary-file asset cache, `OBSRuntime`, planner, and transport.

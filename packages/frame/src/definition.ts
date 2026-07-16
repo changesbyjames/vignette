@@ -9,6 +9,8 @@ export interface FrameParamsSchema<Params extends object> {
 export interface FrameOptions<Params extends object> {
   readonly params: FrameParamsSchema<Params>;
   readonly view: ComponentType<Params>;
+  /** Client route metadata for hosts that do not use a build transform. */
+  readonly metadata?: FrameMetadata;
 }
 
 export interface FrameMetadata {
@@ -26,6 +28,10 @@ export interface FrameDefinition<Params extends object> {
 
 interface FrameFactory {
   <Params extends object>(options: FrameOptions<Params>): FrameDefinition<Params>;
+  withMetadata(
+    metadata: FrameMetadata,
+  ): <Params extends object>(options: FrameOptions<Params>) => FrameDefinition<Params>;
+  /** @deprecated Use `frame.withMetadata()` or the `metadata` frame option. */
   __withMetadata(
     metadata: FrameMetadata,
   ): <Params extends object>(options: FrameOptions<Params>) => FrameDefinition<Params>;
@@ -33,7 +39,7 @@ interface FrameFactory {
 
 function defineFrame<Params extends object>(
   options: FrameOptions<Params>,
-  metadata?: FrameMetadata,
+  metadata: FrameMetadata | undefined = options.metadata,
 ): FrameDefinition<Params> {
   return Object.freeze({
     params: options.params,
@@ -46,6 +52,10 @@ function defineFrame<Params extends object>(
 export const frame: FrameFactory = Object.assign(
   <Params extends object>(options: FrameOptions<Params>) => defineFrame(options),
   {
+    withMetadata:
+      (metadata: FrameMetadata) =>
+      <Params extends object>(options: FrameOptions<Params>) =>
+        defineFrame(options, metadata),
     __withMetadata:
       (metadata: FrameMetadata) =>
       <Params extends object>(options: FrameOptions<Params>) =>

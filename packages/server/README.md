@@ -1,8 +1,8 @@
 # @cbj/vignette-server
 
-Node orchestration for a persistent Vignette composer. `ComposerHost` joins the React root, runtime
-message replay hub, `/runtime` SSE endpoint, and typed frame routes while leaving HTTP server and
-target process ownership to the application.
+Platform-neutral orchestration for a persistent Vignette composer. `ComposerHost` joins the React
+root, runtime message replay hub, `/runtime` SSE endpoint, and typed frame routes behind the Web
+Fetch API while leaving server and target process ownership to the application.
 
 ## Install
 
@@ -25,17 +25,16 @@ const host = createComposerHost({
 });
 
 host.addEventListener("error", (event) => console.error(event.error));
-server.on("request", (request, response) => {
-  void host.handleRequest(request, response).then((handled) => {
-    if (!handled) response.writeHead(404).end();
-  });
-});
 await host.start();
+
+export default { fetch: host.fetch };
 ```
 
-Attach the HTTP server before `start()`. `connect(runtime)` transfers runtime ownership to the host;
-`close()` disposes connected runtimes and the composer. Supply a frame `ModuleHost` from
-`@cbj/vignette-frame/vite` in development or `@cbj/vignette-frame/server` in production.
+For Node HTTP, pass the host to `createNodeRequestHandler` from `@cbj/vignette-server/node`.
+`connect(runtime)` transfers runtime ownership to the host; `close()` disposes connected runtimes
+and the composer. Supply a frame `ModuleHost` from `@cbj/vignette-frame/vite` in development,
+`@cbj/vignette-frame/server` for an injected manifest, or `@cbj/vignette-frame/server/node` for a
+filesystem-backed production manifest.
 
 For a deployable host/worker split, the worker consumes the host's SSE URL with the DOM or OBS
 target package. See the repository kitchen-sink example for Vite client and SSR builds.

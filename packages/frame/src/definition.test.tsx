@@ -6,8 +6,23 @@ import { frame } from "./definition.js";
 import { FrameProvider, View } from "./view.js";
 
 describe("frame View", () => {
+  it("accepts supported metadata without a build transform", () => {
+    const metadata = {
+      routeKey: "greeting-manual",
+      moduleUrl: "/frames/greeting.js",
+      exportName: "greeting",
+    };
+    const greeting = frame({
+      metadata,
+      params: { parse: (input: unknown) => input as object },
+      view: () => <div />,
+    });
+
+    expect(greeting.metadata).toEqual(metadata);
+  });
+
   it("validates params and lowers to an ordinary browser source snapshot", async () => {
-    const greeting = frame.__withMetadata({
+    const greeting = frame.withMetadata({
       routeKey: "greeting-abc123",
       moduleUrl: "/src/greeting.frame.tsx",
       exportName: "greeting",
@@ -52,7 +67,7 @@ describe("frame View", () => {
   });
 
   it("rejects invalid params at the authoring boundary", async () => {
-    const greeting = frame.__withMetadata({
+    const greeting = frame.withMetadata({
       routeKey: "greeting-abc123",
       moduleUrl: "/src/greeting.frame.tsx",
       exportName: "greeting",

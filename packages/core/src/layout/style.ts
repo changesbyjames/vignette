@@ -1,20 +1,10 @@
-import {
-  Align as YogaAlign,
-  BoxSizing,
-  Edge,
-  FlexDirection as YogaFlexDirection,
-  Gutter,
-  Justify,
-  Overflow,
-  PositionType,
-  type Node as YogaNode,
-} from "yoga-layout";
+import type { Node as YogaNode, Yoga } from "yoga-layout/load";
 
 import type { Align, Edges, LayoutStyle, Length } from "../authoring.js";
 
-export function applyLayoutStyle(node: YogaNode, style: LayoutStyle | undefined): void {
-  node.setBoxSizing(BoxSizing.BorderBox);
-  node.setFlexDirection(YogaFlexDirection.Column);
+export function applyLayoutStyle(yoga: Yoga, node: YogaNode, style: LayoutStyle | undefined): void {
+  node.setBoxSizing(yoga.BOX_SIZING_BORDER_BOX);
+  node.setFlexDirection(yoga.FLEX_DIRECTION_COLUMN);
   if (style === undefined) return;
 
   node.setWidth(style.width);
@@ -31,10 +21,10 @@ export function applyLayoutStyle(node: YogaNode, style: LayoutStyle | undefined)
   if (style.flexDirection !== undefined) {
     node.setFlexDirection(
       {
-        row: YogaFlexDirection.Row,
-        "row-reverse": YogaFlexDirection.RowReverse,
-        column: YogaFlexDirection.Column,
-        "column-reverse": YogaFlexDirection.ColumnReverse,
+        row: yoga.FLEX_DIRECTION_ROW,
+        "row-reverse": yoga.FLEX_DIRECTION_ROW_REVERSE,
+        column: yoga.FLEX_DIRECTION_COLUMN,
+        "column-reverse": yoga.FLEX_DIRECTION_COLUMN_REVERSE,
       }[style.flexDirection],
     );
   }
@@ -42,67 +32,68 @@ export function applyLayoutStyle(node: YogaNode, style: LayoutStyle | undefined)
   if (style.justifyContent !== undefined) {
     node.setJustifyContent(
       {
-        "flex-start": Justify.FlexStart,
-        center: Justify.Center,
-        "flex-end": Justify.FlexEnd,
-        "space-between": Justify.SpaceBetween,
-        "space-around": Justify.SpaceAround,
-        "space-evenly": Justify.SpaceEvenly,
+        "flex-start": yoga.JUSTIFY_FLEX_START,
+        center: yoga.JUSTIFY_CENTER,
+        "flex-end": yoga.JUSTIFY_FLEX_END,
+        "space-between": yoga.JUSTIFY_SPACE_BETWEEN,
+        "space-around": yoga.JUSTIFY_SPACE_AROUND,
+        "space-evenly": yoga.JUSTIFY_SPACE_EVENLY,
       }[style.justifyContent],
     );
   }
 
-  if (style.alignItems !== undefined) node.setAlignItems(toYogaAlign(style.alignItems));
-  if (style.alignSelf !== undefined) node.setAlignSelf(toYogaAlign(style.alignSelf));
+  if (style.alignItems !== undefined) node.setAlignItems(toYogaAlign(yoga, style.alignItems));
+  if (style.alignSelf !== undefined) node.setAlignSelf(toYogaAlign(yoga, style.alignSelf));
 
   if (style.position !== undefined) {
     node.setPositionType(
-      style.position === "absolute" ? PositionType.Absolute : PositionType.Relative,
+      style.position === "absolute" ? yoga.POSITION_TYPE_ABSOLUTE : yoga.POSITION_TYPE_RELATIVE,
     );
   }
 
   if (style.overflow !== undefined) {
-    node.setOverflow(style.overflow === "hidden" ? Overflow.Hidden : Overflow.Visible);
+    node.setOverflow(style.overflow === "hidden" ? yoga.OVERFLOW_HIDDEN : yoga.OVERFLOW_VISIBLE);
   }
 
-  if (style.gap !== undefined) node.setGap(Gutter.All, style.gap);
-  if (style.rowGap !== undefined) node.setGap(Gutter.Row, style.rowGap);
-  if (style.columnGap !== undefined) node.setGap(Gutter.Column, style.columnGap);
+  if (style.gap !== undefined) node.setGap(yoga.GUTTER_ALL, style.gap);
+  if (style.rowGap !== undefined) node.setGap(yoga.GUTTER_ROW, style.rowGap);
+  if (style.columnGap !== undefined) node.setGap(yoga.GUTTER_COLUMN, style.columnGap);
 
-  applyEdges(style.margin, (edge, value) => {
+  applyEdges(yoga, style.margin, (edge, value) => {
     node.setMargin(edge, value);
   });
-  applyEdges(style.padding, (edge, value) => {
+  applyEdges(yoga, style.padding, (edge, value) => {
     if (value !== "auto") node.setPadding(edge, value);
   });
-  applyEdges(style.inset, (edge, value) => {
+  applyEdges(yoga, style.inset, (edge, value) => {
     if (value === "auto") node.setPositionAuto(edge);
     else node.setPosition(edge, value);
   });
 }
 
 function applyEdges(
+  yoga: Yoga,
   edges: Edges<Length> | undefined,
-  apply: (edge: Edge, value: Length) => void,
+  apply: (edge: Parameters<YogaNode["setMargin"]>[0], value: Length) => void,
 ): void {
   if (edges === undefined) return;
   if (typeof edges === "number" || typeof edges === "string") {
-    apply(Edge.All, edges);
+    apply(yoga.EDGE_ALL, edges);
     return;
   }
 
-  if (edges.left !== undefined) apply(Edge.Left, edges.left);
-  if (edges.top !== undefined) apply(Edge.Top, edges.top);
-  if (edges.right !== undefined) apply(Edge.Right, edges.right);
-  if (edges.bottom !== undefined) apply(Edge.Bottom, edges.bottom);
+  if (edges.left !== undefined) apply(yoga.EDGE_LEFT, edges.left);
+  if (edges.top !== undefined) apply(yoga.EDGE_TOP, edges.top);
+  if (edges.right !== undefined) apply(yoga.EDGE_RIGHT, edges.right);
+  if (edges.bottom !== undefined) apply(yoga.EDGE_BOTTOM, edges.bottom);
 }
 
-function toYogaAlign(align: Align): YogaAlign {
+function toYogaAlign(yoga: Yoga, align: Align): Parameters<YogaNode["setAlignItems"]>[0] {
   return {
-    auto: YogaAlign.Auto,
-    "flex-start": YogaAlign.FlexStart,
-    center: YogaAlign.Center,
-    "flex-end": YogaAlign.FlexEnd,
-    stretch: YogaAlign.Stretch,
+    auto: yoga.ALIGN_AUTO,
+    "flex-start": yoga.ALIGN_FLEX_START,
+    center: yoga.ALIGN_CENTER,
+    "flex-end": yoga.ALIGN_FLEX_END,
+    stretch: yoga.ALIGN_STRETCH,
   }[align];
 }

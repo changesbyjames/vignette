@@ -6,7 +6,13 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const rootPackage = readJson("package.json");
 const packages = [
-  packageConfig("packages/core", "@cbj/vignette-core", [".", "./builders"]),
+  packageConfig("packages/core", "@cbj/vignette-core", [
+    ".",
+    "./builders",
+    "./layout-yoga",
+    "./runtime",
+    "./sse",
+  ]),
   packageConfig(
     "packages/target-dom",
     "@cbj/vignette-target-dom",
@@ -18,13 +24,13 @@ const packages = [
   packageConfig(
     "packages/frame",
     "@cbj/vignette-frame",
-    [".", "./client", "./server", "./vite"],
+    [".", "./client", "./server", "./server/node", "./transform", "./vite"],
     ["@cbj/vignette-core", "@cbj/vignette"],
   ),
   packageConfig(
     "packages/server",
     "@cbj/vignette-server",
-    ["."],
+    [".", "./node"],
     ["@cbj/vignette-core", "@cbj/vignette-frame", "@cbj/vignette"],
   ),
   packageConfig(

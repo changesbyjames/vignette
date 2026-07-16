@@ -5,6 +5,7 @@ import {
   sourceId,
   type ColorSource as ColorSourceDefinition,
   type CompiledSnapshot,
+  type LayoutEngine,
 } from "@cbj/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -13,6 +14,33 @@ import { Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
 import { createComposerRoot } from "./root.js";
 
 describe("createComposerRoot", () => {
+  it("uses a supplied layout engine without requiring the default Yoga binding", async () => {
+    const layout = vi.fn<LayoutEngine["layout"]>((nodes, canvas) =>
+      nodes.map((node, index) => ({
+        node,
+        frame: { x: 0, y: 0, width: canvas.width, height: canvas.height },
+        path: `children[${String(index)}]`,
+        children: [],
+      })),
+    );
+    const root = createComposerRoot({
+      projectId: projectId("injected-layout"),
+      canvas: { width: 640, height: 360 },
+      layoutEngine: { layout },
+    });
+
+    await root.render(show("#112233"));
+
+    expect(layout).toHaveBeenCalledOnce();
+    expect(root.getSnapshot()?.scenes[0]?.items[0]?.frame).toEqual({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 360,
+    });
+    await root.dispose();
+  });
+
   it("compiles one neutral snapshot and replays it to late subscribers", async () => {
     const root = makeRoot();
     await root.render(show("#112233"));

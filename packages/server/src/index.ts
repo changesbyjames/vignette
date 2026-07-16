@@ -1,28 +1,29 @@
 /**
- * Node composer host that serves runtime SSE and typed frame routes.
+ * Platform-neutral composer host that serves runtime SSE and typed frame routes.
  *
  * @module
  */
+import type {
+  AssetManifest,
+  BroadcastCanvas,
+  LayoutEngine,
+  ProjectId,
+  SourceModule,
+} from "@cbj/vignette-core";
 import {
   consumeRuntimeMessages,
-  encodeRuntimeMessageSse,
   RuntimeMessageHub,
-  type AssetManifest,
-  type BroadcastCanvas,
-  type ProjectId,
-  type RuntimeMessage,
   type SnapshotRuntime,
-  type SourceModule,
-} from "@cbj/vignette-core";
+} from "@cbj/vignette-core/runtime";
+import { encodeRuntimeMessageSse } from "@cbj/vignette-core/sse";
 import { FrameProvider, FrameRegistrarProvider } from "@cbj/vignette-frame";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
+  type FrameRequestHandler,
   type ModuleHost,
-  type NodeRequestHandler,
 } from "@cbj/vignette-frame/server";
 import { createComposerRoot } from "@cbj/vignette";
-import type { ServerResponse } from "node:http";
 import { createElement, type ReactElement } from "react";
 
 /** Composer, frame, manifest, and runtime options owned by a persistent host. */
@@ -30,6 +31,7 @@ export interface ComposerHostOptions {
   readonly projectId: ProjectId;
   readonly canvas: BroadcastCanvas;
   readonly extensions?: readonly SourceModule[];
+  readonly layoutEngine?: LayoutEngine;
   /** The scene to compose, or a factory for hosts that must load it asynchronously. */
   readonly scene: ReactElement | (() => ReactElement | Promise<ReactElement>);
   /**
@@ -66,7 +68,7 @@ export class ComposerHost extends EventTarget {
   readonly #root: ReturnType<typeof createComposerRoot>;
   readonly #unsubscribeSnapshots: () => void;
   readonly #frameRegistry: FrameRouteRegistry;
-  readonly #handleFrameRequest: NodeRequestHandler;
+  readonly #handleFrameRequest: FrameRequestHandler;
   readonly #connections: RuntimeConnection[] = [];
   #hasErrorListener = false;
   #closed = false;
@@ -83,6 +85,7 @@ export class ComposerHost extends EventTarget {
       projectId: options.projectId,
       canvas: options.canvas,
       ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
+      ...(options.layoutEngine === undefined ? {} : { layoutEngine: options.layoutEngine }),
       onError: (error) => {
         this.#reportError(error);
       },
@@ -162,24 +165,18 @@ export class ComposerHost extends EventTarget {
     return this.#closePromise;
   }
 
-  readonly handleRequest: NodeRequestHandler = async (request, response) => {
-    if (await this.#handleFrameRequest(request, response)) return true;
-    if (request.url === undefined) return false;
-
-    const url = new URL(request.url, "http://vignette.local");
-    if (url.pathname !== "/runtime") return false;
-
-    const controller = new AbortController();
-    response.once("close", () => {
-      controller.abort();
-    });
-    void streamMessages(response, this.hub.subscribe(controller.signal), controller.signal).catch(
-      (cause: unknown) => {
-        this.#reportError(cause);
-      },
-    );
-    return true;
+  /** Reports whether a frame or runtime route consumed a Web Fetch API request. */
+  readonly handleRequest = async (request: Request): Promise<Response | undefined> => {
+    const frameResponse = await this.#handleFrameRequest(request);
+    if (frameResponse !== undefined) return frameResponse;
+    const url = new URL(request.url);
+    if (url.pathname !== "/runtime") return undefined;
+    return this.#createRuntimeResponse(request.signal);
   };
+
+  /** Standard Fetch API entrypoint returning 404 for routes the host does not own. */
+  readonly fetch = async (request: Request): Promise<Response> =>
+    (await this.handleRequest(request)) ?? new Response("Not found.", { status: 404 });
 
   override addEventListener(
     type: "error",
@@ -223,6 +220,47 @@ export class ComposerHost extends EventTarget {
   #isClosed(): boolean {
     return this.#closed;
   }
+
+  #createRuntimeResponse(requestSignal: AbortSignal): Response {
+    const abort = new AbortController();
+    const cancel = () => {
+      abort.abort();
+    };
+    requestSignal.addEventListener("abort", cancel, { once: true });
+    const messages = this.hub.subscribe(abort.signal);
+    const encoder = new TextEncoder();
+    const reportError = (cause: unknown) => {
+      this.#reportError(cause);
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        void (async () => {
+          try {
+            for await (const message of messages) {
+              if (abort.signal.aborted) return;
+              controller.enqueue(encoder.encode(encodeRuntimeMessageSse(message)));
+            }
+          } catch (cause) {
+            if (!abort.signal.aborted) reportError(cause);
+          } finally {
+            requestSignal.removeEventListener("abort", cancel);
+            try {
+              controller.close();
+            } catch {
+              // Cancellation may already have closed the stream.
+            }
+          }
+        })();
+      },
+      cancel,
+    });
+    return new Response(stream, {
+      headers: {
+        "Cache-Control": "no-cache, no-transform",
+        "Content-Type": "text/event-stream",
+      },
+    });
+  }
 }
 
 /** Creates a persistent composer host for HTTP and runtime integrations. */
@@ -235,26 +273,6 @@ function createUnconfiguredModuleHost(): ModuleHost {
     throw new Error("Composer host has no frame module host configured (options.frames).");
   };
   return { resolveClientModule: fail, resolveClientHelper: fail };
-}
-
-async function streamMessages(
-  response: ServerResponse,
-  messages: AsyncIterable<RuntimeMessage>,
-  signal: AbortSignal,
-): Promise<void> {
-  response.writeHead(200, {
-    "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive",
-    "Content-Type": "text/event-stream",
-  });
-  try {
-    for await (const message of messages) {
-      if (signal.aborted) return;
-      response.write(encodeRuntimeMessageSse(message));
-    }
-  } finally {
-    if (!response.writableEnded) response.end();
-  }
 }
 
 async function settle(operation: Promise<void>): Promise<Error | undefined> {

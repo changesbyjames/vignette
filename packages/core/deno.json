@@ -1,11 +1,14 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-core",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./builders": "./src/builders.ts"
+    "./builders": "./src/builders.ts",
+    "./layout-yoga": "./src/layout/layout-yoga.ts",
+    "./runtime": "./src/runtime-api.ts",
+    "./sse": "./src/sse-codec.ts"
   },
   "publish": {
     "include": ["README.md", "package.json", "src/**/*.ts"],

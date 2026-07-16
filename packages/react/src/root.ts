@@ -4,6 +4,7 @@ import {
   type BroadcastCanvas,
   type CompiledSnapshot,
   type Diagnostic,
+  type LayoutEngine,
   type ProjectId,
   type SourceModule,
   type SourceModuleMap,
@@ -22,6 +23,8 @@ export interface ComposerRootOptions {
   readonly strictMode?: boolean;
   /** Source modules contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly SourceModule[];
+  /** Layout implementation. Defaults to the yoga-layout binding when omitted. */
+  readonly layoutEngine?: LayoutEngine;
   readonly onError?: (error: Error) => void;
 }
 
@@ -173,11 +176,11 @@ class ComposerRootImpl implements ComposerRoot {
     });
     queueMicrotask(() => {
       this.#compileScheduled = false;
-      this.compileLatest();
+      void this.compileLatest();
     });
   }
 
-  private compileLatest(): void {
+  private async compileLatest(): Promise<void> {
     if (this.#disposed) return;
     const revision = this.#container.commitRevision;
     const renderFailure = this.#renderFailures.get(revision);
@@ -193,9 +196,12 @@ class ComposerRootImpl implements ComposerRoot {
     }
 
     try {
+      const layoutEngine = this.#options.layoutEngine ?? (await loadDefaultLayoutEngine());
+      if (this.isDisposed()) return;
       const result = compileBroadcast(hostTreeToBroadcast(this.#container), {
         revision,
         modules: this.#modules,
+        layoutEngine,
       });
       if (!result.ok) throw new CompileFailure(result.diagnostics);
       this.publish(result.snapshot, result.diagnostics);
@@ -269,6 +275,19 @@ class ComposerRootImpl implements ComposerRoot {
   private assertActive(): void {
     if (this.#disposed) throw new Error("Composer root is disposed.");
   }
+
+  private isDisposed(): boolean {
+    return this.#disposed;
+  }
+}
+
+let defaultLayoutEngine: Promise<LayoutEngine> | undefined;
+
+function loadDefaultLayoutEngine(): Promise<LayoutEngine> {
+  defaultLayoutEngine ??= import(/* @vite-ignore */ "@cbj/vignette-core/layout-yoga").then(
+    (module: { yogaLayoutEngine: LayoutEngine }) => Promise.resolve(module.yogaLayoutEngine),
+  );
+  return defaultLayoutEngine;
 }
 
 class CompileFailure extends Error {

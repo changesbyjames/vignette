@@ -7,13 +7,14 @@ import { resolveSourceModules, type SourceModuleMap } from "../source-module.js"
 import type { AnySourceDefinition } from "../sources.js";
 import { validateBroadcast } from "../validation.js";
 import { calculateContentPlacement } from "./content-fit.js";
+import type { LayoutEngine, LayoutRecord } from "./layout-engine.js";
 import { roundRect } from "./rounding.js";
-import { YogaSceneTree, type YogaLayoutRecord } from "./yoga-runtime.js";
 
 /** Inputs controlling one authoring-graph compilation. */
 export interface CompileOptions {
   readonly revision: number;
   readonly modules?: SourceModuleMap;
+  readonly layoutEngine: LayoutEngine;
 }
 
 /** Successful immutable snapshot compilation or deterministic diagnostics. */
@@ -51,11 +52,9 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
   const compiledScenes: CompiledScene[] = [];
 
   for (const scene of collectScenes(root)) {
-    const tree = YogaSceneTree.create(scene.children, root.canvas);
     try {
-      tree.calculate(root.canvas);
       const items: CompiledItem[] = [];
-      tree.records.forEach((record) => {
+      options.layoutEngine.layout(scene.children, root.canvas).forEach((record) => {
         compileRecord(record, { x: 0, y: 0 }, undefined, sourcesById, items, diagnostics);
       });
       compiledScenes.push(
@@ -69,12 +68,10 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
           "LAYOUT_COMPILE_FAILED",
           "error",
           `scene.${scene.id}`,
-          error instanceof Error ? error.message : "Yoga layout failed with an unknown error.",
+          error instanceof Error ? error.message : "Layout failed with an unknown error.",
           [scene.id],
         ),
       );
-    } finally {
-      tree.dispose();
     }
   }
 
@@ -108,17 +105,17 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
 }
 
 function compileRecord(
-  record: YogaLayoutRecord,
+  record: LayoutRecord,
   parentOrigin: Readonly<{ x: number; y: number }>,
   inheritedClip: Rect | null | undefined,
   sourcesById: ReadonlyMap<string, CompiledSource>,
   items: CompiledItem[],
   diagnostics: Diagnostic[],
 ): void {
-  const layout = record.yoga.getComputedLayout();
+  const layout = record.frame;
   const rawFrame: Rect = {
-    x: parentOrigin.x + layout.left,
-    y: parentOrigin.y + layout.top,
+    x: parentOrigin.x + layout.x,
+    y: parentOrigin.y + layout.y,
     width: layout.width,
     height: layout.height,
   };

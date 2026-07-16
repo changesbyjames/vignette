@@ -72,7 +72,7 @@ frame request it:
 
 1. loads the original module through Vite's server module pipeline;
 2. decodes and validates the URL params;
-3. renders the React component to HTML in Node;
+3. renders the React component to HTML in the server runtime;
 4. serves an external hydration module that imports the same frame export in the browser; and
 5. calls `hydrateRoot()` with the same validated props.
 
@@ -84,10 +84,10 @@ The route handler itself is host-agnostic and lives in `@cbj/vignette-frame/serv
 (`createFrameRequestHandler` plus `FrameRouteRegistry`); the Vite plugin is a thin development
 binding that supplies module loading and client-URL resolution through the `ModuleHost` seam. Placed
 `<View>`s register their frame definitions at render time through `FrameRegistrarProvider`, so hosts
-need no frame-module lists: in production the same handler runs in a plain Node server, serves SSR
-straight from the in-memory definitions, and resolves hydration imports through the Vite client
-build manifest (`createClientManifestModuleHost`). See [`deployment.md`](deployment.md) for the
-production topology.
+need no frame-module lists: in production the same Fetch API handler serves SSR straight from the
+in-memory definitions and resolves hydration imports through a supplied Vite client build manifest
+(`createClientManifestModuleHost`). Node hosts can use the filesystem-backed adapter from
+`@cbj/vignette-frame/server/node`. See [`deployment.md`](deployment.md) for the production topology.
 
 ## Parameter and security contract
 

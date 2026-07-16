@@ -15,8 +15,9 @@ pnpm add jsr:@cbj/vignette-core
 ```ts
 import { compileBroadcast, projectId, sceneId, sourceId, layerId } from "@cbj/vignette-core";
 import { broadcast, colorSource, layer, scene, sources } from "@cbj/vignette-core/builders";
+import { yogaLayoutEngine } from "@cbj/vignette-core/layout-yoga";
 
-const snapshot = compileBroadcast(
+const result = compileBroadcast(
   broadcast({
     projectId: projectId("demo"),
     canvas: { width: 1920, height: 1080, frameRate: 60 },
@@ -28,9 +29,13 @@ const snapshot = compileBroadcast(
       }),
     ],
   }),
-  1,
+  { revision: 1, layoutEngine: yogaLayoutEngine },
 );
 ```
+
+`compileBroadcast` accepts any synchronous `LayoutEngine`. The `./layout-yoga` entrypoint exports
+the default binding plus `createYogaLayoutEngine(yoga)` for a Yoga instance initialized by the host.
+Runtime-only consumers can import `./runtime` and `./sse` without loading the layout compiler.
 
 Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use
 `RuntimeMessageHub`, `consumeRuntimeMessages`, and the SSE codecs to connect a composer to one or

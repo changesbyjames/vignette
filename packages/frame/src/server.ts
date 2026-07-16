@@ -1,14 +1,11 @@
 /**
- * Node request handling and production module hosting for Vignette frames.
+ * Fetch API request handling and production module hosting for Vignette frames.
  *
  * @module
  */
 import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/vignette-core";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { readFile } from "node:fs/promises";
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { resolve } from "node:path";
 
 import { isFrameDefinition, type FrameDefinition, type FrameMetadata } from "./definition.js";
 import { serializeFrameParams } from "./serialization.js";
@@ -25,11 +22,8 @@ export interface ModuleHost {
   resolveClientHelper(): string;
 }
 
-/** Node HTTP handler that reports whether it consumed a request. */
-export type NodeRequestHandler = (
-  request: IncomingMessage,
-  response: ServerResponse,
-) => Promise<boolean>;
+/** Fetch API handler that returns undefined when it does not consume a request. */
+export type FrameRequestHandler = (request: Request) => Promise<Response | undefined>;
 
 interface FrameRouteEntry {
   readonly metadata: FrameMetadata;
@@ -80,24 +74,23 @@ export class FrameRouteRegistry {
   }
 }
 
-/** Creates a Node handler for frame HTML and hydration-module routes. */
+/** Creates a platform-neutral handler for frame HTML and hydration-module routes. */
 export function createFrameRequestHandler(
   host: ModuleHost,
   registry: FrameRouteRegistry,
-): NodeRequestHandler {
-  return async (request, response) => {
-    if (request.url === undefined) return false;
-    const url = new URL(request.url, "http://vignette.local");
-    if (!url.pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return false;
+): FrameRequestHandler {
+  return async (request) => {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return undefined;
 
     try {
-      await handleFrameRequest(host, registry, url, response);
+      return await handleFrameRequest(host, registry, url);
     } catch (error: unknown) {
-      response.statusCode = error instanceof FrameRequestError ? error.statusCode : 500;
-      response.setHeader("Content-Type", "text/plain; charset=utf-8");
-      response.end(error instanceof Error ? error.message : "Frame request failed.");
+      return new Response(error instanceof Error ? error.message : "Frame request failed.", {
+        status: error instanceof FrameRequestError ? error.statusCode : 500,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     }
-    return true;
   };
 }
 
@@ -105,8 +98,7 @@ async function handleFrameRequest(
   host: ModuleHost,
   registry: FrameRouteRegistry,
   url: URL,
-  response: ServerResponse,
-): Promise<void> {
+): Promise<Response> {
   const route = url.pathname.slice(FRAME_ROUTE_PREFIX.length + 1).split("/");
   const routeKey = route[0];
   if (routeKey === undefined || routeKey.length === 0 || route.length > 2) {
@@ -118,11 +110,12 @@ async function handleFrameRequest(
 
   if (route.length === 2) {
     if (route[1] !== "hydrate.js") throw new FrameRequestError(404, "Frame route not found.");
-    response.statusCode = 200;
-    response.setHeader("Cache-Control", "no-store");
-    response.setHeader("Content-Type", "text/javascript; charset=utf-8");
-    response.end(createHydrationModule(host, registration));
-    return;
+    return new Response(createHydrationModule(host, registration), {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/javascript; charset=utf-8",
+      },
+    });
   }
 
   const definition = entry.definition ?? (await loadFrameDefinition(host, registration));
@@ -145,10 +138,9 @@ async function handleFrameRequest(
   }
   const serialized = serializeFrameParams(params);
   const markup = renderToString(createElement(definition.view, params));
-  response.statusCode = 200;
-  response.setHeader("Cache-Control", "no-store");
-  response.setHeader("Content-Type", "text/html; charset=utf-8");
-  response.end(createFrameHtml(registration, serialized, markup));
+  return new Response(createFrameHtml(registration, serialized, markup), {
+    headers: { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8" },
+  });
 }
 
 async function loadFrameDefinition(
@@ -206,10 +198,9 @@ hydrateFrame(definition, JSON.parse(element.textContent));
 `;
 }
 
-/** Vite client manifest location and hydration helper entry. */
+/** Parsed Vite client manifest and hydration helper entry. */
 export interface ClientManifestModuleHostOptions {
-  /** Directory containing the Vite client build (with `.vite/manifest.json`). */
-  readonly clientDirectory: string;
+  readonly manifest: unknown;
   /** Manifest key of the entry that re-exports `hydrateFrame`, e.g. "src/frame-client-entry.ts". */
   readonly clientHelperEntry: string;
 }
@@ -219,11 +210,10 @@ export interface ClientManifestModuleHostOptions {
  * client build manifest. Frame SSR uses definitions registered at render time, so no module
  * loading is required.
  */
-export async function createClientManifestModuleHost(
+export function createClientManifestModuleHost(
   options: ClientManifestModuleHostOptions,
-): Promise<ModuleHost> {
-  const manifestPath = resolve(options.clientDirectory, ".vite/manifest.json");
-  const manifest = readClientManifest(JSON.parse(await readFile(manifestPath, "utf8")));
+): ModuleHost {
+  const manifest = readClientManifest(options.manifest);
 
   const resolveClientEntry = (sourceUrl: string): string => {
     const file = manifest[sourceUrl.replace(/^\//u, "")];

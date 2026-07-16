@@ -2,6 +2,7 @@
 
 import { compileBroadcast } from "@cbj/vignette-core";
 import { broadcast, colorSource, layer, scene, sources } from "@cbj/vignette-core/builders";
+import { yogaLayoutEngine } from "@cbj/vignette-core/layout-yoga";
 import { describe, expect, it } from "vitest";
 
 import { DOMRuntime } from "./runtime.js";
@@ -25,7 +26,7 @@ describe("DOMRuntime external store", () => {
           }),
         ],
       }),
-      { revision: 1 },
+      { revision: 1, layoutEngine: yogaLayoutEngine },
     );
     expect(compiled.ok).toBe(true);
     if (!compiled.ok) return;

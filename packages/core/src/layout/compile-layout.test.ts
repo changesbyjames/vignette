@@ -12,6 +12,7 @@ import {
   sources,
 } from "../builders.js";
 import { compileBroadcast } from "./compile-layout.js";
+import { yogaLayoutEngine } from "./layout-yoga.js";
 
 describe("compileBroadcast", () => {
   it("flattens a Yoga tree into deterministic absolute items", () => {
@@ -72,7 +73,7 @@ describe("compileBroadcast", () => {
       ],
     });
 
-    const result = compileBroadcast(graph, { revision: 7 });
+    const result = compileBroadcast(graph, { revision: 7, layoutEngine: yogaLayoutEngine });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -84,7 +85,7 @@ describe("compileBroadcast", () => {
       { id: "programme.video", frame: { x: 48, y: 48, width: 896, height: 984 } },
       { id: "programme.web", frame: { x: 976, y: 48, width: 896, height: 984 } },
     ]);
-    const repeated = compileBroadcast(graph, { revision: 7 });
+    const repeated = compileBroadcast(graph, { revision: 7, layoutEngine: yogaLayoutEngine });
     expect(repeated.ok).toBe(true);
     if (repeated.ok)
       expect(JSON.stringify(result.snapshot)).toBe(JSON.stringify(repeated.snapshot));

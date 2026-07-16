@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-core",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for Vignette.",
   "private": true,
   "license": "MIT",
@@ -14,6 +14,18 @@
     "./builders": {
       "types": "./dist/builders.d.ts",
       "default": "./dist/builders.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime-api.d.ts",
+      "default": "./dist/runtime-api.js"
+    },
+    "./sse": {
+      "types": "./dist/sse-codec.d.ts",
+      "default": "./dist/sse-codec.js"
+    },
+    "./layout-yoga": {
+      "types": "./dist/layout/layout-yoga.d.ts",
+      "default": "./dist/layout/layout-yoga.js"
     }
   },
   "scripts": {

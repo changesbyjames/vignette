@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ComposerErrorEvent, createComposerHost } from "./index.js";
+import { createNodeRequestHandler } from "./node.js";
 
 const manifest: AssetManifest = Object.freeze({ version: 1, assets: Object.freeze([]) });
 
@@ -128,8 +129,9 @@ describe("createComposerHost", () => {
   it("replays setup and the latest update to a late HTTP SSE subscriber", async () => {
     const host = createHost();
     await host.start();
+    const handleRequest = createNodeRequestHandler(host);
     const server = createServer((request, response) => {
-      void host.handleRequest(request, response).then((handled: boolean) => {
+      void handleRequest(request, response).then((handled: boolean) => {
         if (handled) return;
         response.statusCode = 404;
         response.end();
@@ -170,12 +172,9 @@ describe("createComposerHost", () => {
 
   it("returns false for unrelated requests", async () => {
     const host = createHost();
-    const handled = await host.handleRequest(
-      { url: "/health" } as Parameters<typeof host.handleRequest>[0],
-      {} as Parameters<typeof host.handleRequest>[1],
-    );
+    const handled = await host.handleRequest(new Request("https://vignette.test/health"));
 
-    expect(handled).toBe(false);
+    expect(handled).toBeUndefined();
     await host.close();
   });
 });

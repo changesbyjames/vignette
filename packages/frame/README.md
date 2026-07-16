@@ -36,9 +36,13 @@ export default defineConfig({ plugins: [vignetteFrames()] });
 ```
 
 `./vite` provides development discovery and module hosting. `./server` provides
-`FrameRouteRegistry`, `createFrameRequestHandler`, and the production manifest module host.
-`./client` exports the hydration helper. `@cbj/vignette-server` wires these seams together for the
-common host topology.
+`FrameRouteRegistry`, a Fetch API `createFrameRequestHandler`, and an injected-manifest module host.
+`./server/node` adds Node HTTP and filesystem adapters. `./transform` exposes the frame source
+transform without Vite or Node. `./client` exports the hydration helper. `@cbj/vignette-server`
+wires these seams together for the common host topology.
+
+Hosts that cannot run the transform can provide supported metadata directly with
+`frame({ metadata, params, view })`.
 
 Frame parameters must be serializable and are parsed on both placement and request. Keep frame
 modules browser-safe. The configured public origin must be reachable by every browser and OBS host

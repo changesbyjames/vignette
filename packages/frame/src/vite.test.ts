@@ -11,7 +11,7 @@ export const greeting = defineFrame({ params: schema, view: Greeting });`,
       "/workspace",
     );
 
-    expect(transformed?.code).toContain('defineFrame.__withMetadata({"routeKey":"greeting-');
+    expect(transformed?.code).toContain('defineFrame.withMetadata({"routeKey":"greeting-');
     expect(transformed?.code).toContain('"moduleUrl":"/src/greeting.frame.tsx"');
     expect(transformed?.code).toContain('"exportName":"greeting"})({');
   });

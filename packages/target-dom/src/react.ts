@@ -5,7 +5,7 @@
  */
 import type { RuntimeMessageSource, TargetPhase, TargetStatus } from "@cbj/vignette-core";
 import { equals } from "ramda";
-import { useMemo, useSyncExternalStore, type RefCallback } from "react";
+import { useMemo, useRef, useSyncExternalStore, type RefCallback } from "react";
 
 import { DOMRuntime, type DOMRuntimeOptions } from "./runtime.js";
 
@@ -40,18 +40,27 @@ export type CompositorResult = readonly [ref: CompositorRef, snapshot: Composito
  * Owns a DOMRuntime for one container and subscribes to its cached external-store snapshot.
  */
 export function useCompositor(options: UseCompositorOptions): CompositorResult {
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
   const controller = useMemo(
-    () => new CompositorController(options),
-    [
-      options.sceneId,
-      options.id,
-      options.onError,
-      options.fetch,
-      options.createObjectURL,
-      options.revokeObjectURL,
-      options.extensions,
-      options.transport,
-    ],
+    () =>
+      new CompositorController({
+        sceneId: options.sceneId,
+        ...(options.id === undefined ? {} : { id: options.id }),
+        ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
+        transport: options.transport,
+        onError: (error) => {
+          optionsRef.current.onError?.(error);
+        },
+        fetch: (...input) =>
+          (optionsRef.current.fetch ?? globalThis.fetch.bind(globalThis))(...input),
+        createObjectURL: (blob) =>
+          (optionsRef.current.createObjectURL ?? URL.createObjectURL.bind(URL))(blob),
+        revokeObjectURL: (url) => {
+          (optionsRef.current.revokeObjectURL ?? URL.revokeObjectURL.bind(URL))(url);
+        },
+      }),
+    [options.sceneId, options.id, options.extensions, options.transport],
   );
   const snapshot = useSyncExternalStore(
     controller.subscribe,

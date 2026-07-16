@@ -13,6 +13,7 @@ export * from "./geometry.js";
 export * from "./ids.js";
 export * from "./layout/compile-layout.js";
 export * from "./layout/content-fit.js";
+export type * from "./layout/layout-engine.js";
 export * from "./layout/rounding.js";
 export * from "./message-hub.js";
 export * from "./objects.js";

@@ -1,6 +1,7 @@
-import { createClientManifestModuleHost } from "@cbj/vignette-frame/server";
-import { createComposerHost, type ComposerHost } from "@cbj/vignette-server";
-import { createServer, type Server } from "node:http";
+import { createClientManifestModuleHost } from "@cbj/vignette-frame/server/node";
+import { createComposerHost } from "@cbj/vignette-server";
+import { createNodeRequestHandler, type NodeRequestHandler } from "@cbj/vignette-server/node";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -37,9 +38,10 @@ const host = createComposerHost({
 host.addEventListener("error", (event) => {
   reportError(event.error);
 });
+const handleComposerRequest = createNodeRequestHandler(host);
 
 const server = createServer((request, response) => {
-  void handleRequest(host, request, response, clientDirectory);
+  void handleRequest(handleComposerRequest, request, response, clientDirectory);
 });
 
 try {
@@ -61,13 +63,13 @@ process.once("SIGINT", () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 
 async function handleRequest(
-  composerHost: ComposerHost,
-  request: Parameters<ComposerHost["handleRequest"]>[0],
-  response: Parameters<ComposerHost["handleRequest"]>[1],
+  handleComposerRequest: NodeRequestHandler,
+  request: IncomingMessage,
+  response: ServerResponse,
   staticRoot: string,
 ): Promise<void> {
   try {
-    if (await composerHost.handleRequest(request, response)) return;
+    if (await handleComposerRequest(request, response)) return;
     if (await serveStaticFile(request, response, staticRoot)) return;
     response.statusCode = 404;
     response.end("Not found.");

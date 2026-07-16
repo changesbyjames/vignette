@@ -9,6 +9,7 @@ import {
   scene,
   sources,
 } from "@cbj/vignette-core/builders";
+import { yogaLayoutEngine } from "@cbj/vignette-core/layout-yoga";
 import { describe, expect, it } from "vitest";
 
 import { DomTarget } from "./dom-target.js";
@@ -31,7 +32,7 @@ describe("DomTarget", () => {
         }),
       ],
     });
-    const compiled = compileBroadcast(graph, { revision: 1 });
+    const compiled = compileBroadcast(graph, { revision: 1, layoutEngine: yogaLayoutEngine });
     expect(compiled.ok).toBe(true);
     if (!compiled.ok) return;
 
@@ -86,7 +87,7 @@ describe("DomTarget", () => {
         }),
       ],
     });
-    const compiled = compileBroadcast(graph, { revision: 1 });
+    const compiled = compileBroadcast(graph, { revision: 1, layoutEngine: yogaLayoutEngine });
     expect(compiled.ok).toBe(true);
     if (!compiled.ok) return;
 
@@ -139,7 +140,7 @@ describe("DomTarget", () => {
         }),
       ],
     });
-    const compiled = compileBroadcast(graph, { revision: 1 });
+    const compiled = compileBroadcast(graph, { revision: 1, layoutEngine: yogaLayoutEngine });
     expect(compiled.ok).toBe(true);
     if (!compiled.ok) return;
 

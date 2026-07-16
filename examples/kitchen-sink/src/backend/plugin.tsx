@@ -1,6 +1,7 @@
 import type { FrameRouteRegistry } from "@cbj/vignette-frame/server";
 import { createDevServerModuleHost } from "@cbj/vignette-frame/vite";
 import { createComposerHost } from "@cbj/vignette-server";
+import { createNodeRequestHandler } from "@cbj/vignette-server/node";
 import { createElement, type ComponentType } from "react";
 import type { Plugin } from "vite";
 
@@ -35,6 +36,7 @@ export function vignetteComposer(frameRegistry: FrameRouteRegistry): Plugin {
       host.addEventListener("error", (event) => {
         reportError(event.error);
       });
+      const handleRequest = createNodeRequestHandler(host);
       if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
         host.connect(
           createKitchenSinkObsRuntime({
@@ -57,7 +59,7 @@ export function vignetteComposer(frameRegistry: FrameRouteRegistry): Plugin {
       else httpServer?.once("listening", start);
 
       server.middlewares.use((request, response, next) => {
-        void host.handleRequest(request, response).then(
+        void handleRequest(request, response).then(
           (handled) => {
             if (!handled) next();
           },

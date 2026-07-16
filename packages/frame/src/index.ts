@@ -7,6 +7,7 @@ export {
   frame,
   isFrameDefinition,
   type FrameDefinition,
+  type FrameMetadata,
   type FrameOptions,
   type FrameParamsSchema,
 } from "./definition.js";
