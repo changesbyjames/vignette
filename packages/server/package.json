@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Fetch API composer host, SSE runtime endpoint, and frame routing for Vignette.",
   "private": true,
   "license": "MIT",

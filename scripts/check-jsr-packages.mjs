@@ -57,7 +57,12 @@ for (const candidate of packages) {
   assert(jsr.version === rootPackage.version, `${candidate.name} has a mismatched JSR version`);
   assert(manifest.version === jsr.version, `${candidate.name} has mismatched manifest versions`);
   assert(jsr.license === "MIT", `${candidate.name} must declare its MIT license`);
+  assert(
+    !jsr.publish?.include?.includes("package.json"),
+    `${candidate.name} must not publish its local pnpm package.json`,
+  );
   assertExports(jsr.exports, candidate.exports, candidate.name);
+  assertExplicitImports(jsr.imports, candidate.name);
 
   for (const dependency of candidate.dependencies) {
     assert(
@@ -68,6 +73,14 @@ for (const candidate of packages) {
       jsr.imports?.[dependency] === `jsr:${dependency}@^${jsr.version}`,
       `${candidate.name} has a mismatched JSR dependency on ${dependency}`,
     );
+  }
+
+  for (const [dependency, version] of Object.entries({
+    ...manifest.dependencies,
+    ...manifest.peerDependencies,
+  })) {
+    if (candidate.dependencies.includes(dependency)) continue;
+    assertNpmImport(jsr.imports, dependency, version, candidate.name);
   }
 
   for (const path of ["README.md", "deno.json", "package.json"]) {
@@ -107,6 +120,23 @@ function assertExports(actual, expected, name) {
   assert(
     paths.every((path) => path.startsWith("./src/")),
     `${name} must publish TypeScript source`,
+  );
+}
+
+function assertExplicitImports(imports = {}, name) {
+  assert(
+    Object.keys(imports).every((specifier) => !specifier.endsWith("/")),
+    `${name} must map JSR subpaths explicitly to avoid duplicate npm compatibility dependencies`,
+  );
+}
+
+function assertNpmImport(imports = {}, dependency, version, name) {
+  const target = `npm:${dependency}@${version}`;
+  assert(
+    Object.values(imports).some(
+      (specifier) => specifier === target || specifier.startsWith(`${target}/`),
+    ),
+    `${name} must map ${dependency}@${version} through deno.json`,
   );
 }
 

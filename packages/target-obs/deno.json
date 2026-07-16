@@ -1,14 +1,16 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-target-obs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.2.0"
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.2.1",
+    "obs-websocket-js": "npm:obs-websocket-js@5.0.8",
+    "ramda": "npm:ramda@0.32.0"
   },
   "exports": "./src/index.ts",
   "publish": {
-    "include": ["README.md", "package.json", "src/**/*.ts"],
+    "include": ["README.md", "src/**/*.ts"],
     "exclude": ["src/**/*.test.ts"]
   }
 }

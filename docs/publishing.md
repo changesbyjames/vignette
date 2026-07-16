@@ -1,8 +1,13 @@
 # Publishing to JSR
 
 The eight public packages use TypeScript source exports from their package-level `deno.json` files.
+Those files are the complete publication contract: internal dependencies use `jsr:` mappings and
+third-party dependencies use `npm:` mappings. The local `package.json` files exist only for pnpm,
+TypeScript builds, and workspace examples; they are not included in JSR packages.
+
 The root `deno.json` declares the monorepo to Deno, so JSR resolves local workspace imports during
-validation and rewrites them to registry references when each package is published.
+validation and rewrites them to registry references when each package is published. JSR generates
+its npm compatibility artifacts from that JSR metadata rather than from the local pnpm manifests.
 
 ## One-time JSR setup
 
