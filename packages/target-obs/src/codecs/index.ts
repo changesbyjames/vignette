@@ -1,0 +1,27 @@
+import type { SourceKind } from "@cbj/react-obs-core";
+
+import { browserCodec } from "./browser.js";
+import { colorCodec } from "./color.js";
+import { imageCodec } from "./image.js";
+import { mediaCodec } from "./media.js";
+import type { ObsSourceCodec } from "./types.js";
+
+export const BUILTIN_OBS_CODECS: readonly ObsSourceCodec[] = [
+  imageCodec,
+  mediaCodec,
+  browserCodec,
+  colorCodec,
+];
+
+export type ObsCodecMap = ReadonlyMap<SourceKind, ObsSourceCodec>;
+
+/** Merges extension codecs over the built-in ones. Later entries win per kind. */
+export function resolveObsCodecs(extensions: readonly ObsSourceCodec[] = []): ObsCodecMap {
+  const codecs = new Map<SourceKind, ObsSourceCodec>();
+  for (const codec of [...BUILTIN_OBS_CODECS, ...extensions]) codecs.set(codec.kind, codec);
+  return codecs;
+}
+
+export { browserCodec, colorCodec, imageCodec, mediaCodec };
+export { selectInputKind } from "./types.js";
+export type { ObsCodecContext, ObsCodecResult, ObsSourceCodec } from "./types.js";

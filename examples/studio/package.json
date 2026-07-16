@@ -1,0 +1,35 @@
+{
+  "name": "@cbj/react-obs-studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter '@cbj/react-obs-studio^...' build && pnpm typecheck && pnpm build:app",
+    "build:app": "vite build && vite build --config vite.ssr.config.ts",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "pnpm start:host",
+    "start": "pnpm start:host",
+    "start:host": "node dist/server/host.js",
+    "start:obs": "node dist/server/obs-worker.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. examples/studio"
+  },
+  "dependencies": {
+    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/react-obs-frame": "workspace:^",
+    "@cbj/react-obs-moq": "workspace:^",
+    "@cbj/react-obs": "workspace:^",
+    "@cbj/react-obs-server": "workspace:^",
+    "@cbj/react-obs-target-dom": "workspace:^",
+    "@cbj/react-obs-target-obs": "workspace:^",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "vite": "8.1.4"
+  }
+}

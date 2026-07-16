@@ -1,0 +1,30 @@
+import type { DomSourceRenderer } from "./types.js";
+
+export const mediaRenderer: DomSourceRenderer<"source:media-file"> = {
+  kind: "source:media-file",
+  create(document) {
+    const video = document.createElement("video");
+    video.playsInline = true;
+    video.preload = "auto";
+    video.autoplay = true;
+
+    return {
+      element: video,
+      update(source, _item, resolvedUrl) {
+        if (source.kind !== "source:media-file") {
+          throw new TypeError("Media renderer received another source kind.");
+        }
+        if (resolvedUrl === undefined) throw new TypeError("Media source requires a resolved URL.");
+        if (video.src !== resolvedUrl) video.src = resolvedUrl;
+        video.loop = source.loop ?? false;
+        video.muted = source.muted ?? true;
+        video.playbackRate = source.playbackRate ?? 1;
+      },
+      dispose() {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      },
+    };
+  },
+};

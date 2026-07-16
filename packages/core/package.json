@@ -1,0 +1,28 @@
+{
+  "name": "@cbj/react-obs-core",
+  "version": "0.1.0",
+  "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for React OBS.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./builders": {
+      "types": "./dist/builders.d.ts",
+      "default": "./dist/builders.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/core",
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+  },
+  "dependencies": {
+    "yoga-layout": "3.2.1"
+  }
+}

@@ -1,0 +1,61 @@
+# React OBS
+
+React OBS is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once
+and materializing them in both the browser and OBS.
+
+React and Yoga run in a Node composer. It emits one target-neutral, complete immutable snapshot;
+independent DOM and OBS runtimes consume setup, update, and event messages over SSE or an in-memory
+`AsyncIterable`. The composer never waits for or observes runtime convergence.
+
+## Published packages
+
+The packages are published as TypeScript source on [JSR](https://jsr.io/@cbj). For a Node/Vite
+composer with a browser preview:
+
+```sh
+pnpm add jsr:@cbj/react-obs jsr:@cbj/react-obs-core \
+  jsr:@cbj/react-obs-server jsr:@cbj/react-obs-frame \
+  jsr:@cbj/react-obs-target-dom react react-dom
+```
+
+Add `jsr:@cbj/react-obs-target-obs` for OBS output, `jsr:@cbj/react-obs-moq` for Media over QUIC, or
+`jsr:@cbj/react-obs-testkit` for target and planner tests. Each package README documents its
+entrypoints and extension seams. [`examples/studio`](examples/studio) is a complete Vite client,
+Node composer, frame SSR/hydration, SSE, and optional OBS worker that can be used as an application
+template.
+
+Maintainers can find package ordering and tokenless GitHub OIDC release instructions in
+[`docs/publishing.md`](docs/publishing.md).
+
+## Repository layout
+
+- `packages/core` — target-neutral graph, validation, layout, snapshots, and stream contracts.
+- `packages/react` — Node-side custom React composer and typed authoring primitives.
+- `packages/frame` — optional typed React DOM frames with Vite SSR and hydration.
+- `packages/target-dom` — manifest asset cache, browser `DOMRuntime`, and optional React hook.
+- `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
+- `packages/moq` — optional Media over QUIC source extension for all three layers.
+- `packages/testkit` — target and OBS fakes shared by package tests.
+- `examples/studio` — Node composer, SSE endpoint, DOM consumer, and embedded OBS example.
+- `docs` — architecture decisions and supported compatibility contract.
+- `reference` — pinned upstream documentation used to design and maintain the runtime.
+- `plans` — staged implementation handoffs and completion state.
+
+## Development
+
+Requires Node 22 or newer and Corepack.
+
+```sh
+corepack enable
+pnpm install
+pnpm build
+pnpm typecheck
+pnpm test
+pnpm lint
+pnpm format:check
+```
+
+The first release intentionally supports a narrow common surface: image, local media, browser, and
+color sources; fixed-canvas Yoga layout; absolute transforms; fit/crop; visibility; and rotation.
+DOM additionally supports opacity, which OBS diagnoses and omits. See
+[`docs/compatibility-contract.md`](docs/compatibility-contract.md) for the precise boundary.

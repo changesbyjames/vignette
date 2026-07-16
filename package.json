@@ -1,0 +1,37 @@
+{
+  "name": "react-obs-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.13.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b && pnpm --filter @cbj/react-obs-studio build:app",
+    "clean": "tsc -b --clean && pnpm -r --if-present clean",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "test:e2e": "playwright test examples/studio/tests/dom.spec.ts",
+    "test:obs-integration": "playwright test examples/studio/tests/obs-integration.spec.ts",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "publish:check": "pnpm -r --filter './packages/*' publish:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.61.1",
+    "@types/node": "26.1.1",
+    "eslint": "10.7.0",
+    "jsdom": "29.1.1",
+    "obs-websocket-js": "5.0.8",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
+    "@types/pngjs": "6.0.5",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

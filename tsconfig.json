@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/testkit" },
+    { "path": "./packages/target-dom" },
+    { "path": "./packages/target-obs" },
+    { "path": "./packages/react" },
+    { "path": "./packages/frame" },
+    { "path": "./packages/server" },
+    { "path": "./packages/moq" },
+    { "path": "./examples/studio" }
+  ]
+}

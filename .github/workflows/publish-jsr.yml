@@ -1,0 +1,51 @@
+name: Publish JSR packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm publish:check
+
+      # Keep this order aligned with the package dependency graph.
+      - name: Publish core
+        working-directory: packages/core
+        run: pnpm dlx jsr publish
+      - name: Publish DOM target
+        working-directory: packages/target-dom
+        run: pnpm dlx jsr publish
+      - name: Publish OBS target
+        working-directory: packages/target-obs
+        run: pnpm dlx jsr publish
+      - name: Publish React renderer
+        working-directory: packages/react
+        run: pnpm dlx jsr publish
+      - name: Publish frames
+        working-directory: packages/frame
+        run: pnpm dlx jsr publish
+      - name: Publish server
+        working-directory: packages/server
+        run: pnpm dlx jsr publish
+      - name: Publish MoQ extension
+        working-directory: packages/moq
+        run: pnpm dlx jsr publish --allow-slow-types
+      - name: Publish testkit
+        working-directory: packages/testkit
+        run: pnpm dlx jsr publish

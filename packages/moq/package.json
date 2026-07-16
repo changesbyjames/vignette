@@ -1,0 +1,52 @@
+{
+  "name": "@cbj/react-obs-moq",
+  "version": "0.1.0",
+  "description": "Media over QUIC source extension for React OBS, DOM, and OBS targets.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./dom": {
+      "types": "./dist/dom.d.ts",
+      "default": "./dist/dom.js"
+    },
+    "./obs": {
+      "types": "./dist/obs.d.ts",
+      "default": "./dist/obs.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/moq",
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty --allow-slow-types"
+  },
+  "dependencies": {
+    "@moq/watch": "0.3.0",
+    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/react-obs": "workspace:^",
+    "@cbj/react-obs-target-dom": "workspace:^",
+    "@cbj/react-obs-target-obs": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": "19.2.7"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "react": "19.2.7"
+  }
+}

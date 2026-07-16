@@ -1,0 +1,42 @@
+{
+  "name": "@cbj/react-obs-target-dom",
+  "version": "0.1.0",
+  "description": "Browser DOM runtime and React compositor hook for React OBS snapshots.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/target-dom",
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+  },
+  "dependencies": {
+    "@cbj/react-obs-core": "workspace:^",
+    "ramda": "0.32.0"
+  },
+  "peerDependencies": {
+    "react": "19.2.7"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/ramda": "0.32.0",
+    "@types/react": "19.2.17",
+    "react": "19.2.7"
+  }
+}

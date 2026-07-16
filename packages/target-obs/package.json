@@ -1,0 +1,29 @@
+{
+  "name": "@cbj/react-obs-target-obs",
+  "version": "0.1.0",
+  "description": "OBS runtime, planner, and transport contracts for React OBS snapshots.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/target-obs",
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+  },
+  "dependencies": {
+    "@cbj/react-obs-core": "workspace:^",
+    "obs-websocket-js": "5.0.8",
+    "ramda": "0.32.0"
+  },
+  "devDependencies": {
+    "@types/ramda": "0.32.0"
+  }
+}

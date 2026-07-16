@@ -1,0 +1,11 @@
+.git
+.pnpm-store
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+coverage
+playwright-report
+test-results
+reference
+plans
+.env*

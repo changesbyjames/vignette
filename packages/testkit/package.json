@@ -1,0 +1,25 @@
+{
+  "name": "@cbj/react-obs-testkit",
+  "version": "0.1.0",
+  "description": "Deterministic target, transport, clock, and OBS plan fakes for React OBS tests.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/testkit",
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+  },
+  "dependencies": {
+    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/react-obs-target-obs": "workspace:^"
+  }
+}

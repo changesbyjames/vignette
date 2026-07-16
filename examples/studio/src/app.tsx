@@ -1,0 +1,42 @@
+import { moqDomRenderer } from "@cbj/react-obs-moq/dom";
+import { sseRuntimeSource, useCompositor } from "@cbj/react-obs-target-dom/react";
+import type { ReactElement } from "react";
+
+const transport = sseRuntimeSource("/runtime");
+const extensions = [moqDomRenderer];
+const reportCompositorError = (error: Error) => {
+  console.error(error);
+};
+
+export function App(): ReactElement {
+  const [stageRef, compositor] = useCompositor({
+    sceneId: "main",
+    transport,
+    extensions,
+    onError: reportCompositorError,
+  });
+
+  return (
+    <main>
+      <header>
+        <div>
+          <p className="eyebrow">React OBS</p>
+          <h1>Node-composed broadcast</h1>
+        </div>
+        <div className="status-grid">
+          <div className="status">
+            <span>Snapshot</span>
+            <strong data-testid="commit-status">{compositor.revision}</strong>
+          </div>
+          <div className="status">
+            <span>DOM runtime</span>
+            <strong data-testid="dom-status">{compositor.phase}</strong>
+          </div>
+        </div>
+      </header>
+      <section className="preview-shell">
+        <div className="preview" ref={stageRef} data-testid="stage" />
+      </section>
+    </main>
+  );
+}
