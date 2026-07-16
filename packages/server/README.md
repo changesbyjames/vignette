@@ -1,20 +1,20 @@
-# @cbj/react-obs-server
+# @cbj/vignette-server
 
-Node orchestration for a persistent React OBS composer. `ComposerHost` joins the React root, runtime
+Node orchestration for a persistent Vignette composer. `ComposerHost` joins the React root, runtime
 message replay hub, `/runtime` SSE endpoint, and typed frame routes while leaving HTTP server and
 target process ownership to the application.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-server jsr:@cbj/react-obs-frame jsr:@cbj/react-obs jsr:@cbj/react-obs-core react
+pnpm add jsr:@cbj/vignette-server jsr:@cbj/vignette-frame jsr:@cbj/vignette jsr:@cbj/vignette-core react
 ```
 
 ## Create a host
 
 ```tsx
-import { projectId } from "@cbj/react-obs-core";
-import { createComposerHost } from "@cbj/react-obs-server";
+import { projectId } from "@cbj/vignette-core";
+import { createComposerHost } from "@cbj/vignette-server";
 
 const host = createComposerHost({
   projectId: projectId("demo"),
@@ -35,7 +35,7 @@ await host.start();
 
 Attach the HTTP server before `start()`. `connect(runtime)` transfers runtime ownership to the host;
 `close()` disposes connected runtimes and the composer. Supply a frame `ModuleHost` from
-`@cbj/react-obs-frame/vite` in development or `@cbj/react-obs-frame/server` in production.
+`@cbj/vignette-frame/vite` in development or `@cbj/vignette-frame/server` in production.
 
 For a deployable host/worker split, the worker consumes the host's SSE URL with the DOM or OBS
 target package. See the repository Studio example for Vite client and SSR builds.

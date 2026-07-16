@@ -9,7 +9,7 @@ import {
   type Size,
   type SourceDefinition,
   type SourceId,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import { equals } from "ramda";
 
 import { validateObsCapabilities } from "./capabilities.js";

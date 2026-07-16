@@ -25,7 +25,7 @@ export async function serveStaticFile(
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   if (request.url === undefined) return false;
 
-  const url = new URL(request.url, "http://react-obs.local");
+  const url = new URL(request.url, "http://vignette.local");
   let pathname: string;
   try {
     pathname = decodeURIComponent(url.pathname);

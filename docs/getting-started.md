@@ -6,7 +6,7 @@ Install Node.js 22 or newer, then install and verify the workspace:
 corepack pnpm install
 corepack pnpm build
 corepack pnpm test
-corepack pnpm --filter @cbj/react-obs-studio dev
+corepack pnpm --filter @cbj/vignette-studio dev
 ```
 
 Open `http://127.0.0.1:4173`. The Vite backend owns a persistent custom React root. A timer inside
@@ -38,10 +38,10 @@ await consumeRuntimeMessages(runtime, messageBus.subscribe());
 Enable it while running the studio with:
 
 ```sh
-REACT_OBS_ENABLE_EMBEDDED=1 \
-REACT_OBS_URL=ws://127.0.0.1:4455 \
-REACT_OBS_PASSWORD='runtime-only' \
-corepack pnpm --filter @cbj/react-obs-studio dev
+VIGNETTE_ENABLE_EMBEDDED=1 \
+VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
+VIGNETTE_OBS_PASSWORD='runtime-only' \
+corepack pnpm --filter @cbj/vignette-studio dev
 ```
 
 A standalone OBS process uses the same `OBSRuntime`; only `messageBus.subscribe()` changes to an SSE
@@ -76,10 +76,10 @@ constraints.
 Use only a disposable OBS profile and scene collection:
 
 ```sh
-REACT_OBS_ALLOW_INTEGRATION=1 \
-REACT_OBS_URL=ws://127.0.0.1:4455 \
-REACT_OBS_PASSWORD='runtime-only' \
-REACT_OBS_TEST_COLLECTION='React OBS Tests' \
+VIGNETTE_ALLOW_INTEGRATION=1 \
+VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
+VIGNETTE_OBS_PASSWORD='runtime-only' \
+VIGNETTE_OBS_TEST_COLLECTION='Vignette Tests' \
 corepack pnpm test:obs-integration
 ```
 

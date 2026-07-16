@@ -1,5 +1,5 @@
 /**
- * Browser hydration entrypoint for server-rendered React OBS frames.
+ * Browser hydration entrypoint for server-rendered Vignette frames.
  *
  * @module
  */
@@ -12,7 +12,7 @@ export function hydrateFrame<Params extends object>(
   definition: FrameDefinition<Params>,
   input: unknown,
 ): Root {
-  const container = document.querySelector<HTMLElement>("[data-react-obs-frame-root]");
+  const container = document.querySelector<HTMLElement>("[data-vignette-frame-root]");
   if (container === null) throw new Error("Frame document is missing its hydration root.");
   const params = definition.params.parse(input);
   return hydrateRoot(container, createElement(definition.view, params));

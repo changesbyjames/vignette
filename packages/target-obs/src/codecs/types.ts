@@ -1,4 +1,4 @@
-import type { Size, SourceKind, SourceKinds } from "@cbj/react-obs-core";
+import type { Size, SourceKind, SourceKinds } from "@cbj/vignette-core";
 
 import type { ObsJsonObject } from "../operations.js";
 

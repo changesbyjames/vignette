@@ -1,5 +1,5 @@
-import { projectId, type AssetManifest } from "@cbj/react-obs-core";
-import { moqSourceModule } from "@cbj/react-obs-moq";
+import { projectId, type AssetManifest } from "@cbj/vignette-core";
+import { moqSourceModule } from "@cbj/vignette-moq";
 
 export const STUDIO_PROJECT_ID = projectId("studio-demo");
 export const STUDIO_CANVAS = { width: 1920, height: 1080, frameRate: 60 } as const;

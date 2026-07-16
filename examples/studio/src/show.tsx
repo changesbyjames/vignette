@@ -1,8 +1,8 @@
 /** @jsxImportSource react */
-import { asset, layerId, sceneId, sourceId, type LayoutStyle } from "@cbj/react-obs-core";
-import { View } from "@cbj/react-obs-frame";
-import { MoqSource } from "@cbj/react-obs-moq/react";
-import { Broadcast, ImageSource, Layer, Scene, Sources } from "@cbj/react-obs";
+import { asset, layerId, sceneId, sourceId, type LayoutStyle } from "@cbj/vignette-core";
+import { View } from "@cbj/vignette-frame";
+import { MoqSource } from "@cbj/vignette-moq/react";
+import { Broadcast, ImageSource, Layer, Scene, Sources } from "@cbj/vignette";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { sanctuaryClock } from "./clock.frame.js";

@@ -1,4 +1,4 @@
-import type { TargetStatus } from "@cbj/react-obs-core";
+import type { TargetStatus } from "@cbj/vignette-core";
 
 export class ObsStatusStore {
   readonly #listeners = new Set<() => void>();

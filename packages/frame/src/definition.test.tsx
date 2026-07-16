@@ -1,5 +1,5 @@
-import { projectId, sceneId } from "@cbj/react-obs-core";
-import { Broadcast, Scene, createComposerRoot } from "@cbj/react-obs";
+import { projectId, sceneId } from "@cbj/vignette-core";
+import { Broadcast, Scene, createComposerRoot } from "@cbj/vignette";
 import { describe, expect, it } from "vitest";
 
 import { frame } from "./definition.js";
@@ -41,7 +41,7 @@ describe("frame View", () => {
     const definition = snapshot?.sources[0]?.definition;
     expect(definition?.kind).toBe("source:browser");
     if (definition?.kind !== "source:browser") return;
-    expect(definition.url).toContain("/__react-obs/frame/greeting-abc123?props=");
+    expect(definition.url).toContain("/__vignette/frame/greeting-abc123?props=");
     expect(new URL(definition.url).searchParams.get("props")).toBe('{"name":"James"}');
     expect(snapshot?.scenes[0]?.items[0]?.content).toEqual({
       kind: "source",

@@ -8,7 +8,7 @@ import type {
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 import { DomAssetRegistry } from "./media-registry.js";
 import {

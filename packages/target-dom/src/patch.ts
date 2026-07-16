@@ -6,7 +6,7 @@ import type {
   Size,
   SourceDefinition,
   SourceId,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 import type { DomRendererMap } from "./elements/index.js";
 import { DomSourceRegistry } from "./source-registry.js";
@@ -73,8 +73,8 @@ function patchScene(
     const record = ensureRecord(container.ownerDocument, records, sourceRegistry, item, sources);
     applyItemFrame(record.wrapper, item);
     record.wrapper.style.zIndex = String(order);
-    record.wrapper.dataset.reactObsLayer = item.id;
-    record.wrapper.dataset.reactObsPath = `${path}/${item.id}`;
+    record.wrapper.dataset.vignetteLayer = item.id;
+    record.wrapper.dataset.vignettePath = `${path}/${item.id}`;
     mountRecord(container, record.wrapper);
 
     if (item.content.kind === "source") {
@@ -276,8 +276,8 @@ function disposeRecord(record: LayerRecord): void {
 
 function deactivateRecord(record: LayerRecord): void {
   record.wrapper.style.display = "none";
-  delete record.wrapper.dataset.reactObsLayer;
-  delete record.wrapper.dataset.reactObsPath;
+  delete record.wrapper.dataset.vignetteLayer;
+  delete record.wrapper.dataset.vignettePath;
 }
 
 function releaseRecord(record: LayerRecord, sourceRegistry: DomSourceRegistry): boolean {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { layerId, sourceId, type CompiledItem } from "@cbj/react-obs-core";
+import { layerId, sourceId, type CompiledItem } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { moqDomRenderer } from "./dom.js";
@@ -38,7 +38,7 @@ describe("moqDomRenderer", () => {
     expect(watch.getAttribute("latency")).toBe("250");
     expect(watch.hasAttribute("muted")).toBe(true);
     expect(watch.getAttribute("visible")).toBe("always");
-    expect(watch.dataset.reactObsMoqQuality).toBe("auto");
+    expect(watch.dataset.vignetteMoqQuality).toBe("auto");
     expect(watch.querySelector("canvas")).not.toBeNull();
 
     view.dispose();

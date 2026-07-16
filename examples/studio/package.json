@@ -1,10 +1,10 @@
 {
-  "name": "@cbj/react-obs-studio",
+  "name": "@cbj/vignette-studio",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter '@cbj/react-obs-studio^...' build && pnpm typecheck && pnpm build:app",
+    "build": "pnpm --filter '@cbj/vignette-studio^...' build && pnpm typecheck && pnpm build:app",
     "build:app": "vite build && vite build --config vite.ssr.config.ts",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "dev": "vite --host 127.0.0.1",
@@ -16,13 +16,13 @@
     "test": "vitest run --root ../.. examples/studio"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
-    "@cbj/react-obs-frame": "workspace:^",
-    "@cbj/react-obs-moq": "workspace:^",
-    "@cbj/react-obs": "workspace:^",
-    "@cbj/react-obs-server": "workspace:^",
-    "@cbj/react-obs-target-dom": "workspace:^",
-    "@cbj/react-obs-target-obs": "workspace:^",
+    "@cbj/vignette-core": "workspace:^",
+    "@cbj/vignette-frame": "workspace:^",
+    "@cbj/vignette-moq": "workspace:^",
+    "@cbj/vignette": "workspace:^",
+    "@cbj/vignette-server": "workspace:^",
+    "@cbj/vignette-target-dom": "workspace:^",
+    "@cbj/vignette-target-obs": "workspace:^",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.4.3"

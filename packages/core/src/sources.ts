@@ -43,7 +43,7 @@ export interface ColorSource extends SourceBase {
  * module augmentation:
  *
  * ```ts
- * declare module "@cbj/react-obs-core" {
+ * declare module "@cbj/vignette-core" {
  *   interface SourceKinds {
  *     "source:example": ExampleSource;
  *   }

@@ -13,15 +13,15 @@ import {
   type RuntimeMessage,
   type SnapshotRuntime,
   type SourceModule,
-} from "@cbj/react-obs-core";
-import { FrameProvider, FrameRegistrarProvider } from "@cbj/react-obs-frame";
+} from "@cbj/vignette-core";
+import { FrameProvider, FrameRegistrarProvider } from "@cbj/vignette-frame";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
   type ModuleHost,
   type NodeRequestHandler,
-} from "@cbj/react-obs-frame/server";
-import { createComposerRoot } from "@cbj/react-obs";
+} from "@cbj/vignette-frame/server";
+import { createComposerRoot } from "@cbj/vignette";
 import type { ServerResponse } from "node:http";
 import { createElement, type ReactElement } from "react";
 
@@ -165,7 +165,7 @@ export class ComposerHost extends EventTarget {
     if (await this.#handleFrameRequest(request, response)) return true;
     if (request.url === undefined) return false;
 
-    const url = new URL(request.url, "http://react-obs.local");
+    const url = new URL(request.url, "http://vignette.local");
     if (url.pathname !== "/runtime") return false;
 
     const controller = new AbortController();

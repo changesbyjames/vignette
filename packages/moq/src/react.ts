@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { sourceElement, type SourceProps } from "@cbj/react-obs";
+import { sourceElement, type SourceProps } from "@cbj/vignette";
 import type { ReactElement } from "react";
 
 import "./index.js";

@@ -1,19 +1,19 @@
-# @cbj/react-obs-frame
+# @cbj/vignette-frame
 
-Typed React DOM frames that become ordinary browser sources in React OBS snapshots. A frame is
+Typed React DOM frames that become ordinary browser sources in Vignette snapshots. A frame is
 server-rendered and hydrated as an independent React root, so hooks and client state remain local to
 that browser source.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-frame jsr:@cbj/react-obs jsr:@cbj/react-obs-core react react-dom vite
+pnpm add jsr:@cbj/vignette-frame jsr:@cbj/vignette jsr:@cbj/vignette-core react react-dom vite
 ```
 
 ## Define and place a frame
 
 ```tsx
-import { frame, View } from "@cbj/react-obs-frame";
+import { frame, View } from "@cbj/vignette-frame";
 import { z } from "zod";
 
 export const LowerThird = frame({
@@ -29,15 +29,15 @@ export function Overlay() {
 Export frame definitions from modules processed by the Vite plugin:
 
 ```ts
-import { reactObsFrames } from "@cbj/react-obs-frame/vite";
+import { vignetteFrames } from "@cbj/vignette-frame/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({ plugins: [reactObsFrames()] });
+export default defineConfig({ plugins: [vignetteFrames()] });
 ```
 
 `./vite` provides development discovery and module hosting. `./server` provides
 `FrameRouteRegistry`, `createFrameRequestHandler`, and the production manifest module host.
-`./client` exports the hydration helper. `@cbj/react-obs-server` wires these seams together for the
+`./client` exports the hydration helper. `@cbj/vignette-server` wires these seams together for the
 common host topology.
 
 Frame parameters must be serializable and are parsed on both placement and request. Keep frame

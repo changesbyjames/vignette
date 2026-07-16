@@ -1,6 +1,6 @@
-import type { FrameRouteRegistry } from "@cbj/react-obs-frame/server";
-import { createDevServerModuleHost } from "@cbj/react-obs-frame/vite";
-import { createComposerHost } from "@cbj/react-obs-server";
+import type { FrameRouteRegistry } from "@cbj/vignette-frame/server";
+import { createDevServerModuleHost } from "@cbj/vignette-frame/vite";
+import { createComposerHost } from "@cbj/vignette-server";
 import { createElement, type ComponentType } from "react";
 import type { Plugin } from "vite";
 
@@ -14,9 +14,9 @@ import { createStudioObsRuntime } from "../server/studio-obs.js";
 
 const DEV_ORIGIN = "http://127.0.0.1:4173";
 
-export function reactObsComposer(frameRegistry: FrameRouteRegistry): Plugin {
+export function vignetteComposer(frameRegistry: FrameRouteRegistry): Plugin {
   return {
-    name: "react-obs-node-composer",
+    name: "vignette-node-composer",
     configureServer(server) {
       const reportError = (error: Error) => {
         server.config.logger.error(error.stack ?? error.message);
@@ -36,13 +36,13 @@ export function reactObsComposer(frameRegistry: FrameRouteRegistry): Plugin {
       host.addEventListener("error", (event) => {
         reportError(event.error);
       });
-      if (process.env.REACT_OBS_ENABLE_EMBEDDED === "1") {
+      if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
         host.connect(
           createStudioObsRuntime({
-            url: process.env.REACT_OBS_URL ?? "ws://127.0.0.1:4455",
-            ...(process.env.REACT_OBS_PASSWORD === undefined
+            url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
+            ...(process.env.VIGNETTE_OBS_PASSWORD === undefined
               ? {}
-              : { password: process.env.REACT_OBS_PASSWORD }),
+              : { password: process.env.VIGNETTE_OBS_PASSWORD }),
             onError: reportError,
           }),
         );

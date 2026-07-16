@@ -1,10 +1,10 @@
 # DOM compositor React hook
 
-`@cbj/react-obs-target-dom` remains React-free. Its optional `@cbj/react-obs-target-dom/react` entry
+`@cbj/vignette-target-dom` remains React-free. Its optional `@cbj/vignette-target-dom/react` entry
 point provides a lifecycle wrapper for React applications:
 
 ```tsx
-import { sseRuntimeSource, useCompositor } from "@cbj/react-obs-target-dom/react";
+import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
 
 export function Preview() {
   const [ref, compositor] = useCompositor({

@@ -5,7 +5,7 @@ import { transformFrameModule } from "./vite.js";
 describe("frame Vite transform", () => {
   it("injects stable client metadata into exported frame definitions", () => {
     const transformed = transformFrameModule(
-      `import { frame as defineFrame } from "@cbj/react-obs-frame";
+      `import { frame as defineFrame } from "@cbj/vignette-frame";
 export const greeting = defineFrame({ params: schema, view: Greeting });`,
       "/workspace/src/greeting.frame.tsx",
       "/workspace",

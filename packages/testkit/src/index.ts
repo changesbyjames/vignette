@@ -1,5 +1,5 @@
 /**
- * Deterministic runtime, OBS transport, clock, and plan fakes for React OBS tests.
+ * Deterministic runtime, OBS transport, clock, and plan fakes for Vignette tests.
  *
  * @module
  */

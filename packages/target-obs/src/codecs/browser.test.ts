@@ -1,4 +1,4 @@
-import { DEFAULT_BROWSER_SOURCE_CSS, sourceId, type BrowserSource } from "@cbj/react-obs-core";
+import { DEFAULT_BROWSER_SOURCE_CSS, sourceId, type BrowserSource } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { browserCodec } from "./browser.js";

@@ -1,20 +1,20 @@
-# @cbj/react-obs-target-obs
+# @cbj/vignette-target-obs
 
-OBS target for React OBS snapshots. It observes OBS, creates a dependency-aware operation plan, and
+OBS target for Vignette snapshots. It observes OBS, creates a dependency-aware operation plan, and
 converges only resources inside the project's managed namespace. Unmanaged scenes and inputs are
 never modified.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-target-obs jsr:@cbj/react-obs-core
+pnpm add jsr:@cbj/vignette-target-obs jsr:@cbj/vignette-core
 ```
 
 ## Run against OBS
 
 ```ts
-import { consumeRuntimeMessages, projectId } from "@cbj/react-obs-core";
-import { OBSRuntime, sseRuntimeSource } from "@cbj/react-obs-target-obs";
+import { consumeRuntimeMessages, projectId } from "@cbj/vignette-core";
+import { OBSRuntime, sseRuntimeSource } from "@cbj/vignette-target-obs";
 
 const runtime = new OBSRuntime({
   projectId: projectId("demo"),

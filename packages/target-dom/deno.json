@@ -1,6 +1,6 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
-  "name": "@cbj/react-obs-target-dom",
+  "name": "@cbj/vignette-target-dom",
   "version": "0.1.0",
   "license": "MIT",
   "exports": {

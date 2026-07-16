@@ -4,7 +4,7 @@ import {
   type AssetRef,
   type AssetResolver,
   type ResolvedAsset,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 export interface DomAssetStoreOptions {
   readonly fetch?: typeof globalThis.fetch;

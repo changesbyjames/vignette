@@ -50,25 +50,25 @@ importers:
 
   examples/studio:
     dependencies:
-      '@cbj/react-obs':
+      '@cbj/vignette':
         specifier: workspace:^
         version: link:../../packages/react
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../../packages/core
-      '@cbj/react-obs-frame':
+      '@cbj/vignette-frame':
         specifier: workspace:^
         version: link:../../packages/frame
-      '@cbj/react-obs-moq':
+      '@cbj/vignette-moq':
         specifier: workspace:^
         version: link:../../packages/moq
-      '@cbj/react-obs-server':
+      '@cbj/vignette-server':
         specifier: workspace:^
         version: link:../../packages/server
-      '@cbj/react-obs-target-dom':
+      '@cbj/vignette-target-dom':
         specifier: workspace:^
         version: link:../../packages/target-dom
-      '@cbj/react-obs-target-obs':
+      '@cbj/vignette-target-obs':
         specifier: workspace:^
         version: link:../../packages/target-obs
       react:
@@ -99,10 +99,10 @@ importers:
 
   packages/frame:
     dependencies:
-      '@cbj/react-obs':
+      '@cbj/vignette':
         specifier: workspace:^
         version: link:../react
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
       typescript:
@@ -127,16 +127,16 @@ importers:
 
   packages/moq:
     dependencies:
-      '@cbj/react-obs':
+      '@cbj/vignette':
         specifier: workspace:^
         version: link:../react
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@cbj/react-obs-target-dom':
+      '@cbj/vignette-target-dom':
         specifier: workspace:^
         version: link:../target-dom
-      '@cbj/react-obs-target-obs':
+      '@cbj/vignette-target-obs':
         specifier: workspace:^
         version: link:../target-obs
       '@moq/watch':
@@ -152,14 +152,14 @@ importers:
 
   packages/react:
     dependencies:
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
       react-reconciler:
         specifier: 0.33.0
         version: 0.33.0(react@19.2.7)
     devDependencies:
-      '@cbj/react-obs-testkit':
+      '@cbj/vignette-testkit':
         specifier: workspace:^
         version: link:../testkit
       '@types/react':
@@ -174,13 +174,13 @@ importers:
 
   packages/server:
     dependencies:
-      '@cbj/react-obs':
+      '@cbj/vignette':
         specifier: workspace:^
         version: link:../react
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@cbj/react-obs-frame':
+      '@cbj/vignette-frame':
         specifier: workspace:^
         version: link:../frame
     devDependencies:
@@ -193,7 +193,7 @@ importers:
 
   packages/target-dom:
     dependencies:
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
       ramda:
@@ -212,7 +212,7 @@ importers:
 
   packages/target-obs:
     dependencies:
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
       obs-websocket-js:
@@ -228,10 +228,10 @@ importers:
 
   packages/testkit:
     dependencies:
-      '@cbj/react-obs-core':
+      '@cbj/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@cbj/react-obs-target-obs':
+      '@cbj/vignette-target-obs':
         specifier: workspace:^
         version: link:../target-obs
 

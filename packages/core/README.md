@@ -1,20 +1,20 @@
-# @cbj/react-obs-core
+# @cbj/vignette-core
 
-Target-neutral contracts and compiler for React OBS. This package defines the authoring graph,
+Target-neutral contracts and compiler for Vignette. This package defines the authoring graph,
 branded IDs, source modules, Yoga layout, immutable compiled snapshots, assets, diagnostics, and
 runtime message protocol. It does not import React or a target implementation.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-core
+pnpm add jsr:@cbj/vignette-core
 ```
 
 ## Compile without React
 
 ```ts
-import { compileBroadcast, projectId, sceneId, sourceId, layerId } from "@cbj/react-obs-core";
-import { broadcast, colorSource, layer, scene, sources } from "@cbj/react-obs-core/builders";
+import { compileBroadcast, projectId, sceneId, sourceId, layerId } from "@cbj/vignette-core";
+import { broadcast, colorSource, layer, scene, sources } from "@cbj/vignette-core/builders";
 
 const snapshot = compileBroadcast(
   broadcast({
@@ -38,4 +38,4 @@ more independent targets. Extension packages augment `SourceKinds` and contribut
 pass those modules to the compiler or composer rather than using an open settings bag.
 
 The `./builders` entrypoint is optional. React projects normally author the same graph with
-`@cbj/react-obs`.
+`@cbj/vignette`.

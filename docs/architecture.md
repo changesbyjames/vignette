@@ -67,7 +67,7 @@ Neither runtime inspects React fibers or authoring nodes.
 
 ## Optional React DOM frames
 
-`@cbj/react-obs-frame` can lower a typed `<View>` into a normal browser source plus layer. Its Vite
+`@cbj/vignette-frame` can lower a typed `<View>` into a normal browser source plus layer. Its Vite
 adapter owns module metadata, parameter validation, server-rendered HTML, and browser hydration.
 Core, snapshots, and runtimes see only the resulting absolute URL, viewport, IDs, and geometry. This
 keeps DOM React content composable without making React DOM or a bundler part of the common scene
@@ -75,18 +75,17 @@ protocol. See [`react-frames.md`](react-frames.md).
 
 ## Package ownership
 
-- `@cbj/react-obs-core`: graph vocabulary, immutable snapshots, runtime messages, validation, and
+- `@cbj/vignette-core`: graph vocabulary, immutable snapshots, runtime messages, validation, and
   Yoga.
-- `@cbj/react-obs`: Node-side React reconciler, primitives, and `createComposerRoot`.
-- `@cbj/react-obs-frame`: optional typed browser views, SSR/hydration, and Vite adapter.
-- `@cbj/react-obs-target-dom`: browser asset cache and `DOMRuntime`.
-- `@cbj/react-obs-target-obs`: temporary-file asset cache, `OBSRuntime`, planner, and transport.
-- `@cbj/react-obs-testkit`: deterministic OBS transport and planner test utilities.
+- `@cbj/vignette`: Node-side React reconciler, primitives, and `createComposerRoot`.
+- `@cbj/vignette-frame`: optional typed browser views, SSR/hydration, and Vite adapter.
+- `@cbj/vignette-target-dom`: browser asset cache and `DOMRuntime`.
+- `@cbj/vignette-target-obs`: temporary-file asset cache, `OBSRuntime`, planner, and transport.
+- `@cbj/vignette-testkit`: deterministic OBS transport and planner test utilities.
 
 The renderer remains synchronous and local. All downloads, sockets, retries, DOM work, and OBS work
 are runtime concerns beyond the compiled snapshot boundary.
 
-The base DOM target has no React dependency. `@cbj/react-obs-target-dom/react` is an optional
-adapter that combines a container callback ref, abort-aware runtime stream, DOMRuntime lifecycle,
-and a cached `useSyncExternalStore` subscription. See
-[`dom-compositor-hook.md`](dom-compositor-hook.md).
+The base DOM target has no React dependency. `@cbj/vignette-target-dom/react` is an optional adapter
+that combines a container callback ref, abort-aware runtime stream, DOMRuntime lifecycle, and a
+cached `useSyncExternalStore` subscription. See [`dom-compositor-hook.md`](dom-compositor-hook.md).

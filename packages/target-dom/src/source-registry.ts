@@ -1,4 +1,4 @@
-import type { CompiledItem, CompiledSource, SourceDefinition, SourceId } from "@cbj/react-obs-core";
+import type { CompiledItem, CompiledSource, SourceDefinition, SourceId } from "@cbj/vignette-core";
 
 import type { DomRendererMap, DomSourceView } from "./elements/index.js";
 
@@ -18,7 +18,7 @@ export class DomSourceRegistry {
     this.#document = container.ownerDocument;
     this.#renderers = renderers;
     this.#parking = this.#document.createElement("div");
-    this.#parking.dataset.reactObsSourceParking = "";
+    this.#parking.dataset.vignetteSourceParking = "";
     this.#parking.hidden = true;
     this.#parking.style.display = "none";
     container.append(this.#parking);
@@ -53,7 +53,7 @@ export class DomSourceRegistry {
     const element = record.view.element;
     if (element.parentNode !== host) moveElement(host, element);
     record.view.update(source, item, resolvedUrl);
-    element.dataset.reactObsSource = source.id;
+    element.dataset.vignetteSource = source.id;
     return record.view;
   }
 

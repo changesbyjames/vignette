@@ -1,6 +1,6 @@
-import { layerId, type LayoutStyle, type Size, type SourceId } from "@cbj/react-obs-core";
-import { View } from "@cbj/react-obs-frame";
-import { Box, Layer } from "@cbj/react-obs";
+import { layerId, type LayoutStyle, type Size, type SourceId } from "@cbj/vignette-core";
+import { View } from "@cbj/vignette-frame";
+import { Box, Layer } from "@cbj/vignette";
 import type { ReactElement } from "react";
 
 import { cameraLabel } from "./camera-label.frame.js";

@@ -1,9 +1,9 @@
 /**
- * Node request handling and production module hosting for React OBS frames.
+ * Node request handling and production module hosting for Vignette frames.
  *
  * @module
  */
-import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/react-obs-core";
+import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/vignette-core";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { readFile } from "node:fs/promises";
@@ -48,7 +48,7 @@ export class FrameRouteRegistry {
     const metadata = definition.metadata;
     if (metadata === undefined) {
       throw new Error(
-        "Frame definition has no client metadata. Export it from a module processed by reactObsFrames().",
+        "Frame definition has no client metadata. Export it from a module processed by vignetteFrames().",
       );
     }
     this.#checkCollision(metadata);
@@ -83,7 +83,7 @@ export function createFrameRequestHandler(
 ): NodeRequestHandler {
   return async (request, response) => {
     if (request.url === undefined) return false;
-    const url = new URL(request.url, "http://react-obs.local");
+    const url = new URL(request.url, "http://vignette.local");
     if (!url.pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return false;
 
     try {
@@ -182,11 +182,11 @@ function createFrameHtml(
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>html, body, [data-react-obs-frame-root] { width: 100%; height: 100%; } ${DEFAULT_BROWSER_SOURCE_CSS}</style>
+    <style>html, body, [data-vignette-frame-root] { width: 100%; height: 100%; } ${DEFAULT_BROWSER_SOURCE_CSS}</style>
   </head>
   <body>
-    <div data-react-obs-frame-root>${markup}</div>
-    <script id="__react-obs-frame-props" type="application/json">${escapeJsonForHtml(serializedParams)}</script>
+    <div data-vignette-frame-root>${markup}</div>
+    <script id="__vignette-frame-props" type="application/json">${escapeJsonForHtml(serializedParams)}</script>
     <script type="module" src="${hydrationUrl}"></script>
   </body>
 </html>`;
@@ -196,7 +196,7 @@ function createHydrationModule(host: ModuleHost, registration: FrameMetadata): s
   return `import * as frameModule from ${JSON.stringify(host.resolveClientModule(registration.moduleUrl))};
 import { hydrateFrame } from ${JSON.stringify(host.resolveClientHelper())};
 const definition = frameModule[${JSON.stringify(registration.exportName)}];
-const element = document.querySelector('#__react-obs-frame-props');
+const element = document.querySelector('#__vignette-frame-props');
 if (element === null || element.textContent === null) throw new Error('Frame props are missing.');
 hydrateFrame(definition, JSON.parse(element.textContent));
 `;

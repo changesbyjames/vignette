@@ -1,4 +1,4 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/react-obs-core";
+import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { REQUIRED_OBS_REQUESTS } from "./capabilities.js";

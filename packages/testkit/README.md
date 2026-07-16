@@ -1,12 +1,12 @@
-# @cbj/react-obs-testkit
+# @cbj/vignette-testkit
 
-Deterministic test utilities for React OBS packages and extensions. Production packages must not
+Deterministic test utilities for Vignette packages and extensions. Production packages must not
 depend on this package.
 
 ## Install
 
 ```sh
-pnpm add -D jsr:@cbj/react-obs-testkit
+pnpm add -D jsr:@cbj/vignette-testkit
 ```
 
 `FakeRenderTarget` records setup, snapshot, event, and disposal behavior. `FakeObsTransport` scripts

@@ -1,4 +1,4 @@
-# @cbj/react-obs
+# @cbj/vignette
 
 Node-side React renderer for authoring fixed-canvas broadcast scenes. React mutates a local
 authoring graph; each commit is compiled into a complete, target-neutral snapshot. This package does
@@ -7,14 +7,14 @@ not render DOM and performs no remote I/O.
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs jsr:@cbj/react-obs-core react
+pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core react
 ```
 
 ## Compose a scene
 
 ```tsx
-import { layerId, projectId, sceneId, sourceId } from "@cbj/react-obs-core";
-import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/react-obs";
+import { layerId, projectId, sceneId, sourceId } from "@cbj/vignette-core";
+import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/vignette";
 
 const root = createComposerRoot({
   projectId: projectId("demo"),

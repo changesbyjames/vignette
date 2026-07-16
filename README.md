@@ -1,7 +1,7 @@
-# React OBS
+# Vignette
 
-React OBS is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once
-and materializing them in both the browser and OBS.
+Vignette is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once and
+materializing them in both the browser and OBS.
 
 React and Yoga run in a Node composer. It emits one target-neutral, complete immutable snapshot;
 independent DOM and OBS runtimes consume setup, update, and event messages over SSE or an in-memory
@@ -13,13 +13,13 @@ The packages are published as TypeScript source on [JSR](https://jsr.io/@cbj). F
 composer with a browser preview:
 
 ```sh
-pnpm add jsr:@cbj/react-obs jsr:@cbj/react-obs-core \
-  jsr:@cbj/react-obs-server jsr:@cbj/react-obs-frame \
-  jsr:@cbj/react-obs-target-dom react react-dom
+pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core \
+  jsr:@cbj/vignette-server jsr:@cbj/vignette-frame \
+  jsr:@cbj/vignette-target-dom react react-dom
 ```
 
-Add `jsr:@cbj/react-obs-target-obs` for OBS output, `jsr:@cbj/react-obs-moq` for Media over QUIC, or
-`jsr:@cbj/react-obs-testkit` for target and planner tests. Each package README documents its
+Add `jsr:@cbj/vignette-target-obs` for OBS output, `jsr:@cbj/vignette-moq` for Media over QUIC, or
+`jsr:@cbj/vignette-testkit` for target and planner tests. Each package README documents its
 entrypoints and extension seams. [`examples/studio`](examples/studio) is a complete Vite client,
 Node composer, frame SSR/hydration, SSE, and optional OBS worker that can be used as an application
 template.

@@ -9,11 +9,11 @@ import {
   type CompiledItem,
   type CompiledSnapshot,
   type CompiledSource,
-} from "@cbj/react-obs-core";
-import type { MoqSource } from "@cbj/react-obs-moq";
-import { moqObsCodec } from "@cbj/react-obs-moq/obs";
-import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/react-obs";
-import { managedSceneName, managedSourceName, OBSRuntime } from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-core";
+import type { MoqSource } from "@cbj/vignette-moq";
+import { moqObsCodec } from "@cbj/vignette-moq/obs";
+import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/vignette";
+import { managedSceneName, managedSourceName, OBSRuntime } from "@cbj/vignette-target-obs";
 import { OBSWebSocket } from "obs-websocket-js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
@@ -27,16 +27,16 @@ import {
   MAX_DIFFERENCE_RATIO,
 } from "./parity.js";
 
-const enabled = process.env.REACT_OBS_ALLOW_INTEGRATION === "1";
+const enabled = process.env.VIGNETTE_ALLOW_INTEGRATION === "1";
 
 test("embedded OBS runtime consumes the in-memory snapshot stream", async () => {
-  test.skip(!enabled, "Set REACT_OBS_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
+  test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
   test.setTimeout(60_000);
-  const url = requiredEnvironment("REACT_OBS_URL");
-  const password = requiredEnvironment("REACT_OBS_PASSWORD");
-  const expectedCollection = requiredEnvironment("REACT_OBS_TEST_COLLECTION");
+  const url = requiredEnvironment("VIGNETTE_OBS_URL");
+  const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
+  const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
   const project = projectId(`integration-${String(Date.now())}`);
-  const prefix = `react-obs::${project}::`;
+  const prefix = `vignette::${project}::`;
   const sceneName = managedSceneName(project, sceneId("main"));
 
   await assertDisposableCollection(url, password, expectedCollection);
@@ -75,13 +75,13 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
 });
 
 test("custom OBS MoQ source receives the same live configuration", async () => {
-  test.skip(!enabled, "Set REACT_OBS_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
+  test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
   test.setTimeout(60_000);
-  const url = requiredEnvironment("REACT_OBS_URL");
-  const password = requiredEnvironment("REACT_OBS_PASSWORD");
-  const expectedCollection = requiredEnvironment("REACT_OBS_TEST_COLLECTION");
+  const url = requiredEnvironment("VIGNETTE_OBS_URL");
+  const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
+  const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
   const project = projectId(`moq-integration-${String(Date.now())}`);
-  const prefix = `react-obs::${project}::`;
+  const prefix = `vignette::${project}::`;
 
   await assertDisposableCollection(url, password, expectedCollection);
   const studioSnapshot = await readStudioSnapshot();
@@ -134,13 +134,13 @@ test("custom OBS MoQ source receives the same live configuration", async () => {
 });
 
 test("View frame has pixel-aligned DOM and OBS browser viewports", async ({ page }, testInfo) => {
-  test.skip(!enabled, "Set REACT_OBS_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
+  test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
   test.setTimeout(60_000);
-  const url = requiredEnvironment("REACT_OBS_URL");
-  const password = requiredEnvironment("REACT_OBS_PASSWORD");
-  const expectedCollection = requiredEnvironment("REACT_OBS_TEST_COLLECTION");
+  const url = requiredEnvironment("VIGNETTE_OBS_URL");
+  const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
+  const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
   const project = projectId(`frame-parity-${String(Date.now())}`);
-  const prefix = `react-obs::${project}::`;
+  const prefix = `vignette::${project}::`;
 
   await assertDisposableCollection(url, password, expectedCollection);
   const studioSnapshot = await readStudioSnapshot();
@@ -164,7 +164,7 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({ page
     await page.goto("/?parity=frame");
     await expect(page.getByTestId("dom-status")).toHaveText("settled");
     await expect(page.locator("body")).toHaveClass(/parity-page/u);
-    const frame = page.locator(`iframe[data-react-obs-source="${source.id}"]`);
+    const frame = page.locator(`iframe[data-vignette-source="${source.id}"]`);
     await expect(frame).toHaveCount(1);
     await expect
       .poll(async () => {
@@ -174,7 +174,7 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({ page
       .toEqual([width, height]);
     await expect(
       page
-        .frameLocator(`iframe[data-react-obs-source="${source.id}"]`)
+        .frameLocator(`iframe[data-vignette-source="${source.id}"]`)
         .getByTestId("greeting-frame"),
     ).toHaveAttribute("data-hydrated", "true");
 
@@ -301,7 +301,7 @@ function isolateFrameSnapshot(
   const source = studio.sources.find(
     (candidate) =>
       candidate.definition.kind === "source:browser" &&
-      candidate.definition.url.includes("/__react-obs/frame/"),
+      candidate.definition.url.includes("/__vignette/frame/"),
   );
   if (source === undefined) throw new Error("Studio snapshot has no <View> browser source.");
   const originalItem = studio.scenes

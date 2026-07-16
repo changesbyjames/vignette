@@ -4,7 +4,7 @@ import {
   RUNTIME_SSE_EVENTS,
   type RuntimeMessage,
   type RuntimeMessageSource,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 /**
  * A runtime message transport backed by an `EventSource` reading the wire format produced by

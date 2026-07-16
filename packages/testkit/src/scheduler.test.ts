@@ -6,7 +6,7 @@ import {
   sourceId,
   type AssetResolver,
   type CompiledSnapshot,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import {
   createObsTargetWithTransport,
   managedSceneName,
@@ -14,7 +14,7 @@ import {
   registrySceneName,
   REQUIRED_OBS_REQUESTS,
   type ObsJsonObject,
-} from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-target-obs";
 import { describe, expect, it } from "vitest";
 
 import { FakeObsTransport } from "./fake-obs-transport.js";

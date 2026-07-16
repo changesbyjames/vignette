@@ -1,5 +1,5 @@
-import { moqObsCodec } from "@cbj/react-obs-moq/obs";
-import { OBSRuntime } from "@cbj/react-obs-target-obs";
+import { moqObsCodec } from "@cbj/vignette-moq/obs";
+import { OBSRuntime } from "@cbj/vignette-target-obs";
 
 import { STUDIO_PROJECT_ID } from "./studio.js";
 
@@ -34,7 +34,7 @@ export function rewriteAssetOrigin(url: string, origin: string): string {
     target.search !== "" ||
     target.hash !== ""
   ) {
-    throw new Error("REACT_OBS_ASSET_ORIGIN must be an HTTP(S) origin without a path.");
+    throw new Error("VIGNETTE_ASSET_ORIGIN must be an HTTP(S) origin without a path.");
   }
   target.pathname = source.pathname;
   target.search = source.search;

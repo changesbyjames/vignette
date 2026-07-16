@@ -15,7 +15,7 @@ type Props = Readonly<Record<string, unknown>>;
 type TimeoutHandle = ReturnType<typeof setTimeout>;
 type NoTimeout = -1;
 interface BroadcastHostContext {
-  readonly renderer: "react-obs";
+  readonly renderer: "vignette";
 }
 type HostConfig = ReactReconciler.HostConfig<
   HostType,
@@ -54,13 +54,13 @@ type RendererHostConfig = HostConfig & {
 };
 
 const DEFAULT_EVENT_PRIORITY = 0b0000000000000000000000000010000;
-const HOST_CONTEXT: BroadcastHostContext = { renderer: "react-obs" };
+const HOST_CONTEXT: BroadcastHostContext = { renderer: "vignette" };
 const hostTransitionContext = createContext(null) as unknown as HostConfig["HostTransitionContext"];
 let currentUpdatePriority = DEFAULT_EVENT_PRIORITY;
 
 export const hostConfig: RendererHostConfig = {
   rendererVersion: "0.0.0",
-  rendererPackageName: "@cbj/react-obs",
+  rendererPackageName: "@cbj/vignette",
   extraDevToolsConfig: null,
   supportsMutation: true,
   supportsPersistence: false,

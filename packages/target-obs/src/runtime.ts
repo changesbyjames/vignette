@@ -6,7 +6,7 @@ import type {
   SnapshotRuntime,
   TargetApplyReceipt,
   TargetStatus,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 import { ObsAssetStore, type ObsAssetStoreOptions } from "./asset-store.js";
 import type { ObsSourceCodec } from "./codecs/index.js";

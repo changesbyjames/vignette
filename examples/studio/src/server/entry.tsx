@@ -1,5 +1,5 @@
-import { createClientManifestModuleHost } from "@cbj/react-obs-frame/server";
-import { createComposerHost, type ComposerHost } from "@cbj/react-obs-server";
+import { createClientManifestModuleHost } from "@cbj/vignette-frame/server";
+import { createComposerHost, type ComposerHost } from "@cbj/vignette-server";
 import { createServer, type Server } from "node:http";
 import { dirname, resolve } from "node:path";
 import process from "node:process";
@@ -16,7 +16,7 @@ import {
 
 const port = readPort(process.env.PORT);
 const hostname = process.env.HOST ?? "127.0.0.1";
-const origin = readOrigin(process.env.REACT_OBS_ORIGIN ?? `http://${hostname}:${String(port)}`);
+const origin = readOrigin(process.env.VIGNETTE_ORIGIN ?? `http://${hostname}:${String(port)}`);
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const clientDirectory = resolve(serverDirectory, "../client");
 const reportError = (error: Error) => {
@@ -46,7 +46,7 @@ const server = createServer((request, response) => {
 try {
   await listen(server, port, hostname);
   await host.start();
-  console.log(`React OBS studio listening at ${origin}`);
+  console.log(`Vignette studio listening at ${origin}`);
 } catch (error: unknown) {
   if (server.listening) await closeServer(server);
   await host.close();
@@ -117,7 +117,7 @@ function readOrigin(raw: string): string {
     value.search !== "" ||
     value.hash !== ""
   ) {
-    throw new Error("REACT_OBS_ORIGIN must be an HTTP(S) origin without a path, query, or hash.");
+    throw new Error("VIGNETTE_ORIGIN must be an HTTP(S) origin without a path, query, or hash.");
   }
   return value.origin;
 }

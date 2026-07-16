@@ -1,1 +1,1 @@
-export { hydrateFrame } from "@cbj/react-obs-frame/client";
+export { hydrateFrame } from "@cbj/vignette-frame/client";

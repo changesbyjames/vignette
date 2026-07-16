@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { compileBroadcast, type AssetResolver } from "@cbj/react-obs-core";
+import { compileBroadcast, type AssetResolver } from "@cbj/vignette-core";
 import {
   broadcast,
   browserSource,
@@ -8,7 +8,7 @@ import {
   layer,
   scene,
   sources,
-} from "@cbj/react-obs-core/builders";
+} from "@cbj/vignette-core/builders";
 import { describe, expect, it } from "vitest";
 
 import { DomTarget } from "./dom-target.js";
@@ -44,9 +44,9 @@ describe("DomTarget", () => {
     await target.whenSettled(1);
 
     expect(
-      container.querySelector("[data-react-obs-stage]")?.getAttribute("data-react-obs-revision"),
+      container.querySelector("[data-vignette-stage]")?.getAttribute("data-vignette-revision"),
     ).toBe("1");
-    expect(container.querySelector("[data-react-obs-layer='programme.background']")).not.toBeNull();
+    expect(container.querySelector("[data-vignette-layer='programme.background']")).not.toBeNull();
     expect(target.getStatus()).toMatchObject({ phase: "settled", settledRevision: 1 });
 
     await target.dispose();
@@ -101,17 +101,17 @@ describe("DomTarget", () => {
     await target.whenSettled(1);
 
     const initialFrame = container.querySelector<HTMLIFrameElement>(
-      "[data-react-obs-layer='programme.browser'] iframe",
+      "[data-vignette-layer='programme.browser'] iframe",
     );
     expect(initialFrame).not.toBeNull();
 
     await target.setScene("preview");
 
     const movedFrame = container.querySelector<HTMLIFrameElement>(
-      "[data-react-obs-layer='preview.browser'] iframe",
+      "[data-vignette-layer='preview.browser'] iframe",
     );
     expect(movedFrame).toBe(initialFrame);
-    expect(container.querySelector("[data-react-obs-layer='programme.browser']")).toBeNull();
+    expect(container.querySelector("[data-vignette-layer='programme.browser']")).toBeNull();
 
     await target.dispose();
   });
@@ -162,7 +162,7 @@ describe("DomTarget", () => {
       scenes: [{ ...programme, items: [] }],
     });
     await target.whenSettled(2);
-    expect(container.querySelector("[data-react-obs-layer]")).toBeNull();
+    expect(container.querySelector("[data-vignette-layer]")).toBeNull();
 
     target.publish({ ...compiled.snapshot, revision: 3 });
     await target.whenSettled(3);

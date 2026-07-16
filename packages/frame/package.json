@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-frame",
+  "name": "@cbj/vignette-frame",
   "version": "0.1.0",
-  "description": "Typed React DOM frames with Vite SSR and hydration for React OBS browser sources.",
+  "description": "Typed React DOM frames with Vite SSR and hydration for Vignette browser sources.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -31,8 +31,8 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
-    "@cbj/react-obs": "workspace:^",
+    "@cbj/vignette-core": "workspace:^",
+    "@cbj/vignette": "workspace:^",
     "typescript": "6.0.3"
   },
   "peerDependencies": {

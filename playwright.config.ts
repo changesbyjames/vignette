@@ -11,7 +11,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "corepack pnpm --filter @cbj/react-obs-studio exec vite --host 127.0.0.1 --port 4173 --strictPort",
+      "corepack pnpm --filter @cbj/vignette-studio exec vite --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

@@ -7,7 +7,7 @@ import {
   type ProjectId,
   type SourceModule,
   type SourceModuleMap,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import type { ReactNode } from "react";
 
 import { hostTreeToBroadcast } from "./host-tree.js";
@@ -84,7 +84,7 @@ class ComposerRootImpl implements ComposerRoot {
       null,
       options.strictMode ?? false,
       null,
-      "react-obs-",
+      "vignette-",
       (error) => {
         this.handleRenderError(error);
       },

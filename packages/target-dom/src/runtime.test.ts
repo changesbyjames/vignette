@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { compileBroadcast } from "@cbj/react-obs-core";
-import { broadcast, colorSource, layer, scene, sources } from "@cbj/react-obs-core/builders";
+import { compileBroadcast } from "@cbj/vignette-core";
+import { broadcast, colorSource, layer, scene, sources } from "@cbj/vignette-core/builders";
 import { describe, expect, it } from "vitest";
 
 import { DOMRuntime } from "./runtime.js";

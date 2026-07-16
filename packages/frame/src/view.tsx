@@ -1,11 +1,11 @@
-import { layerId, sourceId, type Size } from "@cbj/react-obs-core";
-import { BrowserView, type BrowserViewProps } from "@cbj/react-obs";
+import { layerId, sourceId, type Size } from "@cbj/vignette-core";
+import { BrowserView, type BrowserViewProps } from "@cbj/vignette";
 import { createContext, createElement, useContext, type ReactElement, type ReactNode } from "react";
 
 import type { FrameDefinition } from "./definition.js";
 import { hashFrameValue, serializeFrameParams } from "./serialization.js";
 
-export const FRAME_ROUTE_PREFIX = "/__react-obs/frame";
+export const FRAME_ROUTE_PREFIX = "/__vignette/frame";
 const DEFAULT_VIEWPORT: Size = { width: 1920, height: 1080 };
 const FrameOriginContext = createContext<string | undefined>(undefined);
 const FrameRegistrarContext = createContext<FrameRegistrar | undefined>(undefined);
@@ -57,7 +57,7 @@ export function View<Params extends object>(props: ViewProps<Params>): ReactElem
   const metadata = props.source.metadata;
   if (metadata === undefined) {
     throw new Error(
-      "The frame definition has no client metadata. Export it from a module processed by reactObsFrames().",
+      "The frame definition has no client metadata. Export it from a module processed by vignetteFrames().",
     );
   }
   // Render-time registration is deliberate: it is idempotent, and it guarantees the route exists

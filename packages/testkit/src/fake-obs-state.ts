@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/react-obs-core";
+import type { ProjectId } from "@cbj/vignette-core";
 import {
   managedSceneName,
   managedSourceName,
@@ -12,7 +12,7 @@ import {
   type ObservedObsScene,
   type ObservedObsSceneItem,
   type ObservedObsState,
-} from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-target-obs";
 
 export interface ApplyFakeObsPlanOptions {
   readonly state: ObservedObsState;

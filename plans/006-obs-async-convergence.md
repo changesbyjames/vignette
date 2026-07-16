@@ -39,8 +39,8 @@ the reconciler prevents remote latency and failure from corrupting React commits
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| OBS target tests | `pnpm --filter @react-obs/target-obs test` | all pass without real OBS |
-| Race tests | `pnpm --filter @react-obs/target-obs test -- --run scheduler` | all fake-timer cases pass |
+| OBS target tests | `pnpm --filter @vignette/target-obs test` | all pass without real OBS |
+| Race tests | `pnpm --filter @vignette/target-obs test -- --run scheduler` | all fake-timer cases pass |
 | Full gates | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
 ## Suggested executor toolkit

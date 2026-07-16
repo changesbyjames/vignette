@@ -12,7 +12,7 @@
 
 - Keep the base DOM target package entry React-free.
 - Make `DOMRuntime` directly compatible with `useSyncExternalStore` through bound stable methods.
-- Put the hook and browser SSE adapter under the optional `@react-obs/target-dom/react` subpath.
+- Put the hook and browser SSE adapter under the optional `@vignette/target-dom/react` subpath.
 - Return `[ref, snapshot]`; mounting the ref owns runtime creation and detaching owns cancellation
   and disposal.
 - Preserve transport independence with a custom abort-aware `AsyncIterable` factory option.

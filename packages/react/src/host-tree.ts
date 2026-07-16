@@ -6,7 +6,7 @@ import type {
   SceneNode,
   SourceDefinition,
   SourcesNode,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 import type { HostContainer, HostNode, HostType } from "./host-types.js";
 

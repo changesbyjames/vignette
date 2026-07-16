@@ -1,4 +1,4 @@
-import type { LayoutStyle } from "@cbj/react-obs-core";
+import type { LayoutStyle } from "@cbj/vignette-core";
 
 /** Fixed-canvas placement shared by camera layers and transparent overlays. */
 export function tile(left: number, top: number, width: number, height: number): LayoutStyle {

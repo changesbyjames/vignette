@@ -1,5 +1,5 @@
 {
-  "name": "@cbj/react-obs",
+  "name": "@cbj/vignette",
   "version": "0.1.0",
   "description": "React renderer and authoring primitives for target-neutral broadcast scenes.",
   "license": "MIT",
@@ -19,14 +19,14 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/vignette-core": "workspace:^",
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {
     "react": "19.2.7"
   },
   "devDependencies": {
-    "@cbj/react-obs-testkit": "workspace:^",
+    "@cbj/vignette-testkit": "workspace:^",
     "@types/react": "19.2.17",
     "@types/react-reconciler": "0.33.0",
     "react": "19.2.7"

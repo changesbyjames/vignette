@@ -27,7 +27,7 @@ making parity measurable and target adapters mechanical.
 
 ## Current state
 
-- `@react-obs/core` defines graph, snapshot, geometry, validation, and builders.
+- `@vignette/core` defines graph, snapshot, geometry, validation, and builders.
 - `LayoutStyle` is a narrow placeholder with no Yoga runtime dependency.
 - The selected runtime is `yoga-layout@3.2.1`.
 - Yoga must be configured explicitly; read
@@ -38,8 +38,8 @@ making parity measurable and target adapters mechanical.
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Core tests | `pnpm --filter @react-obs/core test` | all pass |
-| Layout tests | `pnpm --filter @react-obs/core test -- --run layout` | golden cases pass |
+| Core tests | `pnpm --filter @vignette/core test` | all pass |
+| Layout tests | `pnpm --filter @vignette/core test -- --run layout` | golden cases pass |
 | Full gates | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
 ## Scope
@@ -98,7 +98,7 @@ Do not expose Yoga nodes publicly or retain them in compiled snapshots. Add a
 test seam that counts allocations and frees so success and validation failure
 both finish at zero live nodes.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run layout` -> lifecycle
+**Verify**: `pnpm --filter @vignette/core test -- --run layout` -> lifecycle
 tests show allocations equal frees.
 
 ### Step 3: Compile boxes and flatten placements
@@ -125,7 +125,7 @@ calculating crop so DOM and OBS do not round independently.
 Test landscape-to-portrait and portrait-to-landscape contain/cover, odd pixel
 sizes, non-central alignment, fill distortion, and manual crop composition.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run content-fit` -> all
+**Verify**: `pnpm --filter @vignette/core test -- --run content-fit` -> all
 table-driven cases pass with exact rectangles/insets.
 
 ### Step 5: Add revisioned graph compilation

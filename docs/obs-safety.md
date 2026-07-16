@@ -1,6 +1,6 @@
 # OBS safety model
 
-The library exclusively owns resources whose names begin with `react-obs::<projectId>::`. Each
+The library exclusively owns resources whose names begin with `vignette::<projectId>::`. Each
 project has a registry scene, managed scenes, and managed source inputs. The planner never schedules
 an operation against an unmanaged UUID or name.
 
@@ -13,7 +13,7 @@ OBS passwords are runtime secrets. The library accepts them as constructor data 
 environment variables, logs settings, or persists credentials. Do not embed credentials in browser
 bundles for remote deployment. A production remote control plane should use a trusted local service.
 
-The real-OBS probe requires `REACT_OBS_ALLOW_INTEGRATION=1` and an exact expected disposable
+The real-OBS probe requires `VIGNETTE_ALLOW_INTEGRATION=1` and an exact expected disposable
 collection name. Project cleanup must match the full managed prefix; never switch or delete a user's
 collection as part of a test.
 

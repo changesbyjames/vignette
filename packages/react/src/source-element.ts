@@ -1,4 +1,4 @@
-import { deepFreeze, type SourceKind, type SourceKinds } from "@cbj/react-obs-core";
+import { deepFreeze, type SourceKind, type SourceKinds } from "@cbj/vignette-core";
 import { createElement, type ReactElement } from "react";
 
 export type SourceProps<K extends SourceKind> = Omit<SourceKinds[K], "kind">;

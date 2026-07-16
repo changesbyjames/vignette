@@ -8,7 +8,7 @@ import type {
   Size,
   SourceDefinition,
   SourceId,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import { createElement, type ReactElement, type ReactNode } from "react";
 
 import { sourceElement, type SourceProps } from "./source-element.js";

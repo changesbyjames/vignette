@@ -1,4 +1,4 @@
-import type { CompiledSnapshot } from "@cbj/react-obs-core";
+import type { CompiledSnapshot } from "@cbj/vignette-core";
 
 import { px } from "./styles.js";
 
@@ -16,8 +16,8 @@ export class DomStage {
     const document = container.ownerDocument;
     this.viewport = document.createElement("div");
     this.stage = document.createElement("div");
-    this.viewport.dataset.reactObsViewport = "";
-    this.stage.dataset.reactObsStage = "";
+    this.viewport.dataset.vignetteViewport = "";
+    this.stage.dataset.vignetteStage = "";
 
     Object.assign(this.viewport.style, {
       position: "relative",
@@ -50,8 +50,8 @@ export class DomStage {
   update(snapshot: CompiledSnapshot): void {
     this.#width = snapshot.canvas.width;
     this.#height = snapshot.canvas.height;
-    this.stage.dataset.reactObsProject = snapshot.projectId;
-    this.stage.dataset.reactObsRevision = String(snapshot.revision);
+    this.stage.dataset.vignetteProject = snapshot.projectId;
+    this.stage.dataset.vignetteRevision = String(snapshot.revision);
     Object.assign(this.stage.style, {
       width: px(this.#width),
       height: px(this.#height),

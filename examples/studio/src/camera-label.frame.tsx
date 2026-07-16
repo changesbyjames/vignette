@@ -1,4 +1,4 @@
-import { frame } from "@cbj/react-obs-frame";
+import { frame } from "@cbj/vignette-frame";
 import { z } from "zod";
 
 export const cameraLabel = frame({

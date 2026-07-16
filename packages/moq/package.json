@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-moq",
+  "name": "@cbj/vignette-moq",
   "version": "0.1.0",
-  "description": "Media over QUIC source extension for React OBS, DOM, and OBS targets.",
+  "description": "Media over QUIC source extension for Vignette, DOM, and OBS targets.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -32,10 +32,10 @@
   },
   "dependencies": {
     "@moq/watch": "0.3.0",
-    "@cbj/react-obs-core": "workspace:^",
-    "@cbj/react-obs": "workspace:^",
-    "@cbj/react-obs-target-dom": "workspace:^",
-    "@cbj/react-obs-target-obs": "workspace:^"
+    "@cbj/vignette-core": "workspace:^",
+    "@cbj/vignette": "workspace:^",
+    "@cbj/vignette-target-dom": "workspace:^",
+    "@cbj/vignette-target-obs": "workspace:^"
   },
   "peerDependencies": {
     "react": "19.2.7"

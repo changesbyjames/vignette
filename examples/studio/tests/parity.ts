@@ -88,7 +88,7 @@ export function createParityReportHtml(
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>React OBS frame parity</title>
+    <title>Vignette frame parity</title>
     <style>
       :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; background: #090d18; color: #eef2ff; }
       body { margin: 0; padding: 32px; }
@@ -104,7 +104,7 @@ export function createParityReportHtml(
   </head>
   <body>
     <header>
-      <div><p>React OBS</p><h1>&lt;View /&gt; parity</h1></div>
+      <div><p>Vignette</p><h1>&lt;View /&gt; parity</h1></div>
       <p><strong>${String(result.differingPixels)}</strong> differing pixels · <strong>${(result.differenceRatio * 100).toFixed(4)}%</strong></p>
     </header>
     <main>

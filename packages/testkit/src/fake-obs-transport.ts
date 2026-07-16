@@ -6,7 +6,7 @@ import type {
   ObsEventListener,
   ObsJsonObject,
   ObsTransport,
-} from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-target-obs";
 
 export interface FakeObsRequest {
   readonly requestType: string;

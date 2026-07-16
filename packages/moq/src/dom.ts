@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { DomSourceRenderer } from "@cbj/react-obs-target-dom";
+import type { DomSourceRenderer } from "@cbj/vignette-target-dom";
 
 import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 
@@ -70,7 +70,7 @@ function updateMoq(watch: MoqWatchElement, source: MoqSource): void {
   );
 
   const quality = source.quality ?? "auto";
-  watch.dataset.reactObsMoqQuality = quality;
+  watch.dataset.vignetteMoqQuality = quality;
   watch.backend?.video.source.target.update((current) => ({
     ...current,
     name: quality === "auto" ? undefined : quality,

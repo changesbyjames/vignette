@@ -1,20 +1,20 @@
-import { FrameRouteRegistry, reactObsFrames } from "@cbj/react-obs-frame/vite";
+import { FrameRouteRegistry, vignetteFrames } from "@cbj/vignette-frame/vite";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 export const viteSsrConfig = defineConfig({
-  plugins: [reactObsFrames(new FrameRouteRegistry())],
+  plugins: [vignetteFrames(new FrameRouteRegistry())],
   ssr: {
     external: [
-      "@cbj/react-obs-core",
-      "@cbj/react-obs-frame",
-      "@cbj/react-obs-frame/server",
-      "@cbj/react-obs-moq",
-      "@cbj/react-obs-moq/obs",
-      "@cbj/react-obs-moq/react",
-      "@cbj/react-obs",
-      "@cbj/react-obs-server",
-      "@cbj/react-obs-target-obs",
+      "@cbj/vignette-core",
+      "@cbj/vignette-frame",
+      "@cbj/vignette-frame/server",
+      "@cbj/vignette-moq",
+      "@cbj/vignette-moq/obs",
+      "@cbj/vignette-moq/react",
+      "@cbj/vignette",
+      "@cbj/vignette-server",
+      "@cbj/vignette-target-obs",
       "react",
       "react/jsx-runtime",
     ],

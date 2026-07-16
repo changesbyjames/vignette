@@ -54,20 +54,20 @@ describe("frame request handler", () => {
   it("renders frame HTML with serialized props", async () => {
     const response = await request(
       createHandler({ greeting }),
-      "/__react-obs/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
+      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(response.text).toContain("<strong>Hello Ada</strong>");
     expect(response.text).toContain('{"name":"Ada"}');
-    expect(response.text).toContain('src="/__react-obs/frame/greeting-test/hydrate.js"');
+    expect(response.text).toContain('src="/__vignette/frame/greeting-test/hydrate.js"');
   });
 
   it("uses host-resolved hydration module URLs", async () => {
     const response = await request(
       createHandler({ greeting }),
-      "/__react-obs/frame/greeting-test/hydrate.js",
+      "/__vignette/frame/greeting-test/hydrate.js",
     );
 
     expect(response.status).toBe(200);
@@ -79,7 +79,7 @@ describe("frame request handler", () => {
   it("maps props validation failures to 400", async () => {
     const response = await request(
       createHandler({ greeting }),
-      "/__react-obs/frame/greeting-test?props=%7B%22name%22%3A1%7D",
+      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A1%7D",
     );
 
     expect(response.status).toBe(400);
@@ -89,7 +89,7 @@ describe("frame request handler", () => {
   it("maps unknown frame routes to 404", async () => {
     const response = await request(
       createHandler({ greeting }),
-      "/__react-obs/frame/unknown?props=%7B%7D",
+      "/__vignette/frame/unknown?props=%7B%7D",
     );
 
     expect(response.status).toBe(404);
@@ -116,7 +116,7 @@ describe("frame request handler", () => {
 
     const response = await request(
       handler,
-      "/__react-obs/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
+      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
     );
 
     expect(response.status).toBe(200);
@@ -136,7 +136,7 @@ describe("frame request handler", () => {
 
     const response = await request(
       handler,
-      "/__react-obs/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
+      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
     );
 
     expect(response.status).toBe(500);

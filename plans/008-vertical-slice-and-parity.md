@@ -42,9 +42,9 @@ requirement for everyday development.
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Studio dev | `pnpm --filter @react-obs/studio dev` | Vite listens on 127.0.0.1 |
+| Studio dev | `pnpm --filter @vignette/studio dev` | Vite listens on 127.0.0.1 |
 | Browser E2E | `pnpm test:e2e` | Playwright passes without OBS |
-| OBS integration | `REACT_OBS_ALLOW_INTEGRATION=1 pnpm test:obs-integration` | passes against disposable local OBS project |
+| OBS integration | `VIGNETTE_ALLOW_INTEGRATION=1 pnpm test:obs-integration` | passes against disposable local OBS project |
 | Full gates | `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` | all exit 0 |
 
 ## Suggested executor toolkit
@@ -96,7 +96,7 @@ Controls change padding, direction, visibility, and child order. Display root
 commit revision and independent DOM/OBS status. Do not render control buttons
 inside the custom broadcast root.
 
-**Verify**: `pnpm --filter @react-obs/studio dev` -> page loads locally, DOM
+**Verify**: `pnpm --filter @vignette/studio dev` -> page loads locally, DOM
 target settles, and controls change its revision and geometry.
 
 ### Step 2: Implement explicit per-target asset resolution
@@ -126,7 +126,7 @@ Commit a reviewed DOM golden screenshot for only this deterministic route.
 
 ### Step 4: Add a guarded real-OBS integration suite
 
-The suite must skip unless `REACT_OBS_ALLOW_INTEGRATION=1`. Require URL, password,
+The suite must skip unless `VIGNETTE_ALLOW_INTEGRATION=1`. Require URL, password,
 and asset-root environment variables at process runtime. Use a unique project ID
 under a clearly test-only namespace. Before mutation, assert the current
 collection name matches an explicit expected test collection variable; otherwise

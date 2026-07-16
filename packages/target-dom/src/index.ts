@@ -1,5 +1,5 @@
 /**
- * Browser DOM runtime and source renderers for compiled React OBS snapshots.
+ * Browser DOM runtime and source renderers for compiled Vignette snapshots.
  *
  * @module
  */

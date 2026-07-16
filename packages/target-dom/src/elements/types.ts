@@ -1,4 +1,4 @@
-import type { CompiledItem, SourceDefinition, SourceKind, SourceKinds } from "@cbj/react-obs-core";
+import type { CompiledItem, SourceDefinition, SourceKind, SourceKinds } from "@cbj/vignette-core";
 
 /** One live DOM element rendering one source instance. */
 export interface DomSourceView {

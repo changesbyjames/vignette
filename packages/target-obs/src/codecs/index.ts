@@ -1,4 +1,4 @@
-import type { SourceKind } from "@cbj/react-obs-core";
+import type { SourceKind } from "@cbj/vignette-core";
 
 import { browserCodec } from "./browser.js";
 import { colorCodec } from "./color.js";

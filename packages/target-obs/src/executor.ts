@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/react-obs-core";
+import type { ProjectId } from "@cbj/vignette-core";
 
 import { ObsExecutionError, ObsRequestError } from "./errors.js";
 import { managedSceneName, managedSourceName, registrySceneName } from "./naming.js";

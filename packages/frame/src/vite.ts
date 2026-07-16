@@ -1,5 +1,5 @@
 /**
- * Vite plugin and development module host for discovering and serving React OBS frames.
+ * Vite plugin and development module host for discovering and serving Vignette frames.
  *
  * @module
  */
@@ -33,10 +33,10 @@ export function createDevServerModuleHost(server: ViteDevServer): ModuleHost {
   };
 }
 
-export function reactObsFrames(registry: FrameRouteRegistry = new FrameRouteRegistry()): Plugin {
+export function vignetteFrames(registry: FrameRouteRegistry = new FrameRouteRegistry()): Plugin {
   let config: ResolvedConfig | undefined;
   return {
-    name: "react-obs-frames",
+    name: "vignette-frames",
     enforce: "pre",
     configResolved(resolved) {
       config = resolved;
@@ -110,7 +110,7 @@ function findFrameImportNames(source: ts.SourceFile): ReadonlySet<string> {
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
     if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (statement.moduleSpecifier.text !== "@cbj/react-obs-frame") continue;
+    if (statement.moduleSpecifier.text !== "@cbj/vignette-frame") continue;
     const bindings = statement.importClause?.namedBindings;
     if (bindings === undefined || !ts.isNamedImports(bindings)) continue;
     for (const element of bindings.elements) {

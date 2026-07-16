@@ -4,7 +4,7 @@ import {
   type AssetRef,
   type AssetResolver,
   type ResolvedAsset,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -36,7 +36,7 @@ export class ObsAssetStore implements AssetResolver {
 
   async setup(manifest: AssetManifest): Promise<void> {
     validateManifest(manifest);
-    const root = await mkdtemp(join(this.#temporaryDirectory, "react-obs-assets-"));
+    const root = await mkdtemp(join(this.#temporaryDirectory, "vignette-assets-"));
     const files = new Map<string, string>();
     try {
       const downloads = await Promise.all(

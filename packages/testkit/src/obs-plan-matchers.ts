@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/react-obs-core";
+import type { ProjectId } from "@cbj/vignette-core";
 import {
   OBS_PHASES,
   indexManagedObservedState,
@@ -6,7 +6,7 @@ import {
   type ObsOperation,
   type ObsPlan,
   type ObservedObsState,
-} from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-target-obs";
 
 export function obsOperationKinds(plan: ObsPlan): readonly ObsOperation["kind"][] {
   return plan.operations.map((operation) => operation.kind);

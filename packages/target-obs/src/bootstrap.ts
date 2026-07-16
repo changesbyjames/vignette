@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/react-obs-core";
+import type { ProjectId } from "@cbj/vignette-core";
 
 import { parseManagedName } from "./naming.js";
 import type {

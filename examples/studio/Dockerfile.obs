@@ -14,9 +14,9 @@ RUN pnpm build
 FROM node:22-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
-    REACT_OBS_RUNTIME_URL=http://react-obs-host:4173/runtime \
-    REACT_OBS_ASSET_ORIGIN=http://react-obs-host:4173 \
-    REACT_OBS_URL=ws://host.docker.internal:4455
+    VIGNETTE_RUNTIME_URL=http://vignette-host:4173/runtime \
+    VIGNETTE_ASSET_ORIGIN=http://vignette-host:4173 \
+    VIGNETTE_OBS_URL=ws://host.docker.internal:4455
 
 WORKDIR /app
 

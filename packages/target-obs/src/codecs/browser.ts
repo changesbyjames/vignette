@@ -1,4 +1,4 @@
-import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/react-obs-core";
+import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 

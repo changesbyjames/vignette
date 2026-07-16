@@ -1,4 +1,4 @@
-import { sourceId } from "@cbj/react-obs-core";
+import { sourceId } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import type { MoqSource } from "./index.js";

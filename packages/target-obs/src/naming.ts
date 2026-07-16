@@ -6,9 +6,9 @@ import {
   type ProjectId,
   type SceneId,
   type SourceId,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
-const PREFIX = "react-obs";
+const PREFIX = "vignette";
 const SEPARATOR = "::";
 
 export type ManagedObsName =

@@ -4,7 +4,7 @@ import {
   type RuntimeMessage,
   type RuntimeMessageSource,
   type RuntimeSseEvent,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 export interface SseRuntimeSourceOptions {
   readonly retryDelayMs?: number;

@@ -108,8 +108,8 @@ Create `tsconfig.base.json` with `strict`, `noUncheckedIndexedAccess`,
 output, ESM-compatible module resolution, and no implicit emit outside each
 package's `dist/`. Create a root solution `tsconfig.json` referencing all five
 packages and the example. Each package gets `package.json`, `tsconfig.json`, and
-`src/index.ts`; package names are `@react-obs/core`, `@react-obs/react`,
-`@react-obs/target-dom`, `@react-obs/target-obs`, and `@react-obs/testkit`.
+`src/index.ts`; package names are `@vignette/core`, `@vignette/react`,
+`@vignette/target-dom`, `@vignette/target-obs`, and `@vignette/testkit`.
 
 Declare workspace dependencies with `workspace:*`. Keep all runtime entrypoints
 side-effect-free and expose only `dist/index.js` plus declarations.

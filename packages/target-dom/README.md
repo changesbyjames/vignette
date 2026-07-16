@@ -1,18 +1,18 @@
-# @cbj/react-obs-target-dom
+# @cbj/vignette-target-dom
 
-Browser target for compiled React OBS snapshots. It applies the compiler's absolute layout rather
+Browser target for compiled Vignette snapshots. It applies the compiler's absolute layout rather
 than asking CSS to independently lay out a scene.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-target-dom jsr:@cbj/react-obs-core
+pnpm add jsr:@cbj/vignette-target-dom jsr:@cbj/vignette-core
 ```
 
 ## React compositor
 
 ```tsx
-import { sseRuntimeSource, useCompositor } from "@cbj/react-obs-target-dom/react";
+import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
 
 export function Program() {
   const [ref, status] = useCompositor({

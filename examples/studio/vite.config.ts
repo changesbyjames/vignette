@@ -1,21 +1,21 @@
 import { defineConfig } from "vite";
-import { FrameRouteRegistry, reactObsFrames } from "@cbj/react-obs-frame/vite";
+import { FrameRouteRegistry, vignetteFrames } from "@cbj/vignette-frame/vite";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { reactObsComposer } from "./src/backend/plugin.js";
+import { vignetteComposer } from "./src/backend/plugin.js";
 
 const frameRegistry = new FrameRouteRegistry();
 const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export const viteConfig = defineConfig({
-  plugins: [reactObsFrames(frameRegistry), reactObsComposer(frameRegistry)],
+  plugins: [vignetteFrames(frameRegistry), vignetteComposer(frameRegistry)],
   server: { host: "127.0.0.1", port: 4173, strictPort: true },
   // The composer host wraps the SSR-loaded scene in providers imported through Node. The frame
   // package must resolve to that same module instance inside ssrLoadModule, or React context
   // identity breaks between <FrameProvider> and <View>.
-  ssr: { external: ["@cbj/react-obs-frame"] },
+  ssr: { external: ["@cbj/vignette-frame"] },
   build: {
     outDir: "dist/client",
     manifest: true,

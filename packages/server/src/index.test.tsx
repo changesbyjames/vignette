@@ -1,5 +1,5 @@
-import { projectId, sceneId, type AssetManifest, type SnapshotRuntime } from "@cbj/react-obs-core";
-import { Broadcast, Scene } from "@cbj/react-obs";
+import { projectId, sceneId, type AssetManifest, type SnapshotRuntime } from "@cbj/vignette-core";
+import { Broadcast, Scene } from "@cbj/vignette";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { ReactElement } from "react";

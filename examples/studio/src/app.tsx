@@ -1,5 +1,5 @@
-import { moqDomRenderer } from "@cbj/react-obs-moq/dom";
-import { sseRuntimeSource, useCompositor } from "@cbj/react-obs-target-dom/react";
+import { moqDomRenderer } from "@cbj/vignette-moq/dom";
+import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
 import type { ReactElement } from "react";
 
 const transport = sseRuntimeSource("/runtime");
@@ -20,7 +20,7 @@ export function App(): ReactElement {
     <main>
       <header>
         <div>
-          <p className="eyebrow">React OBS</p>
+          <p className="eyebrow">Vignette</p>
           <h1>Node-composed broadcast</h1>
         </div>
         <div className="status-grid">

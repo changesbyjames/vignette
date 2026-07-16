@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { asset } from "@cbj/react-obs-core";
+import { asset } from "@cbj/vignette-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { DomAssetStore } from "./asset-store.js";
@@ -10,7 +10,7 @@ describe("DomAssetStore", () => {
     const revoked: string[] = [];
     const store = new DomAssetStore({
       fetch: vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"]), { status: 200 }))),
-      createObjectURL: () => "blob:react-obs/background",
+      createObjectURL: () => "blob:vignette/background",
       revokeObjectURL: (url) => revoked.push(url),
     });
 
@@ -21,9 +21,9 @@ describe("DomAssetStore", () => {
 
     await expect(store.resolve(asset("background.png"))).resolves.toEqual({
       kind: "url",
-      url: "blob:react-obs/background",
+      url: "blob:vignette/background",
     });
     store.dispose();
-    expect(revoked).toEqual(["blob:react-obs/background"]);
+    expect(revoked).toEqual(["blob:vignette/background"]);
   });
 });

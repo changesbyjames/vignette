@@ -40,8 +40,8 @@ concurrent render work causing external side effects.
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Renderer tests | `pnpm --filter @react-obs/react test` | all pass |
-| Host tests | `pnpm --filter @react-obs/react test -- --run host` | all mutation cases pass |
+| Renderer tests | `pnpm --filter @vignette/react test` | all pass |
+| Host tests | `pnpm --filter @vignette/react test -- --run host` | all mutation cases pass |
 | Full gates | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
 ## Suggested executor toolkit
@@ -121,7 +121,7 @@ a commit is active. `resetAfterCommit` increments the root commit revision and
 notifies the root scheduler; it does not compile inline, await, or call targets.
 Do not derive identity from React's opaque internal handle.
 
-**Verify**: `pnpm --filter @react-obs/react test -- --run host-config` -> mount,
+**Verify**: `pnpm --filter @vignette/react test -- --run host-config` -> mount,
 update, reorder, remove, unmount, fragment, conditional, and StrictMode cases pass.
 
 ### Step 4: Compile and publish completed commits

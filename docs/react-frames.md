@@ -1,6 +1,6 @@
 # React DOM frames
 
-`@cbj/react-obs-frame` is an optional bridge for content that should remain a real React DOM
+`@cbj/vignette-frame` is an optional bridge for content that should remain a real React DOM
 application while appearing as a normal browser source in both targets. Core snapshots do not know
 about frame definitions, schemas, server rendering, or hydration.
 
@@ -9,7 +9,7 @@ about frame definitions, schemas, server rendering, or hydration.
 Put each frame in a client-safe module and export the definition:
 
 ```tsx
-import { frame } from "@cbj/react-obs-frame";
+import { frame } from "@cbj/vignette-frame";
 import { z } from "zod";
 
 export const greeting = frame({
@@ -25,7 +25,7 @@ synchronous schema with `parse(input)` works.
 Place the frame directly in common Yoga layout:
 
 ```tsx
-import { FrameProvider, View } from "@cbj/react-obs-frame";
+import { FrameProvider, View } from "@cbj/vignette-frame";
 
 <FrameProvider origin="http://127.0.0.1:4173">
   <Broadcast>
@@ -60,10 +60,10 @@ composer backend, browser, and OBS are on the same machine.
 Enable the optional Vite integration before the composer plugin:
 
 ```ts
-import { reactObsFrames } from "@cbj/react-obs-frame/vite";
+import { vignetteFrames } from "@cbj/vignette-frame/vite";
 
 export default defineConfig({
-  plugins: [reactObsFrames(), reactObsComposer()],
+  plugins: [vignetteFrames(), vignetteComposer()],
 });
 ```
 
@@ -80,7 +80,7 @@ Frame modules should contain browser-safe imports. Do not define a frame in a mo
 OBS clients, filesystem APIs, the custom reconciler, or secret server configuration because the same
 module is imported by the iframe browser.
 
-The route handler itself is host-agnostic and lives in `@cbj/react-obs-frame/server`
+The route handler itself is host-agnostic and lives in `@cbj/vignette-frame/server`
 (`createFrameRequestHandler` plus `FrameRouteRegistry`); the Vite plugin is a thin development
 binding that supplies module loading and client-URL resolution through the `ModuleHost` seam. Placed
 `<View>`s register their frame definitions at render time through `FrameRegistrarProvider`, so hosts

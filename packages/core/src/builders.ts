@@ -1,5 +1,5 @@
 /**
- * Functional builders for creating a React OBS authoring graph without React.
+ * Functional builders for creating a Vignette authoring graph without React.
  *
  * @module
  */

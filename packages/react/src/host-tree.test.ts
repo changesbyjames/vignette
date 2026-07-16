@@ -1,4 +1,4 @@
-import { layerId, projectId, sceneId, sourceId } from "@cbj/react-obs-core";
+import { layerId, projectId, sceneId, sourceId } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -125,7 +125,7 @@ describe("host tree mutations", () => {
     const view = createHostNode("browser-view", {
       id: layerId("scoreboard-layer"),
       sourceId: sourceId("scoreboard-source"),
-      url: "http://127.0.0.1:4173/__react-obs/frame/scoreboard",
+      url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
       viewport: { width: 1280, height: 720 },
       style: { width: 640, height: 360 },
       fit: "contain",
@@ -145,7 +145,7 @@ describe("host tree mutations", () => {
             {
               kind: "source:browser",
               id: sourceId("scoreboard-source"),
-              url: "http://127.0.0.1:4173/__react-obs/frame/scoreboard",
+              url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
               viewport: { width: 1280, height: 720 },
             },
           ],

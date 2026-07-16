@@ -1,4 +1,4 @@
-# React OBS Studio
+# Vignette Studio
 
 This is a complete application example, not a published package. It demonstrates the topology an
 external project can build from the `@cbj` packages: a Vite browser client, Node composer host,
@@ -7,7 +7,7 @@ typed frame SSR/hydration, runtime SSE, and an optional standalone or embedded O
 Run the backend composer and browser runtime:
 
 ```sh
-corepack pnpm --filter @cbj/react-obs-studio dev
+corepack pnpm --filter @cbj/vignette-studio dev
 ```
 
 Open `http://127.0.0.1:4173`.
@@ -15,7 +15,7 @@ Open `http://127.0.0.1:4173`.
 The custom React reconciler runs inside the Vite Node process. A timer-driven hook produces complete
 snapshots, `/runtime` serves them as SSE, and the browser only downloads the manifest and applies
 snapshots through `DOMRuntime`. The backend can optionally instantiate `OBSRuntime` and feed it the
-same messages through an in-memory `AsyncIterable` by setting `REACT_OBS_ENABLE_EMBEDDED=1`.
+same messages through an in-memory `AsyncIterable` by setting `VIGNETTE_ENABLE_EMBEDDED=1`.
 
 The “Hello James!” overlay is an exported `frame()` definition. The Vite frame adapter serves its
 server-rendered HTML and hydration module, while the scene snapshot contains only a normal browser
@@ -35,10 +35,10 @@ The motion panel is a live MoQ source. The DOM target renders `https://cdn.moq.d
 Install the same public dependency set:
 
 ```sh
-pnpm add jsr:@cbj/react-obs jsr:@cbj/react-obs-core \
-  jsr:@cbj/react-obs-frame jsr:@cbj/react-obs-server \
-  jsr:@cbj/react-obs-target-dom jsr:@cbj/react-obs-target-obs \
-  jsr:@cbj/react-obs-moq react react-dom zod
+pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core \
+  jsr:@cbj/vignette-frame jsr:@cbj/vignette-server \
+  jsr:@cbj/vignette-target-dom jsr:@cbj/vignette-target-obs \
+  jsr:@cbj/vignette-moq react react-dom zod
 pnpm add -D vite
 ```
 

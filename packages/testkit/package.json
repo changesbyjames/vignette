@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-testkit",
+  "name": "@cbj/vignette-testkit",
   "version": "0.1.0",
-  "description": "Deterministic target, transport, clock, and OBS plan fakes for React OBS tests.",
+  "description": "Deterministic target, transport, clock, and OBS plan fakes for Vignette tests.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -19,7 +19,7 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
-    "@cbj/react-obs-target-obs": "workspace:^"
+    "@cbj/vignette-core": "workspace:^",
+    "@cbj/vignette-target-obs": "workspace:^"
   }
 }

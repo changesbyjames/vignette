@@ -1,4 +1,4 @@
-import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/react-obs-core";
+import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
@@ -39,21 +39,21 @@ function applyBrowserCss(frame: HTMLIFrameElement, css: string): void {
   try {
     const document = frame.contentDocument;
     if (document === null) {
-      frame.dataset.reactObsCssInjection = "blocked";
+      frame.dataset.vignetteCssInjection = "blocked";
       return;
     }
     const parent = document.head;
 
-    let style = document.querySelector<HTMLStyleElement>("style[data-react-obs-browser-css]");
+    let style = document.querySelector<HTMLStyleElement>("style[data-vignette-browser-css]");
     if (style === null) {
       style = document.createElement("style");
-      style.dataset.reactObsBrowserCss = "";
+      style.dataset.vignetteBrowserCss = "";
       parent.append(style);
     }
     style.textContent = css;
-    frame.dataset.reactObsCssInjection = "applied";
+    frame.dataset.vignetteCssInjection = "applied";
   } catch {
-    frame.dataset.reactObsCssInjection = "blocked";
+    frame.dataset.vignetteCssInjection = "blocked";
   }
 }
 

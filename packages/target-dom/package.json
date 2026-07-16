@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-target-dom",
+  "name": "@cbj/vignette-target-dom",
   "version": "0.1.0",
-  "description": "Browser DOM runtime and React compositor hook for React OBS snapshots.",
+  "description": "Browser DOM runtime and React compositor hook for Vignette snapshots.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -23,7 +23,7 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/vignette-core": "workspace:^",
     "ramda": "0.32.0"
   },
   "peerDependencies": {

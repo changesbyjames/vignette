@@ -1,4 +1,4 @@
-import { layerId, projectId, sceneId, sourceId } from "@cbj/react-obs-core";
+import { layerId, projectId, sceneId, sourceId } from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { executeObsPlan } from "./executor.js";
@@ -50,15 +50,15 @@ describe("executeObsPlan", () => {
       [
         "CreateSceneItem",
         {
-          sceneName: "react-obs::show::scene::main",
-          sourceName: "react-obs::show::source::video",
+          sceneName: "vignette::show::scene::main",
+          sourceName: "vignette::show::source::video",
           sceneItemEnabled: false,
         },
       ],
       [
         "SetSceneItemEnabled",
         {
-          sceneName: "react-obs::show::scene::main",
+          sceneName: "vignette::show::scene::main",
           sceneItemId: 41,
           sceneItemEnabled: true,
         },

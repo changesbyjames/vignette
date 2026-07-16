@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-target-obs",
+  "name": "@cbj/vignette-target-obs",
   "version": "0.1.0",
-  "description": "OBS runtime, planner, and transport contracts for React OBS snapshots.",
+  "description": "OBS runtime, planner, and transport contracts for Vignette snapshots.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -19,7 +19,7 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
+    "@cbj/vignette-core": "workspace:^",
     "obs-websocket-js": "5.0.8",
     "ramda": "0.32.0"
   },

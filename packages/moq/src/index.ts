@@ -12,7 +12,7 @@ import {
   type Size,
   type SourceBase,
   type SourceModule,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 export const DEFAULT_MOQ_LATENCY_MS = 100;
 
@@ -29,7 +29,7 @@ export interface MoqSource extends SourceBase {
   readonly disableWhenHidden?: boolean;
 }
 
-declare module "@cbj/react-obs-core" {
+declare module "@cbj/vignette-core" {
   interface SourceKinds {
     "source:moq": MoqSource;
   }

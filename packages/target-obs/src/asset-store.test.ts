@@ -1,4 +1,4 @@
-import { asset } from "@cbj/react-obs-core";
+import { asset } from "@cbj/vignette-core";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,7 +8,7 @@ import { ObsAssetStore } from "./asset-store.js";
 
 describe("ObsAssetStore", () => {
   it("downloads named assets into a private temporary directory", async () => {
-    const parent = await mkdtemp(join(tmpdir(), "react-obs-test-"));
+    const parent = await mkdtemp(join(tmpdir(), "vignette-test-"));
     const store = new ObsAssetStore({
       temporaryDirectory: parent,
       fetch: () =>

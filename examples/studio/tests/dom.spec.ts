@@ -3,14 +3,14 @@ import { expect, test } from "@playwright/test";
 test("receives complete snapshots from the Node composer over SSE", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
-  await expect(page.locator("[data-react-obs-stage]")).toHaveAttribute(
-    "data-react-obs-project",
+  await expect(page.locator("[data-vignette-stage]")).toHaveAttribute(
+    "data-vignette-project",
     "studio-demo",
   );
-  await expect(page.locator("[data-react-obs-layer]")).toHaveCount(17);
-  await expect(page.locator('iframe[src*="/__react-obs/frame/"]')).toHaveCount(10);
+  await expect(page.locator("[data-vignette-layer]")).toHaveCount(17);
+  await expect(page.locator('iframe[src*="/__vignette/frame/"]')).toHaveCount(10);
   await expect(
-    page.locator('iframe[data-react-obs-source^="slot."][data-react-obs-source$=".label.source"]'),
+    page.locator('iframe[data-vignette-source^="slot."][data-vignette-source$=".label.source"]'),
   ).toHaveCount(6);
 });
 
@@ -18,14 +18,14 @@ test("downloads manifest assets into browser-owned blob URLs", async ({ page }) 
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
   await expect(
-    page.locator('img[data-react-obs-source="overlay.six-camera-border"]'),
+    page.locator('img[data-vignette-source="overlay.six-camera-border"]'),
   ).toHaveAttribute("src", /^blob:/u);
 });
 
 test("configures the MoQ panel through @moq/watch", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
-  const watches = page.locator("moq-watch[data-react-obs-source]");
+  const watches = page.locator("moq-watch[data-vignette-source]");
   await expect(watches).toHaveCount(6);
   await expect
     .poll(() =>
@@ -37,12 +37,12 @@ test("configures the MoQ panel through @moq/watch", async ({ page }) => {
               ?.startsWith("https://moq.conservation.stream/james?jwt=") === true &&
             element.getAttribute("name")?.endsWith(".hang") === true &&
             element.getAttribute("visible") === "always" &&
-            element.getAttribute("data-react-obs-moq-quality") === "auto",
+            element.getAttribute("data-vignette-moq-quality") === "auto",
         ),
         latencies: elements
           .map(
             (element) =>
-              `${element.getAttribute("data-react-obs-source") ?? "missing-source"}:${element.getAttribute("latency") ?? "missing-latency"}`,
+              `${element.getAttribute("data-vignette-source") ?? "missing-source"}:${element.getAttribute("latency") ?? "missing-latency"}`,
           )
           .toSorted(),
       })),
@@ -65,7 +65,7 @@ test("shuffles complete camera slots every five seconds", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
   const cameraLayers = page.locator(
-    '[data-react-obs-layer^="slot."][data-react-obs-layer$=".camera"]',
+    '[data-vignette-layer^="slot."][data-vignette-layer$=".camera"]',
   );
   await expect(cameraLayers).toHaveCount(6);
 
@@ -74,7 +74,7 @@ test("shuffles complete camera slots every five seconds", async ({ page }) => {
       elements
         .map(
           (element) =>
-            `${element.getAttribute("data-react-obs-layer") ?? "missing-layer"}:${(element as HTMLElement).style.left}:${(element as HTMLElement).style.top}`,
+            `${element.getAttribute("data-vignette-layer") ?? "missing-layer"}:${(element as HTMLElement).style.left}:${(element as HTMLElement).style.top}`,
         )
         .toSorted(),
     );
@@ -85,10 +85,10 @@ test("shuffles complete camera slots every five seconds", async ({ page }) => {
 test("serves and hydrates the transparent overlay frames", async ({ page, request }) => {
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
-  const frames = page.locator('iframe[src*="/__react-obs/frame/"]');
+  const frames = page.locator('iframe[src*="/__vignette/frame/"]');
   await expect(frames).toHaveCount(10);
 
-  const clock = page.locator('iframe[data-react-obs-source="overlay.sanctuary-clock.source"]');
+  const clock = page.locator('iframe[data-vignette-source="overlay.sanctuary-clock.source"]');
   const sourceUrl = await clock.getAttribute("src");
   expect(sourceUrl).not.toBeNull();
   const serverHtml = await request.get(sourceUrl ?? "");
@@ -99,7 +99,7 @@ test("serves and hydrates the transparent overlay frames", async ({ page, reques
   expect((await request.get(invalidUrl.toString())).status()).toBe(400);
 
   const clockFrame = page.frameLocator(
-    'iframe[data-react-obs-source="overlay.sanctuary-clock.source"]',
+    'iframe[data-vignette-source="overlay.sanctuary-clock.source"]',
   );
   await expect(clockFrame.getByTestId("sanctuary-clock-frame")).toHaveAttribute(
     "data-hydrated",
@@ -117,22 +117,22 @@ test("serves and hydrates the transparent overlay frames", async ({ page, reques
 
   await expect(
     page
-      .frameLocator('iframe[data-react-obs-source="slot.serval.label.source"]')
+      .frameLocator('iframe[data-vignette-source="slot.serval.label.source"]')
       .getByTestId("camera-label-frame"),
   ).toContainText("Kasi (Serval) Temporary Enclosure");
   await expect(
     page
-      .frameLocator('iframe[data-react-obs-source="overlay.sanctuary-links.source"]')
+      .frameLocator('iframe[data-vignette-source="overlay.sanctuary-links.source"]')
       .getByTestId("sanctuary-links-frame"),
   ).toContainText("alveussanctuary.org");
   await expect(
     page
-      .frameLocator('iframe[data-react-obs-source="overlay.animal-disclaimer.source"]')
+      .frameLocator('iframe[data-vignette-source="overlay.animal-disclaimer.source"]')
       .getByTestId("animal-disclaimer-frame"),
   ).toContainText("educational ambassadors");
   await expect(
     page
-      .frameLocator('iframe[data-react-obs-source="overlay.testing-banner.source"]')
+      .frameLocator('iframe[data-vignette-source="overlay.testing-banner.source"]')
       .getByTestId("testing-banner-frame"),
   ).toHaveText("Not Alveus Sanctuary (testing)");
 });

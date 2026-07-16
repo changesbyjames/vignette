@@ -1,4 +1,4 @@
-import type { Diagnostic } from "@cbj/react-obs-core";
+import type { Diagnostic } from "@cbj/vignette-core";
 
 export type BroadcastRootPhase = "idle" | "compiling" | "ready" | "error" | "disposed";
 

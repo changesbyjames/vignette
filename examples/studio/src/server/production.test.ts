@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import type { RuntimeMessage } from "@cbj/react-obs-core";
-import { sseRuntimeSource } from "@cbj/react-obs-target-obs";
+import type { RuntimeMessage } from "@cbj/vignette-core";
+import { sseRuntimeSource } from "@cbj/vignette-target-obs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -13,8 +13,8 @@ const studioRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 describe("production studio server", () => {
   it("builds and serves runtime SSE, frame SSR, and manifest-resolved hydration modules", async () => {
-    // Set REACT_OBS_SKIP_BUILD=1 to reuse an existing dist/ when iterating locally.
-    if (process.env.REACT_OBS_SKIP_BUILD !== "1") {
+    // Set VIGNETTE_SKIP_BUILD=1 to reuse an existing dist/ when iterating locally.
+    if (process.env.VIGNETTE_SKIP_BUILD !== "1") {
       await execFileAsync("pnpm", ["build"], {
         cwd: workspaceRoot,
         env: process.env,
@@ -29,7 +29,7 @@ describe("production studio server", () => {
       env: {
         ...process.env,
         PORT: String(port),
-        REACT_OBS_ORIGIN: origin,
+        VIGNETTE_ORIGIN: origin,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -123,7 +123,7 @@ async function readRuntimeReplay(url: string): Promise<readonly RuntimeMessage[]
 
 function findFrameUrl(value: unknown): string | undefined {
   if (typeof value === "string") {
-    return value.includes("/__react-obs/frame/") ? value : undefined;
+    return value.includes("/__vignette/frame/") ? value : undefined;
   }
   if (Array.isArray(value)) {
     for (const entry of value) {

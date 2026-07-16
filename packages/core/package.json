@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-core",
+  "name": "@cbj/vignette-core",
   "version": "0.1.0",
-  "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for React OBS.",
+  "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for Vignette.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

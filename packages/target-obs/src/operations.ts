@@ -1,4 +1,4 @@
-import type { LayerId, SceneId, SourceId } from "@cbj/react-obs-core";
+import type { LayerId, SceneId, SourceId } from "@cbj/vignette-core";
 
 export type ObsJsonPrimitive = string | number | boolean | null;
 export type ObsJsonValue = ObsJsonPrimitive | ObsJsonObject | readonly ObsJsonValue[];

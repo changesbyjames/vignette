@@ -1,19 +1,19 @@
-# @cbj/react-obs-moq
+# @cbj/vignette-moq
 
-Media over QUIC source extension for React OBS. It provides one source model plus separate React,
+Media over QUIC source extension for Vignette. It provides one source model plus separate React,
 DOM, and OBS facets so each architecture layer depends only on the contracts it needs.
 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/react-obs-moq
+pnpm add jsr:@cbj/vignette-moq
 ```
 
 ```tsx
-import { moqSourceModule } from "@cbj/react-obs-moq";
-import { moqDomRenderer } from "@cbj/react-obs-moq/dom";
-import { moqObsCodec } from "@cbj/react-obs-moq/obs";
-import { MoqSource } from "@cbj/react-obs-moq/react";
+import { moqSourceModule } from "@cbj/vignette-moq";
+import { moqDomRenderer } from "@cbj/vignette-moq/dom";
+import { moqObsCodec } from "@cbj/vignette-moq/obs";
+import { MoqSource } from "@cbj/vignette-moq/react";
 
 const composerExtensions = [moqSourceModule];
 const domExtensions = [moqDomRenderer];

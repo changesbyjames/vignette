@@ -26,8 +26,8 @@ before the slower OBS target is connected.
 
 ## Current state
 
-- `@react-obs/core` publishes immutable absolute-layout snapshots.
-- `@react-obs/target-dom` is an empty package depending on core.
+- `@vignette/core` publishes immutable absolute-layout snapshots.
+- `@vignette/target-dom` is an empty package depending on core.
 - The target must support image, media-file, browser, and color sources.
 - Arbitrary interactive React components are control UI, not broadcast layers.
 
@@ -35,7 +35,7 @@ before the slower OBS target is connected.
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| DOM tests | `pnpm --filter @react-obs/target-dom test` | all jsdom tests pass |
+| DOM tests | `pnpm --filter @vignette/target-dom test` | all jsdom tests pass |
 | Typecheck | `pnpm typecheck` | no diagnostics |
 | Full gates | `pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
@@ -74,7 +74,7 @@ stage element with fixed pixel width/height, `position: relative`, hidden
 overflow, isolation, and transform origin at top left. Use a wrapper or resize
 observer to apply one preview scale; never alter child broadcast coordinates.
 
-Set stable `data-react-obs-*` attributes for project, scene, source, layer, and
+Set stable `data-vignette-*` attributes for project, scene, source, layer, and
 revision so tests and devtools do not depend on CSS classes.
 
 **Verify**: DOM unit test asserts a 1920x1080 snapshot creates a 1920x1080 stage

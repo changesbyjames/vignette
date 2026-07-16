@@ -3,7 +3,7 @@ import {
   type AssetResolver,
   type ProjectId,
   type RenderTarget,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 import type { ObsSourceCodec } from "./codecs/index.js";
 import { ObsWebSocketTransport } from "./obs-websocket-transport.js";

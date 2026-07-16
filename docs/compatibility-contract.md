@@ -29,10 +29,10 @@ Browser sources receive the same default CSS in both targets:
 `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }`. OBS applies it
 through the browser input's native custom-CSS setting. The DOM target injects it after each iframe
 load when the iframe document is same-origin. Browser same-origin policy prevents injection into an
-arbitrary cross-origin URL; in that case the iframe has `data-react-obs-css-injection="blocked"`,
-and the served page must include equivalent CSS itself.
+arbitrary cross-origin URL; in that case the iframe has `data-vignette-css-injection="blocked"`, and
+the served page must include equivalent CSS itself.
 
-Optional `@cbj/react-obs-frame` views compile to this same browser-source contract. The Vite adapter
+Optional `@cbj/vignette-frame` views compile to this same browser-source contract. The Vite adapter
 serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each load that
 URL in their own browser instance, so markup and behavior are shared but hook state and timing are
 not synchronized.

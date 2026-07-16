@@ -28,7 +28,7 @@ against observed states before any real OBS instance is touched.
 
 - Core snapshots provide sources, absolute transforms, crop, visibility, and
   canonical bottom-to-top item order.
-- `@react-obs/target-obs` and `@react-obs/testkit` are empty skeletons.
+- `@vignette/target-obs` and `@vignette/testkit` are empty skeletons.
 - The current protocol is vendored at `reference/obs-websocket/protocol.md` and
   JSON form at `reference/obs-websocket/protocol.json`.
 - V1 permits at most one placement of a source per scene, allowing recovery by
@@ -38,8 +38,8 @@ against observed states before any real OBS instance is touched.
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Planner tests | `pnpm --filter @react-obs/target-obs test -- --run planner` | all pass |
-| Testkit tests | `pnpm --filter @react-obs/testkit test` | all pass |
+| Planner tests | `pnpm --filter @vignette/target-obs test -- --run planner` | all pass |
+| Testkit tests | `pnpm --filter @vignette/testkit test` | all pass |
 | Full gates | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
 ## Suggested executor toolkit
@@ -90,9 +90,9 @@ Create deterministic names using one documented prefix and the validated
 project/scene/source IDs. Include a project-owned registry scene:
 
 ```text
-react-obs::<projectId>::registry
-react-obs::<projectId>::scene::<sceneId>
-react-obs::<projectId>::source::<sourceId>
+vignette::<projectId>::registry
+vignette::<projectId>::scene::<sceneId>
+vignette::<projectId>::source::<sourceId>
 ```
 
 New inputs are created disabled in the registry scene; real scene placements are
@@ -190,7 +190,7 @@ Use this to assert: applying a successful plan to any fixture produces a state
 semantically equivalent to desired; planning that result again produces no
 operations.
 
-**Verify**: `pnpm --filter @react-obs/testkit test && pnpm --filter @react-obs/target-obs test -- --run planner` -> all pass.
+**Verify**: `pnpm --filter @vignette/testkit test && pnpm --filter @vignette/target-obs test -- --run planner` -> all pass.
 
 ### Step 7: Export only pure planner APIs
 

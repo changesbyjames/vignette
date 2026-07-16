@@ -1,7 +1,7 @@
 {
-  "name": "@cbj/react-obs-server",
+  "name": "@cbj/vignette-server",
   "version": "0.1.0",
-  "description": "Node composer host, SSE runtime endpoint, and frame routing for React OBS.",
+  "description": "Node composer host, SSE runtime endpoint, and frame routing for Vignette.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -19,9 +19,9 @@
     "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
-    "@cbj/react-obs-core": "workspace:^",
-    "@cbj/react-obs-frame": "workspace:^",
-    "@cbj/react-obs": "workspace:^"
+    "@cbj/vignette-core": "workspace:^",
+    "@cbj/vignette-frame": "workspace:^",
+    "@cbj/vignette": "workspace:^"
   },
   "peerDependencies": {
     "react": "19.2.7"

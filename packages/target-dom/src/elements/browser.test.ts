@@ -6,7 +6,7 @@ import {
   sourceId,
   type BrowserSource,
   type CompiledItem,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { browserRenderer } from "./browser.js";
@@ -36,10 +36,10 @@ describe("browser element", () => {
 
     const frame = sourceElement.element as HTMLIFrameElement;
     const style = frame.contentDocument?.querySelector<HTMLStyleElement>(
-      "style[data-react-obs-browser-css]",
+      "style[data-vignette-browser-css]",
     );
     expect(style?.textContent).toBe(DEFAULT_BROWSER_SOURCE_CSS);
-    expect(frame.dataset.reactObsCssInjection).toBe("applied");
+    expect(frame.dataset.vignetteCssInjection).toBe("applied");
   });
 
   it("reapplies the default CSS after an iframe load", () => {
@@ -48,11 +48,11 @@ describe("browser element", () => {
     sourceElement.update(browser, item);
 
     const frame = sourceElement.element as HTMLIFrameElement;
-    frame.contentDocument?.querySelector("style[data-react-obs-browser-css]")?.remove();
+    frame.contentDocument?.querySelector("style[data-vignette-browser-css]")?.remove();
     frame.dispatchEvent(new Event("load"));
 
     expect(
-      frame.contentDocument?.querySelector("style[data-react-obs-browser-css]")?.textContent,
+      frame.contentDocument?.querySelector("style[data-vignette-browser-css]")?.textContent,
     ).toBe(DEFAULT_BROWSER_SOURCE_CSS);
   });
 });

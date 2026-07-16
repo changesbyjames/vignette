@@ -1,4 +1,4 @@
-import type { AssetRef, AssetResolver, ResolvedAsset } from "@cbj/react-obs-core";
+import type { AssetRef, AssetResolver, ResolvedAsset } from "@cbj/vignette-core";
 
 export class DomAssetRegistry {
   readonly #resolver: AssetResolver;

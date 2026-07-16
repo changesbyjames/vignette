@@ -9,14 +9,14 @@ validation and rewrites them to registry references when each package is publish
 Create these packages in the `@cbj` scope and link each package to this GitHub repository in its JSR
 settings:
 
-- `@cbj/react-obs-core`
-- `@cbj/react-obs`
-- `@cbj/react-obs-target-dom`
-- `@cbj/react-obs-target-obs`
-- `@cbj/react-obs-frame`
-- `@cbj/react-obs-server`
-- `@cbj/react-obs-moq`
-- `@cbj/react-obs-testkit`
+- `@cbj/vignette-core`
+- `@cbj/vignette`
+- `@cbj/vignette-target-dom`
+- `@cbj/vignette-target-obs`
+- `@cbj/vignette-frame`
+- `@cbj/vignette-server`
+- `@cbj/vignette-moq`
+- `@cbj/vignette-testkit`
 
 JSR's GitHub Actions security defaults may also require the workflow initiator to be a member of the
 `@cbj` scope. No repository secret is needed: `.github/workflows/publish-jsr.yml` requests GitHub's
@@ -34,6 +34,6 @@ The workflow runs install, build, typecheck, unit tests, lint, formatting, and a
 before publishing in dependency order. JSR skips package versions that already exist, so a corrected
 rerun can continue after a partial release.
 
-`@cbj/react-obs-moq` deliberately uses TypeScript module augmentation to add `source:moq` to core's
+`@cbj/vignette-moq` deliberately uses TypeScript module augmentation to add `source:moq` to core's
 closed source map. Its publish step therefore opts into JSR slow types. The other seven packages
 must pass JSR's default fast-type checks.

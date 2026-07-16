@@ -5,7 +5,7 @@ import type {
   TargetCapabilities,
   TargetKind,
   TargetStatus,
-} from "@cbj/react-obs-core";
+} from "@cbj/vignette-core";
 
 export class FakeRenderTarget implements RenderTarget {
   readonly id: string;

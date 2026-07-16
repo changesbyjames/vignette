@@ -1,10 +1,10 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/react-obs-core";
+import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
 import {
   planObsUpdate,
   REQUIRED_OBS_REQUESTS,
   resolveObsCodecs,
   type ObservedObsState,
-} from "@cbj/react-obs-target-obs";
+} from "@cbj/vignette-target-obs";
 
 const codecs = resolveObsCodecs();
 import { describe, expect, it } from "vitest";

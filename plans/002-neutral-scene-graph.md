@@ -28,7 +28,7 @@ make snapshots serializable and planner tests cheap.
 
 ## Current state
 
-After Plan 001, `@react-obs/core` is an empty strict TypeScript package. The
+After Plan 001, `@vignette/core` is an empty strict TypeScript package. The
 required vocabulary is:
 
 - **source**: one reusable media/input definition.
@@ -42,7 +42,7 @@ required vocabulary is:
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Core tests | `pnpm --filter @react-obs/core test` | all core tests pass |
+| Core tests | `pnpm --filter @vignette/core test` | all core tests pass |
 | Typecheck | `pnpm typecheck` | no diagnostics |
 | Full gates | `pnpm lint && pnpm test && pnpm build` | all exit 0 |
 
@@ -92,7 +92,7 @@ trimmed, stable strings limited to `[A-Za-z0-9._-]`; labels remain unrestricted
 human-facing strings. Define immutable `Rect`, `Size`, `Insets`, and normalized
 alignment types. Reject non-finite values and negative dimensions.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run validation` -> ID and
+**Verify**: `pnpm --filter @vignette/core test -- --run validation` -> ID and
 geometry cases pass.
 
 ### Step 2: Define source definitions and logical assets
@@ -108,7 +108,7 @@ Define `AssetResolver` as an async target-owned interface, but do not implement
 one. Validate asset paths as normalized project-relative POSIX paths without
 `..`, a leading slash, drive prefix, or URL scheme.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run validation` -> valid
+**Verify**: `pnpm --filter @vignette/core test -- --run validation` -> valid
 source examples pass and invalid paths/URLs/dimensions produce named diagnostics.
 
 ### Step 3: Define the authoring graph
@@ -141,7 +141,7 @@ Define `TargetCapabilities`, `UnsupportedPolicy`, `RenderTarget`,
 synchronous enqueueing; `whenSettled(revision)` is asynchronous and a later
 applied revision satisfies an earlier wait.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run validation` -> snapshot
+**Verify**: `pnpm --filter @vignette/core test -- --run validation` -> snapshot
 serialization and target receipt tests pass.
 
 ### Step 5: Implement deterministic validation
@@ -162,14 +162,14 @@ IDs. Add validation for:
 Sort diagnostics deterministically by path then code. Compilation must be
 blocked only by error-severity diagnostics.
 
-**Verify**: `pnpm --filter @react-obs/core test -- --run validation` -> every
+**Verify**: `pnpm --filter @vignette/core test -- --run validation` -> every
 listed diagnostic has a named test and stable expected code/path.
 
 ### Step 6: Add test-only graph builders and exports
 
 Create terse typed builders for tests (`broadcast`, `scene`, `box`, `layer`,
 and source builders). They belong in `builders.ts` but export from the explicit
-`@react-obs/core/builders` package subpath, not the main runtime entrypoint.
+`@vignette/core/builders` package subpath, not the main runtime entrypoint.
 Export the production public surface from `index.ts` without leaking mutable
 implementation types.
 

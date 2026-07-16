@@ -1,24 +1,24 @@
 services:
-  react-obs-host:
+  vignette-host:
     build:
       context: ../..
       dockerfile: examples/studio/Dockerfile.host
     ports:
       - "4173:4173"
     environment:
-      REACT_OBS_ORIGIN: ${REACT_OBS_ORIGIN:-http://127.0.0.1:4173}
+      VIGNETTE_ORIGIN: ${VIGNETTE_ORIGIN:-http://127.0.0.1:4173}
 
-  react-obs-worker:
+  vignette-worker:
     build:
       context: ../..
       dockerfile: examples/studio/Dockerfile.obs
     depends_on:
-      react-obs-host:
+      vignette-host:
         condition: service_healthy
     environment:
-      REACT_OBS_RUNTIME_URL: http://react-obs-host:4173/runtime
-      REACT_OBS_ASSET_ORIGIN: http://react-obs-host:4173
-      REACT_OBS_URL: ${REACT_OBS_URL:-ws://host.docker.internal:4455}
-      REACT_OBS_PASSWORD: ${REACT_OBS_PASSWORD:-runtime-only}
+      VIGNETTE_RUNTIME_URL: http://vignette-host:4173/runtime
+      VIGNETTE_ASSET_ORIGIN: http://vignette-host:4173
+      VIGNETTE_OBS_URL: ${VIGNETTE_OBS_URL:-ws://host.docker.internal:4455}
+      VIGNETTE_OBS_PASSWORD: ${VIGNETTE_OBS_PASSWORD:-runtime-only}
     extra_hosts:
       - "host.docker.internal:host-gateway"
