@@ -1,0 +1,66 @@
+name: Publish to JSR
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Check release
+        run: pnpm ready
+
+      - name: Check release tag
+        run: node scripts/check-jsr-packages.mjs "${RELEASE_TAG}" --skip-dry-run
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+      # Keep this order aligned with the package dependency graph.
+      - name: Publish core
+        working-directory: packages/core
+        run: pnpm exec jsr publish
+      - name: Publish DOM target
+        working-directory: packages/target-dom
+        run: pnpm exec jsr publish
+      - name: Publish OBS target
+        working-directory: packages/target-obs
+        run: pnpm exec jsr publish
+      - name: Publish React renderer
+        working-directory: packages/react
+        run: pnpm exec jsr publish
+      - name: Publish frames
+        working-directory: packages/frame
+        run: pnpm exec jsr publish
+      - name: Publish server
+        working-directory: packages/server
+        run: pnpm exec jsr publish
+      - name: Publish MoQ extension
+        working-directory: packages/moq
+        run: pnpm exec jsr publish --allow-slow-types
+      - name: Publish testkit
+        working-directory: packages/testkit
+        run: pnpm exec jsr publish

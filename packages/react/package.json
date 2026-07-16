@@ -2,6 +2,7 @@
   "name": "@cbj/vignette",
   "version": "0.1.0",
   "description": "React renderer and authoring primitives for target-neutral broadcast scenes.",
+  "private": true,
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

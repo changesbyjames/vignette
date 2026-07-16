@@ -79,4 +79,13 @@ export default tseslint.config(
       "no-restricted-syntax": "off",
     },
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
 );

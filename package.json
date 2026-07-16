@@ -1,6 +1,11 @@
 {
   "name": "vignette-workspace",
+  "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git"
+  },
   "type": "module",
   "packageManager": "pnpm@11.13.0",
   "engines": {
@@ -17,7 +22,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "publish:check": "pnpm -r --filter './packages/*' publish:check"
+    "publish:check": "node scripts/check-jsr-packages.mjs",
+    "ready": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check && pnpm publish:check && pnpm test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -25,6 +31,7 @@
     "@types/node": "26.1.1",
     "eslint": "10.7.0",
     "jsdom": "29.1.1",
+    "jsr": "0.14.3",
     "obs-websocket-js": "5.0.8",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",

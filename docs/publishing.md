@@ -19,20 +19,22 @@ settings:
 - `@cbj/vignette-testkit`
 
 JSR's GitHub Actions security defaults may also require the workflow initiator to be a member of the
-`@cbj` scope. No repository secret is needed: `.github/workflows/publish-jsr.yml` requests GitHub's
-OIDC ID token and JSR verifies the linked repository.
+`@cbj` scope. No repository secret is needed: `.github/workflows/release.yml` requests GitHub's OIDC
+ID token and JSR verifies the linked repository, producing provenance records for every package.
 
 ## Release
 
-1. Set the same new semantic version in each changed package's `package.json` and `deno.json`.
+1. Set the same new semantic version in the root `package.json` and each changed package's
+   `package.json` and `deno.json`.
 2. Run `pnpm install` to update the lockfile after package metadata changes.
-3. Run `pnpm publish:check` to validate source graphs, documentation generation, slow types, and
-   publication contents.
-4. Push the release commit and run **Publish JSR packages** from GitHub Actions.
+3. Run `pnpm ready` to build, typecheck, test, lint, check formatting, validate every JSR package,
+   and run the browser integration suite.
+4. Push the release commit and publish a non-prerelease GitHub Release tagged `v<version>`.
 
-The workflow runs install, build, typecheck, unit tests, lint, formatting, and all JSR dry-runs
-before publishing in dependency order. JSR skips package versions that already exist, so a corrected
-rerun can continue after a partial release.
+The release workflow reruns the complete readiness suite, rejects tags that do not exactly match all
+package versions, and publishes in dependency order. JSR skips package versions that already exist,
+so a corrected rerun can continue after a partial release. Prereleases are intentionally not
+published.
 
 `@cbj/vignette-moq` deliberately uses TypeScript module augmentation to add `source:moq` to core's
 closed source map. Its publish step therefore opts into JSR slow types. The other seven packages
