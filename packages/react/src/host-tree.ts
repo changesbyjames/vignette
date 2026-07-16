@@ -4,7 +4,7 @@ import type {
   LayoutNode,
   SceneLayerNode,
   SceneNode,
-  SourceDefinition,
+  AnySourceDefinition,
   SourcesNode,
 } from "@cbj/vignette-core";
 
@@ -104,9 +104,9 @@ function toSources(node: HostNode): SourcesNode {
   return { kind: "sources", children: sources };
 }
 
-function toSource(node: HostNode): SourceDefinition {
+function toSource(node: HostNode): AnySourceDefinition {
   if (node.type !== "source") throw new Error(`<${node.type}> is not valid inside <Sources>.`);
-  const definition = required(node.props, "definition") as SourceDefinition;
+  const definition = required(node.props, "definition") as AnySourceDefinition;
   if (typeof definition.kind !== "string" || typeof definition.id !== "string") {
     throw new Error("A <Source> definition must declare 'kind' and 'id'.");
   }
@@ -159,7 +159,7 @@ function toLayout(node: HostNode): LayoutNode {
   }
 }
 
-function collectBrowserViewSources(node: HostNode): readonly SourceDefinition[] {
+function collectBrowserViewSources(node: HostNode): readonly AnySourceDefinition[] {
   if (node.type === "browser-view") {
     return [
       {
@@ -168,7 +168,7 @@ function collectBrowserViewSources(node: HostNode): readonly SourceDefinition[] 
         url: required(node.props, "url"),
         viewport: required(node.props, "viewport"),
         ...optionalProps(node.props, ["label", "shutdownWhenHidden"]),
-      } as SourceDefinition,
+      } as AnySourceDefinition,
     ];
   }
   return visibleChildren(node).flatMap(collectBrowserViewSources);

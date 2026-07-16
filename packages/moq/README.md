@@ -34,6 +34,5 @@ The DOM facet uses `@moq/watch`. The OBS facet requires an installed input plugi
 Latency defaults to 100 ms. Optional `video`, `audio`, `quality`, and `disableWhenHidden` settings
 map to both target implementations where supported.
 
-This package uses TypeScript module augmentation to add `source:moq` to core's closed `SourceKinds`
-map. It is therefore published with JSR's slow-types opt-in. JSR does not generate a separate
-`.d.ts` artifact for slow-type packages; TypeScript-source consumers retain the augmentation.
+The package carries `MoqSource` explicitly through Vignette's generic extension contracts. It does
+not modify core's built-in source types or install global TypeScript declarations.

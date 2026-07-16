@@ -1,9 +1,14 @@
-import type { CompiledItem, CompiledSource, SourceDefinition, SourceId } from "@cbj/vignette-core";
+import type {
+  AnySourceDefinition,
+  CompiledItem,
+  CompiledSource,
+  SourceId,
+} from "@cbj/vignette-core";
 
 import type { DomRendererMap, DomSourceView } from "./elements/index.js";
 
 interface SourceRecord {
-  readonly kind: SourceDefinition["kind"];
+  readonly kind: AnySourceDefinition["kind"];
   readonly view: DomSourceView;
   retainWhenInactive: boolean;
 }
@@ -34,7 +39,7 @@ export class DomSourceRegistry {
 
   mount(
     host: HTMLElement,
-    source: SourceDefinition,
+    source: AnySourceDefinition,
     item: CompiledItem,
     resolvedUrl: string | undefined,
   ): DomSourceView {
@@ -80,7 +85,7 @@ export class DomSourceRegistry {
     this.#parking.remove();
   }
 
-  private createView(source: SourceDefinition): DomSourceView {
+  private createView(source: AnySourceDefinition): DomSourceView {
     const renderer = this.#renderers.get(source.kind);
     if (renderer === undefined) {
       throw new Error(`No DOM renderer is registered for source kind '${source.kind}'.`);
@@ -88,7 +93,7 @@ export class DomSourceRegistry {
     return renderer.create(this.#document);
   }
 
-  private shouldRetain(source: SourceDefinition): boolean {
+  private shouldRetain(source: AnySourceDefinition): boolean {
     return this.#renderers.get(source.kind)?.retainWhenHidden?.(source) ?? true;
   }
 

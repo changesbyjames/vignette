@@ -1,4 +1,11 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
+import {
+  layerId,
+  projectId,
+  sceneId,
+  sourceId,
+  type ColorSource,
+  type CompiledSnapshot,
+} from "@cbj/vignette-core";
 import {
   planObsUpdate,
   REQUIRED_OBS_REQUESTS,
@@ -72,7 +79,7 @@ function snapshot(): CompiledSnapshot {
           kind: "source:color",
           color: "#112233",
           size: { width: 1920, height: 1080 },
-        },
+        } as ColorSource,
       },
     ],
     scenes: [

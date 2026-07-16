@@ -10,7 +10,7 @@ import { diagnostic, type Diagnostic, type ValidationResult } from "./diagnostic
 import { isFiniteNumber, isPositiveSize, type Insets, type Size } from "./geometry.js";
 import { isStableId } from "./ids.js";
 import { resolveSourceModules, type SourceModuleMap } from "./source-module.js";
-import type { SourceDefinition } from "./sources.js";
+import type { AnySourceDefinition } from "./sources.js";
 
 interface LocatedScene {
   readonly scene: SceneNode;
@@ -18,7 +18,7 @@ interface LocatedScene {
 }
 
 interface LocatedSource {
-  readonly source: SourceDefinition;
+  readonly source: AnySourceDefinition;
   readonly path: string;
 }
 

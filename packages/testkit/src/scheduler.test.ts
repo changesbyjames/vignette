@@ -5,7 +5,10 @@ import {
   sceneId,
   sourceId,
   type AssetResolver,
+  type BrowserSource,
+  type ColorSource,
   type CompiledSnapshot,
+  type ImageSource,
 } from "@cbj/vignette-core";
 import {
   createObsTargetWithTransport,
@@ -98,7 +101,7 @@ describe("OBS convergence scheduler", () => {
             kind: "source:image",
             asset: asset("missing.png"),
             size: { width: 1920, height: 1080 },
-          },
+          } as ImageSource,
           intrinsicSize: { width: 1920, height: 1080 },
           asset: asset("missing.png"),
         },
@@ -268,7 +271,7 @@ function snapshot(revision: number): CompiledSnapshot {
           kind: "source:color",
           color: "#112233",
           size: { width: 1920, height: 1080 },
-        },
+        } as ColorSource,
       },
     ],
     scenes: [
@@ -304,7 +307,7 @@ function browserSnapshot(revision: number): CompiledSnapshot {
           kind: "source:browser",
           url: "http://127.0.0.1:4173/frame",
           viewport: { width: 1280, height: 720 },
-        },
+        } as BrowserSource,
       },
     ],
     scenes: [

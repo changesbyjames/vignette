@@ -1,20 +1,20 @@
 import { validateAssetName, type AssetRef } from "./assets.js";
 import { diagnostic, type Diagnostic } from "./diagnostics.js";
 import { isFiniteNumber, isPositiveSize, type Size } from "./geometry.js";
-import type { SourceKind, SourceKinds } from "./sources.js";
+import type { AnySourceDefinition, SourceKinds } from "./sources.js";
 
 /**
  * Target-neutral behaviour for one source kind. Built-in kinds ship with core; extension
  * packages export their own module and pass it wherever sources are validated or compiled.
  */
-export interface SourceModule<K extends SourceKind = SourceKind> {
-  readonly kind: K;
+export interface SourceModule<Source extends AnySourceDefinition = AnySourceDefinition> {
+  readonly kind: Source["kind"];
   /** Intrinsic content size used by layout and content-fit calculations. */
-  intrinsicSize(source: SourceKinds[K]): Size | undefined;
+  intrinsicSize(source: Source): Size | undefined;
   /** The asset this source needs resolved before a target can render it. */
-  asset?(source: SourceKinds[K]): AssetRef | undefined;
+  asset?(source: Source): AssetRef | undefined;
   /** Kind-specific validation; identity and placement checks are handled by core. */
-  validate?(source: SourceKinds[K], path: string): readonly Diagnostic[];
+  validate?(source: Source, path: string): readonly Diagnostic[];
 }
 
 export type SourceModuleMap = ReadonlyMap<string, SourceModule>;
@@ -63,7 +63,7 @@ function compactDiagnostics(...items: readonly (Diagnostic | undefined)[]): read
   return items.filter((item) => item !== undefined);
 }
 
-export const imageSourceModule: SourceModule<"source:image"> = {
+export const imageSourceModule: SourceModule<SourceKinds["source:image"]> = {
   kind: "source:image",
   intrinsicSize: (source) => source.size,
   asset: (source) => source.asset,
@@ -74,7 +74,7 @@ export const imageSourceModule: SourceModule<"source:image"> = {
     ),
 };
 
-export const mediaFileSourceModule: SourceModule<"source:media-file"> = {
+export const mediaFileSourceModule: SourceModule<SourceKinds["source:media-file"]> = {
   kind: "source:media-file",
   intrinsicSize: (source) => source.size,
   asset: (source) => source.asset,
@@ -94,7 +94,7 @@ export const mediaFileSourceModule: SourceModule<"source:media-file"> = {
     ),
 };
 
-export const browserSourceModule: SourceModule<"source:browser"> = {
+export const browserSourceModule: SourceModule<SourceKinds["source:browser"]> = {
   kind: "source:browser",
   intrinsicSize: (source) => source.viewport,
   validate: (source, path) =>
@@ -104,7 +104,7 @@ export const browserSourceModule: SourceModule<"source:browser"> = {
     ),
 };
 
-export const colorSourceModule: SourceModule<"source:color"> = {
+export const colorSourceModule: SourceModule<SourceKinds["source:color"]> = {
   kind: "source:color",
   intrinsicSize: (source) => source.size,
   validate: (source, path) =>

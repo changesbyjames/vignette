@@ -6,11 +6,11 @@
 import { sourceElement, type SourceProps } from "@cbj/vignette";
 import type { ReactElement } from "react";
 
-import "./index.js";
+import type { MoqSource as MoqSourceDefinition } from "./index.js";
 
-export type MoqSourceProps = SourceProps<"source:moq">;
+export type MoqSourceProps = SourceProps<MoqSourceDefinition>;
 
 /** Declares one MoQ source. Register `moqSourceModule` on the composer root alongside this. */
 export function MoqSource(props: MoqSourceProps): ReactElement {
-  return sourceElement("source:moq", props);
+  return sourceElement<MoqSourceDefinition>("source:moq", props);
 }

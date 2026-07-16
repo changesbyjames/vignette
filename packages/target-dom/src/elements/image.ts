@@ -1,6 +1,8 @@
+import type { ImageSource } from "@cbj/vignette-core";
+
 import type { DomSourceRenderer } from "./types.js";
 
-export const imageRenderer: DomSourceRenderer<"source:image"> = {
+export const imageRenderer: DomSourceRenderer<ImageSource> = {
   kind: "source:image",
   create(document) {
     const image = document.createElement("img");

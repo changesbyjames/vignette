@@ -22,7 +22,7 @@ interface MoqWatchElement extends HTMLElement {
 let elementRegistration: Promise<void> | undefined;
 
 /** DOM facet: register with the DOM runtime (`extensions: [moqDomRenderer]`). */
-export const moqDomRenderer: DomSourceRenderer<"source:moq"> = {
+export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
   kind: "source:moq",
   async prepare(document) {
     if (document.defaultView?.customElements.get("moq-watch") !== undefined) return;
@@ -49,7 +49,7 @@ export const moqDomRenderer: DomSourceRenderer<"source:moq"> = {
         if (source.kind !== "source:moq") {
           throw new TypeError("MoQ renderer received another source kind.");
         }
-        updateMoq(watch, source);
+        updateMoq(watch, source as unknown as MoqSource);
       },
       dispose() {
         watch.removeAttribute("url");

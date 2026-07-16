@@ -1,6 +1,6 @@
 import type { ContentAlignment, Insets, Size } from "./geometry.js";
 import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
-import type { SourceDefinition } from "./sources.js";
+import type { AnySourceDefinition } from "./sources.js";
 
 export type Percentage = `${number}%`;
 export type Length = number | Percentage | "auto";
@@ -59,7 +59,7 @@ export type BroadcastChild = SourcesNode | SceneNode;
 
 export interface SourcesNode {
   readonly kind: "sources";
-  readonly children: readonly SourceDefinition[];
+  readonly children: readonly AnySourceDefinition[];
 }
 
 export interface SceneNode {

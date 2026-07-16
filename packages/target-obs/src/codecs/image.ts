@@ -1,6 +1,8 @@
+import type { ImageSource } from "@cbj/vignette-core";
+
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
-export const imageCodec: ObsSourceCodec<"source:image"> = {
+export const imageCodec: ObsSourceCodec<ImageSource> = {
   kind: "source:image",
   inputKinds: ["image_source"],
   compile(source, context) {

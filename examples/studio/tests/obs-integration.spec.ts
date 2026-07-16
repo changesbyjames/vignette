@@ -9,6 +9,7 @@ import {
   type CompiledItem,
   type CompiledSnapshot,
   type CompiledSource,
+  type BrowserSource,
 } from "@cbj/vignette-core";
 import type { MoqSource } from "@cbj/vignette-moq";
 import { moqObsCodec } from "@cbj/vignette-moq/obs";
@@ -301,7 +302,7 @@ function isolateFrameSnapshot(
   const source = studio.sources.find(
     (candidate) =>
       candidate.definition.kind === "source:browser" &&
-      candidate.definition.url.includes("/__vignette/frame/"),
+      (candidate.definition as BrowserSource).url.includes("/__vignette/frame/"),
   );
   if (source === undefined) throw new Error("Studio snapshot has no <View> browser source.");
   const originalItem = studio.scenes

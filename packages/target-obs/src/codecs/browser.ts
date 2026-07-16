@@ -1,8 +1,8 @@
-import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/vignette-core";
+import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
-export const browserCodec: ObsSourceCodec<"source:browser"> = {
+export const browserCodec: ObsSourceCodec<BrowserSource> = {
   kind: "source:browser",
   inputKinds: ["browser_source"],
   refreshProperty: "refreshnocache",

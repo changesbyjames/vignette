@@ -1,6 +1,8 @@
+import type { MediaFileSource } from "@cbj/vignette-core";
+
 import type { DomSourceRenderer } from "./types.js";
 
-export const mediaRenderer: DomSourceRenderer<"source:media-file"> = {
+export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
   kind: "source:media-file",
   create(document) {
     const video = document.createElement("video");
@@ -14,11 +16,12 @@ export const mediaRenderer: DomSourceRenderer<"source:media-file"> = {
         if (source.kind !== "source:media-file") {
           throw new TypeError("Media renderer received another source kind.");
         }
+        const definition = source as MediaFileSource;
         if (resolvedUrl === undefined) throw new TypeError("Media source requires a resolved URL.");
         if (video.src !== resolvedUrl) video.src = resolvedUrl;
-        video.loop = source.loop ?? false;
-        video.muted = source.muted ?? true;
-        video.playbackRate = source.playbackRate ?? 1;
+        video.loop = definition.loop ?? false;
+        video.muted = definition.muted ?? true;
+        video.playbackRate = definition.playbackRate ?? 1;
       },
       dispose() {
         video.pause();

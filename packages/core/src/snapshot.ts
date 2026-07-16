@@ -1,7 +1,7 @@
 import type { AssetRef } from "./assets.js";
 import type { ContentAlignment, Insets, Rect, Size } from "./geometry.js";
 import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
-import type { SourceDefinition } from "./sources.js";
+import type { AnySourceDefinition } from "./sources.js";
 import type { Diagnostic } from "./diagnostics.js";
 
 export interface ContentPlacement {
@@ -16,7 +16,7 @@ export interface ContentPlacement {
  */
 export interface CompiledSource {
   readonly id: SourceId;
-  readonly definition: SourceDefinition;
+  readonly definition: AnySourceDefinition;
   readonly intrinsicSize?: Size;
   readonly asset?: AssetRef;
 }

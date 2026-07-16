@@ -19,7 +19,7 @@ import type {
   ColorSource,
   ImageSource,
   MediaFileSource,
-  SourceDefinition,
+  AnySourceDefinition,
 } from "./sources.js";
 
 export function broadcast(input: {
@@ -35,7 +35,7 @@ export function broadcast(input: {
   };
 }
 
-export function sources(...children: readonly SourceDefinition[]): SourcesNode {
+export function sources(...children: readonly AnySourceDefinition[]): SourcesNode {
   return { kind: "sources", children };
 }
 

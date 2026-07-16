@@ -4,7 +4,7 @@ import type {
   CompiledSnapshot,
   CompiledSource,
   Size,
-  SourceDefinition,
+  AnySourceDefinition,
   SourceId,
 } from "@cbj/vignette-core";
 
@@ -15,7 +15,7 @@ import { applyItemFrame, px } from "./styles.js";
 interface LayerRecord {
   readonly wrapper: HTMLDivElement;
   readonly contentHost: HTMLDivElement;
-  contentKind: SourceDefinition["kind"] | "scene";
+  contentKind: AnySourceDefinition["kind"] | "scene";
   sourceId?: SourceId;
   nestedRecords?: Map<string, LayerRecord>;
 }
@@ -115,7 +115,7 @@ function ensureRecord(
   item: CompiledItem,
   sources: ReadonlyMap<string, CompiledSource>,
 ): LayerRecord {
-  let expectedKind: SourceDefinition["kind"] | "scene";
+  let expectedKind: AnySourceDefinition["kind"] | "scene";
   if (item.content.kind === "scene") {
     expectedKind = "scene";
   } else {

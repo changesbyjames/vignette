@@ -1,4 +1,4 @@
-import { projectId, sceneId } from "@cbj/vignette-core";
+import { projectId, sceneId, type BrowserSource } from "@cbj/vignette-core";
 import { Broadcast, Scene, createComposerRoot } from "@cbj/vignette";
 import { describe, expect, it } from "vitest";
 
@@ -41,11 +41,12 @@ describe("frame View", () => {
     const definition = snapshot?.sources[0]?.definition;
     expect(definition?.kind).toBe("source:browser");
     if (definition?.kind !== "source:browser") return;
-    expect(definition.url).toContain("/__vignette/frame/greeting-abc123?props=");
-    expect(new URL(definition.url).searchParams.get("props")).toBe('{"name":"James"}');
+    const browserDefinition = definition as BrowserSource;
+    expect(browserDefinition.url).toContain("/__vignette/frame/greeting-abc123?props=");
+    expect(new URL(browserDefinition.url).searchParams.get("props")).toBe('{"name":"James"}');
     expect(snapshot?.scenes[0]?.items[0]?.content).toEqual({
       kind: "source",
-      sourceId: definition.id,
+      sourceId: browserDefinition.id,
     });
     await root.dispose();
   });

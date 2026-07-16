@@ -4,7 +4,7 @@ import { CENTER_ALIGNMENT, intersectRects, type Rect } from "../geometry.js";
 import { deepFreeze } from "../objects.js";
 import type { CompiledItem, CompiledScene, CompiledSnapshot, CompiledSource } from "../snapshot.js";
 import { resolveSourceModules, type SourceModuleMap } from "../source-module.js";
-import type { SourceDefinition } from "../sources.js";
+import type { AnySourceDefinition } from "../sources.js";
 import { validateBroadcast } from "../validation.js";
 import { calculateContentPlacement } from "./content-fit.js";
 import { roundRect } from "./rounding.js";
@@ -212,7 +212,7 @@ function compileRecord(
   });
 }
 
-function collectSources(root: BroadcastNode): SourceDefinition[] {
+function collectSources(root: BroadcastNode): AnySourceDefinition[] {
   return root.children.flatMap((child) => (child.kind === "sources" ? [...child.children] : []));
 }
 
@@ -220,7 +220,9 @@ function collectScenes(root: BroadcastNode): SceneNode[] {
   return root.children.filter((child): child is SceneNode => child.kind === "scene");
 }
 
-function compileSource(modules: SourceModuleMap): (definition: SourceDefinition) => CompiledSource {
+function compileSource(
+  modules: SourceModuleMap,
+): (definition: AnySourceDefinition) => CompiledSource {
   return (definition) => {
     const module = modules.get(definition.kind);
     const intrinsicSize = module?.intrinsicSize(definition);

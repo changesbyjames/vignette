@@ -32,7 +32,6 @@ const packages = [
     "@cbj/vignette-moq",
     [".", "./react", "./dom", "./obs"],
     ["@cbj/vignette-core", "@cbj/vignette", "@cbj/vignette-target-dom", "@cbj/vignette-target-obs"],
-    true,
   ),
   packageConfig(
     "packages/testkit",
@@ -74,7 +73,6 @@ for (const candidate of packages) {
 
   if (!process.argv.includes("--skip-dry-run")) {
     const args = ["exec", "jsr", "publish", "--dry-run", "--allow-dirty"];
-    if (candidate.allowSlowTypes) args.push("--allow-slow-types");
     execFileSync("pnpm", args, { cwd: resolve(root, candidate.directory), stdio: "inherit" });
     console.log(`✓ ${candidate.name}@${jsr.version} passes JSR publish verification`);
   }
@@ -89,8 +87,8 @@ if (releaseTag) {
   );
 }
 
-function packageConfig(directory, name, exports, dependencies = [], allowSlowTypes = false) {
-  return { directory, name, exports, dependencies, allowSlowTypes };
+function packageConfig(directory, name, exports, dependencies = []) {
+  return { directory, name, exports, dependencies };
 }
 
 function assertExports(actual, expected, name) {

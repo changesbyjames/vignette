@@ -1,8 +1,10 @@
 import type { CompiledSnapshot } from "./snapshot.js";
-import type { SourceKind } from "./sources.js";
-
 export type Capability =
-  SourceKind | "scene:nested" | "transform:crop" | "transform:opacity" | "transform:rotation";
+  | `source:${string}`
+  | "scene:nested"
+  | "transform:crop"
+  | "transform:opacity"
+  | "transform:rotation";
 
 export type TargetKind = string;
 export type UnsupportedPolicy = "error" | "warn-and-omit" | "use-fallback";

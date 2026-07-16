@@ -34,8 +34,9 @@ const snapshot = compileBroadcast(
 
 Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use
 `RuntimeMessageHub`, `consumeRuntimeMessages`, and the SSE codecs to connect a composer to one or
-more independent targets. Extension packages augment `SourceKinds` and contribute a `SourceModule`;
-pass those modules to the compiler or composer rather than using an open settings bag.
+more independent targets. Extension packages define their own source type and contribute a generic
+`SourceModule`; pass those modules to the compiler or composer rather than using an open settings
+bag.
 
 The `./builders` entrypoint is optional. React projects normally author the same graph with
 `@cbj/vignette`.

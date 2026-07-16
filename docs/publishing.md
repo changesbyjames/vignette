@@ -36,6 +36,5 @@ package versions, and publishes in dependency order. JSR skips package versions 
 so a corrected rerun can continue after a partial release. Prereleases are intentionally not
 published.
 
-`@cbj/vignette-moq` deliberately uses TypeScript module augmentation to add `source:moq` to core's
-closed source map. Its publish step therefore opts into JSR slow types. The other seven packages
-must pass JSR's default fast-type checks.
+All eight packages must pass JSR's default fast-type checks. Extension packages carry their source
+types through generic contracts rather than modifying global or cross-package declarations.

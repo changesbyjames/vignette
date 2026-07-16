@@ -1,6 +1,8 @@
+import type { ColorSource } from "@cbj/vignette-core";
+
 import type { DomSourceRenderer } from "./types.js";
 
-export const colorRenderer: DomSourceRenderer<"source:color"> = {
+export const colorRenderer: DomSourceRenderer<ColorSource> = {
   kind: "source:color",
   create(document) {
     const element = document.createElement("div");
@@ -9,7 +11,7 @@ export const colorRenderer: DomSourceRenderer<"source:color"> = {
       update(source) {
         if (source.kind !== "source:color")
           throw new TypeError("Color renderer received another source kind.");
-        element.style.backgroundColor = source.color;
+        element.style.backgroundColor = (source as ColorSource).color;
       },
       dispose() {
         element.remove();

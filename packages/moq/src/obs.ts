@@ -5,10 +5,10 @@
  */
 import { selectInputKind, type ObsSourceCodec } from "@cbj/vignette-target-obs";
 
-import { DEFAULT_MOQ_LATENCY_MS } from "./index.js";
+import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 
 /** OBS facet: register with the OBS runtime (`extensions: [moqObsCodec]`). */
-export const moqObsCodec: ObsSourceCodec<"source:moq"> = {
+export const moqObsCodec: ObsSourceCodec<MoqSource> = {
   kind: "source:moq",
   inputKinds: ["moq_source"],
   compile(source, context) {

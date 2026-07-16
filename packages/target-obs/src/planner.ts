@@ -4,10 +4,11 @@ import {
   type CompiledScene,
   type CompiledSnapshot,
   type CompiledSource,
+  type BrowserSource,
   type Insets,
   type SceneId,
   type Size,
-  type SourceDefinition,
+  type AnySourceDefinition,
   type SourceId,
 } from "@cbj/vignette-core";
 import { equals } from "ramda";
@@ -48,7 +49,7 @@ export interface ObsPlannerInput {
 }
 
 interface PlannedSource {
-  readonly definition: SourceDefinition;
+  readonly definition: AnySourceDefinition;
   readonly intrinsicSize?: Size;
   readonly inputKind: string;
   readonly settings: ObsJsonObject;
@@ -523,7 +524,7 @@ function collectBrowserGeometries(
       if (item.content.kind !== "source") continue;
       const source = sources.get(item.content.sourceId)?.definition;
       if (source?.kind !== "source:browser") continue;
-      const geometry = realizeBrowserGeometry(source.viewport, item);
+      const geometry = realizeBrowserGeometry((source as BrowserSource).viewport, item);
       if (geometry === undefined || conflicts.has(source.id)) continue;
       const existing = result.get(source.id);
       if (existing === undefined) {

@@ -1,12 +1,16 @@
 import type {
   ContentAlignment,
+  BrowserSource as BrowserSourceDefinition,
+  ColorSource as ColorSourceDefinition,
   FitMode,
+  ImageSource as ImageSourceDefinition,
   Insets,
   LayerId,
   LayoutStyle,
+  MediaFileSource as MediaSourceDefinition,
   SceneId,
   Size,
-  SourceDefinition,
+  AnySourceDefinition,
   SourceId,
 } from "@cbj/vignette-core";
 import { createElement, type ReactElement, type ReactNode } from "react";
@@ -72,32 +76,32 @@ export function SceneLayer(props: SceneLayerProps): ReactElement {
 }
 
 /** Declares one already-built source definition; the escape hatch for dynamic compositions. */
-export function Source(props: { readonly definition: SourceDefinition }): ReactElement {
+export function Source(props: { readonly definition: AnySourceDefinition }): ReactElement {
   return createElement("source", props);
 }
 
-export type ImageSourceProps = SourceProps<"source:image">;
+export type ImageSourceProps = SourceProps<ImageSourceDefinition>;
 
 export function ImageSource(props: ImageSourceProps): ReactElement {
-  return sourceElement("source:image", props);
+  return sourceElement<ImageSourceDefinition>("source:image", props);
 }
 
-export type MediaSourceProps = SourceProps<"source:media-file">;
+export type MediaSourceProps = SourceProps<MediaSourceDefinition>;
 
 export function MediaSource(props: MediaSourceProps): ReactElement {
-  return sourceElement("source:media-file", props);
+  return sourceElement<MediaSourceDefinition>("source:media-file", props);
 }
 
-export type BrowserSourceProps = SourceProps<"source:browser">;
+export type BrowserSourceProps = SourceProps<BrowserSourceDefinition>;
 
 export function BrowserSource(props: BrowserSourceProps): ReactElement {
-  return sourceElement("source:browser", props);
+  return sourceElement<BrowserSourceDefinition>("source:browser", props);
 }
 
-export type ColorSourceProps = SourceProps<"source:color">;
+export type ColorSourceProps = SourceProps<ColorSourceDefinition>;
 
 export function ColorSource(props: ColorSourceProps): ReactElement {
-  return sourceElement("source:color", props);
+  return sourceElement<ColorSourceDefinition>("source:color", props);
 }
 
 export interface BrowserViewProps extends Omit<LayerProps, "sourceId"> {

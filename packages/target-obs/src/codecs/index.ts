@@ -1,5 +1,3 @@
-import type { SourceKind } from "@cbj/vignette-core";
-
 import { browserCodec } from "./browser.js";
 import { colorCodec } from "./color.js";
 import { imageCodec } from "./image.js";
@@ -13,11 +11,11 @@ export const BUILTIN_OBS_CODECS: readonly ObsSourceCodec[] = [
   colorCodec,
 ];
 
-export type ObsCodecMap = ReadonlyMap<SourceKind, ObsSourceCodec>;
+export type ObsCodecMap = ReadonlyMap<`source:${string}`, ObsSourceCodec>;
 
 /** Merges extension codecs over the built-in ones. Later entries win per kind. */
 export function resolveObsCodecs(extensions: readonly ObsSourceCodec[] = []): ObsCodecMap {
-  const codecs = new Map<SourceKind, ObsSourceCodec>();
+  const codecs = new Map<`source:${string}`, ObsSourceCodec>();
   for (const codec of [...BUILTIN_OBS_CODECS, ...extensions]) codecs.set(codec.kind, codec);
   return codecs;
 }

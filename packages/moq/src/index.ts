@@ -29,12 +29,6 @@ export interface MoqSource extends SourceBase {
   readonly disableWhenHidden?: boolean;
 }
 
-declare module "@cbj/vignette-core" {
-  interface SourceKinds {
-    "source:moq": MoqSource;
-  }
-}
-
 export function moqSource(
   input: Omit<MoqSource, "kind" | "id"> & { readonly id: string },
 ): MoqSource {
@@ -42,7 +36,7 @@ export function moqSource(
 }
 
 /** Core facet: register with the composer root (`extensions: [moqSourceModule]`). */
-export const moqSourceModule: SourceModule<"source:moq"> = {
+export const moqSourceModule: SourceModule<MoqSource> = {
   kind: "source:moq",
   intrinsicSize: (source) => source.size,
   validate(source, path) {

@@ -1,6 +1,8 @@
+import type { ColorSource } from "@cbj/vignette-core";
+
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 
-export const colorCodec: ObsSourceCodec<"source:color"> = {
+export const colorCodec: ObsSourceCodec<ColorSource> = {
   kind: "source:color",
   inputKinds: ["color_source_v3", "color_source"],
   compile(source, context) {

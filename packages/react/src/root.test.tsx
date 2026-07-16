@@ -1,4 +1,11 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
+import {
+  layerId,
+  projectId,
+  sceneId,
+  sourceId,
+  type ColorSource as ColorSourceDefinition,
+  type CompiledSnapshot,
+} from "@cbj/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,7 +36,9 @@ describe("createComposerRoot", () => {
     const colors: string[] = [];
     root.subscribe((snapshot) => {
       const definition = snapshot.sources[0]?.definition;
-      if (definition?.kind === "source:color") colors.push(definition.color);
+      if (definition?.kind === "source:color") {
+        colors.push((definition as ColorSourceDefinition).color);
+      }
     });
 
     function TimerShow() {

@@ -2,7 +2,7 @@ import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-co
 
 import type { DomSourceRenderer } from "./types.js";
 
-export const browserRenderer: DomSourceRenderer<"source:browser"> = {
+export const browserRenderer: DomSourceRenderer<BrowserSource> = {
   kind: "source:browser",
   retainWhenHidden(source) {
     return !(source.shutdownWhenHidden ?? false);
@@ -24,7 +24,7 @@ export const browserRenderer: DomSourceRenderer<"source:browser"> = {
         if (source.kind !== "source:browser") {
           throw new TypeError("Browser renderer received another source kind.");
         }
-        updateBrowser(frame, source);
+        updateBrowser(frame, source as BrowserSource);
         applyDefaultCss();
       },
       dispose() {

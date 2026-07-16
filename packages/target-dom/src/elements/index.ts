@@ -1,5 +1,3 @@
-import type { SourceKind } from "@cbj/vignette-core";
-
 import { browserRenderer } from "./browser.js";
 import { colorRenderer } from "./color.js";
 import { imageRenderer } from "./image.js";
@@ -13,11 +11,11 @@ export const BUILTIN_DOM_RENDERERS: readonly DomSourceRenderer[] = [
   colorRenderer,
 ];
 
-export type DomRendererMap = ReadonlyMap<SourceKind, DomSourceRenderer>;
+export type DomRendererMap = ReadonlyMap<`source:${string}`, DomSourceRenderer>;
 
 /** Merges extension renderers over the built-in ones. Later entries win per kind. */
 export function resolveDomRenderers(extensions: readonly DomSourceRenderer[] = []): DomRendererMap {
-  const renderers = new Map<SourceKind, DomSourceRenderer>();
+  const renderers = new Map<`source:${string}`, DomSourceRenderer>();
   for (const renderer of [...BUILTIN_DOM_RENDERERS, ...extensions]) {
     renderers.set(renderer.kind, renderer);
   }

@@ -1,4 +1,4 @@
-import type { Size, SourceKind, SourceKinds } from "@cbj/vignette-core";
+import type { AnySourceDefinition, Size } from "@cbj/vignette-core";
 
 import type { ObsJsonObject } from "../operations.js";
 
@@ -20,12 +20,12 @@ export type ObsCodecResult =
  * Compiles one source kind to OBS input settings. Extension packages export a codec and pass it
  * to the runtime through `OBSRuntimeOptions.extensions`.
  */
-export interface ObsSourceCodec<K extends SourceKind = SourceKind> {
-  readonly kind: K;
+export interface ObsSourceCodec<Source extends AnySourceDefinition = AnySourceDefinition> {
+  readonly kind: Source["kind"];
   readonly inputKinds: readonly string[];
   /** Properties button pressed once per connection after the input first settles. */
   readonly refreshProperty?: string;
-  compile(source: SourceKinds[K], context: ObsCodecContext): ObsCodecResult;
+  compile(source: Source, context: ObsCodecContext): ObsCodecResult;
 }
 
 export function selectInputKind(

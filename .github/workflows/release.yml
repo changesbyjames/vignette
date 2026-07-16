@@ -60,7 +60,7 @@ jobs:
         run: pnpm exec jsr publish
       - name: Publish MoQ extension
         working-directory: packages/moq
-        run: pnpm exec jsr publish --allow-slow-types
+        run: pnpm exec jsr publish
       - name: Publish testkit
         working-directory: packages/testkit
         run: pnpm exec jsr publish

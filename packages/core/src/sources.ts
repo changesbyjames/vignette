@@ -10,13 +10,18 @@ export interface SourceBase {
   readonly label?: string;
 }
 
-export interface ImageSource extends SourceBase {
+/** Structural source contract carried through snapshots for built-in and extension kinds. */
+export interface AnySourceDefinition extends SourceBase {
+  readonly kind: `source:${string}`;
+}
+
+export interface ImageSource extends AnySourceDefinition {
   readonly kind: "source:image";
   readonly asset: AssetRef;
   readonly size?: Size;
 }
 
-export interface MediaFileSource extends SourceBase {
+export interface MediaFileSource extends AnySourceDefinition {
   readonly kind: "source:media-file";
   readonly asset: AssetRef;
   readonly size?: Size;
@@ -25,34 +30,20 @@ export interface MediaFileSource extends SourceBase {
   readonly playbackRate?: number;
 }
 
-export interface BrowserSource extends SourceBase {
+export interface BrowserSource extends AnySourceDefinition {
   readonly kind: "source:browser";
   readonly url: string;
   readonly viewport: Size;
   readonly shutdownWhenHidden?: boolean;
 }
 
-export interface ColorSource extends SourceBase {
+export interface ColorSource extends AnySourceDefinition {
   readonly kind: "source:color";
   readonly color: string;
   readonly size?: Size;
 }
 
-/**
- * Open registry of source kinds. Extension packages contribute new kinds through TypeScript
- * module augmentation:
- *
- * ```ts
- * declare module "@cbj/vignette-core" {
- *   interface SourceKinds {
- *     "source:example": ExampleSource;
- *   }
- * }
- * ```
- *
- * Every entry must extend {@link SourceBase} and carry a `kind` matching its key. Runtime
- * behaviour for a kind is registered separately as a {@link SourceModule}.
- */
+/** Closed registry of built-in source kinds. Extensions carry their source type explicitly. */
 export interface SourceKinds {
   "source:image": ImageSource;
   "source:media-file": MediaFileSource;

@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-moq",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Media over QUIC source extension for Vignette, DOM, and OBS targets.",
   "private": true,
   "license": "MIT",
@@ -29,7 +29,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/moq",
-    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty --allow-slow-types"
+    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
   },
   "dependencies": {
     "@moq/watch": "0.3.0",

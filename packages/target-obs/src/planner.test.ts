@@ -1,4 +1,12 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
+import {
+  layerId,
+  projectId,
+  sceneId,
+  sourceId,
+  type BrowserSource,
+  type ColorSource,
+  type CompiledSnapshot,
+} from "@cbj/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { REQUIRED_OBS_REQUESTS } from "./capabilities.js";
@@ -78,7 +86,7 @@ describe("planObsUpdate", () => {
             kind: "source:color",
             color: "#ff0000",
             size: { width: 100, height: 100 },
-          },
+          } as ColorSource,
           intrinsicSize: { width: 100, height: 100 },
         },
       ],
@@ -133,6 +141,7 @@ describe("planObsUpdate", () => {
     if (definition?.kind !== "source:color" || baseItem === undefined) {
       throw new Error("Fixture is malformed.");
     }
+    const colorDefinition = definition as ColorSource;
     const result = planObsUpdate({
       desired: {
         ...desired,
@@ -140,11 +149,11 @@ describe("planObsUpdate", () => {
           {
             id: source,
             definition: {
-              id: definition.id,
+              id: colorDefinition.id,
               kind: "source:color",
-              color: definition.color,
-              ...(definition.label === undefined ? {} : { label: definition.label }),
-            },
+              color: colorDefinition.color,
+              ...(colorDefinition.label === undefined ? {} : { label: colorDefinition.label }),
+            } as ColorSource,
           },
         ],
         scenes: [
@@ -345,7 +354,7 @@ function snapshot(): CompiledSnapshot {
           kind: "source:color",
           color: "#ff0000",
           size: { width: 1920, height: 1080 },
-        },
+        } as ColorSource,
       },
     ],
     scenes: [
@@ -381,7 +390,7 @@ function browserSnapshot(width: number, height: number): CompiledSnapshot {
           kind: "source:browser",
           url: "http://127.0.0.1:4173/frame",
           viewport: { width: 1280, height: 720 },
-        },
+        } as BrowserSource,
       },
     ],
     scenes: [
