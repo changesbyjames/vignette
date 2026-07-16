@@ -39,28 +39,29 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
 
-      # Keep this order aligned with the package dependency graph.
+      # Deno publish creates provenance by default in GitHub Actions; id-token: write above is
+      # required for its Sigstore attestation. Keep this order aligned with the dependency graph.
       - name: Publish core
         working-directory: packages/core
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish DOM target
         working-directory: packages/target-dom
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish OBS target
         working-directory: packages/target-obs
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish React renderer
         working-directory: packages/react
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish frames
         working-directory: packages/frame
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish server
         working-directory: packages/server
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish MoQ extension
         working-directory: packages/moq
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
       - name: Publish testkit
         working-directory: packages/testkit
-        run: pnpm exec jsr publish --provenance
+        run: pnpm exec jsr publish
