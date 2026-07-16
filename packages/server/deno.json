@@ -1,13 +1,13 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-server",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette": "jsr:@cbj/vignette@^0.1.3",
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.1.3",
-    "@cbj/vignette-frame": "jsr:@cbj/vignette-frame@^0.1.3",
-    "@cbj/vignette-frame/": "jsr:@cbj/vignette-frame@^0.1.3/"
+    "@cbj/vignette": "jsr:@cbj/vignette@^0.1.4",
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.1.4",
+    "@cbj/vignette-frame": "jsr:@cbj/vignette-frame@^0.1.4",
+    "@cbj/vignette-frame/": "jsr:@cbj/vignette-frame@^0.1.4/"
   },
   "exports": "./src/index.ts",
   "publish": {

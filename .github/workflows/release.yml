@@ -42,25 +42,25 @@ jobs:
       # Keep this order aligned with the package dependency graph.
       - name: Publish core
         working-directory: packages/core
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish DOM target
         working-directory: packages/target-dom
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish OBS target
         working-directory: packages/target-obs
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish React renderer
         working-directory: packages/react
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish frames
         working-directory: packages/frame
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish server
         working-directory: packages/server
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish MoQ extension
         working-directory: packages/moq
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
       - name: Publish testkit
         working-directory: packages/testkit
-        run: pnpm exec jsr publish
+        run: pnpm exec jsr publish --provenance
