@@ -3,7 +3,8 @@ import { Broadcast, Scene, createComposerRoot } from "@cbj/vignette";
 import { describe, expect, it } from "vitest";
 
 import { frame } from "./definition.js";
-import { FrameProvider, View } from "./view.js";
+import { createSceneStore, SceneProvider } from "./scene.js";
+import { View } from "./view.js";
 
 describe("frame View", () => {
   it("accepts supported metadata without a build transform", () => {
@@ -39,7 +40,7 @@ describe("frame View", () => {
     });
 
     await root.render(
-      <FrameProvider origin="http://127.0.0.1:4173">
+      <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
         <Broadcast>
           <Scene id={sceneId("main")}>
             <View
@@ -49,10 +50,10 @@ describe("frame View", () => {
             />
           </Scene>
         </Broadcast>
-      </FrameProvider>,
+      </SceneProvider>,
     );
 
-    const snapshot = root.getSnapshot();
+    const snapshot = root.snapshot;
     const definition = snapshot?.sources[0]?.definition;
     expect(definition?.kind).toBe("source:browser");
     if (definition?.kind !== "source:browser") return;
@@ -85,19 +86,51 @@ describe("frame View", () => {
 
     await expect(
       root.render(
-        <FrameProvider origin="http://127.0.0.1:4173">
+        <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
           <Broadcast>
             <Scene id={sceneId("main")}>
               {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
               <View source={greeting} params={{}} />
             </Scene>
           </Broadcast>
-        </FrameProvider>,
+        </SceneProvider>,
       ),
     ).rejects.toThrow(/name required/u);
     await root.dispose();
   });
+
+  it("reactively updates frame origins through the scene store", async () => {
+    const greeting = frame.withMetadata({
+      routeKey: "origin-test",
+      moduleUrl: "/src/origin.frame.tsx",
+      exportName: "greeting",
+    })({ params: passthroughSchema, view: () => <div /> });
+    const scene = createSceneStore({ origin: "http://localhost:4173" });
+    const root = createComposerRoot({
+      projectId: projectId("origin-test"),
+      canvas: { width: 1920, height: 1080 },
+    });
+    await root.render(
+      <SceneProvider scene={scene}>
+        <Broadcast>
+          <Scene id={sceneId("main")}>
+            <View source={greeting} params={{}} style={{ width: 640, height: 360 }} />
+          </Scene>
+        </Broadcast>
+      </SceneProvider>,
+    );
+
+    scene.set({ origin: "https://example.com" });
+    const snapshot = await root.settled();
+    const definition = snapshot.sources[0]?.definition;
+    expect(definition?.kind).toBe("source:browser");
+    if (definition?.kind !== "source:browser") return;
+    expect((definition as BrowserSource).url).toMatch(/^https:\/\/example\.com\//u);
+    await root.dispose();
+  });
 });
+
+const passthroughSchema = { parse: (input: unknown) => input as object };
 
 function objectSchema<Params extends object>(
   parse: (input: unknown) => Params,

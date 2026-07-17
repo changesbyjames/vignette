@@ -7,7 +7,7 @@
     { "path": "./packages/target-obs" },
     { "path": "./packages/react" },
     { "path": "./packages/frame" },
-    { "path": "./packages/server" },
+    { "path": "./packages/vite" },
     { "path": "./packages/moq" },
     { "path": "./examples/simple" },
     { "path": "./examples/kitchen-sink" }

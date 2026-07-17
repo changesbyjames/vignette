@@ -19,7 +19,7 @@ settings:
 - `@cbj/vignette-target-dom`
 - `@cbj/vignette-target-obs`
 - `@cbj/vignette-frame`
-- `@cbj/vignette-server`
+- `@cbj/vignette-vite`
 - `@cbj/vignette-moq`
 - `@cbj/vignette-testkit`
 
@@ -41,5 +41,7 @@ package versions, and publishes in dependency order. JSR skips package versions 
 so a corrected rerun can continue after a partial release. Prereleases are intentionally not
 published.
 
-All eight packages must pass JSR's default fast-type checks. Extension packages carry their source
-types through generic contracts rather than modifying global or cross-package declarations.
+Seven packages pass JSR's default fast-type checks. `@cbj/vignette-vite` is published with
+`--allow-slow-types` because its `./virtual` entrypoint intentionally contributes ambient
+declarations for Vite-generated module IDs. Extension packages otherwise carry source types through
+generic contracts rather than modifying global or cross-package declarations.

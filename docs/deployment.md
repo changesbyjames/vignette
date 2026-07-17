@@ -2,7 +2,7 @@
 
 The kitchen-sink production build creates a static client and two independent Node entries:
 
-- `dist/server/host.js`: composer, `/runtime` SSE, frame SSR, hydration routes, and static client.
+- `dist/server/host.js`: Hono routing around the composer root, SSE, frame SSR, and static client.
 - `dist/server/obs-worker.js`: consumes `/runtime` and owns the OBS WebSocket connection.
 
 ```sh
@@ -20,6 +20,10 @@ as the DOM runtime's SSE source and reconnects to the host with setup/latest-sna
 `VIGNETTE_ORIGIN` is the public URL embedded in browser-source snapshots, so for local Docker it is
 `http://127.0.0.1:4173`. `VIGNETTE_ASSET_ORIGIN` rewrites only the worker's manifest downloads to
 the internal service URL (`http://vignette-host:4173`); it does not leak into UI or OBS URLs.
+
+`@cbj/vignette-vite` emits frame entries under `assets/vignette/frame/` and the hydration helper at
+`assets/vignette/frame-client.js`. These deterministic entry names are intentionally not
+content-hashed and should be served with `Cache-Control: no-store`.
 
 ## Docker example
 

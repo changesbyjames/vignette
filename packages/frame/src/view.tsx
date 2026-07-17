@@ -1,48 +1,13 @@
 import { layerId, sourceId, type Size } from "@cbj/vignette-core";
 import { BrowserView, type BrowserViewProps } from "@cbj/vignette";
-import { createContext, createElement, useContext, type ReactElement, type ReactNode } from "react";
+import { createElement, useContext, type ReactElement } from "react";
 
 import type { FrameDefinition } from "./definition.js";
+import { SceneContext } from "./scene.js";
 import { hashFrameValue, serializeFrameParams } from "./serialization.js";
 
 export const FRAME_ROUTE_PREFIX = "/__vignette/frame";
 const DEFAULT_VIEWPORT: Size = { width: 1920, height: 1080 };
-const FrameOriginContext = createContext<string | undefined>(undefined);
-const FrameRegistrarContext = createContext<FrameRegistrar | undefined>(undefined);
-
-/** Origin and children supplied to frame views during scene composition. */
-export interface FrameProviderProps {
-  readonly origin: string;
-  readonly children?: ReactNode;
-}
-
-/** Supplies the public HTTP origin used to build frame browser-source URLs. */
-export function FrameProvider(props: FrameProviderProps): ReactElement {
-  return createElement(FrameOriginContext.Provider, {
-    value: normalizeOrigin(props.origin),
-    children: props.children,
-  });
-}
-
-/** Receives every frame definition placed by a `<View>` under the provider. */
-export type FrameRegistrar = <Params extends object>(definition: FrameDefinition<Params>) => void;
-
-/** Registrar callback and children supplied by a composer host. */
-export interface FrameRegistrarProviderProps {
-  readonly register: FrameRegistrar;
-  readonly children?: ReactNode;
-}
-
-/**
- * Hosts wrap the scene with this provider so placed frames register their routes without any
- * out-of-band module lists. Registration happens during render; registrars must be idempotent.
- */
-export function FrameRegistrarProvider(props: FrameRegistrarProviderProps): ReactElement {
-  return createElement(FrameRegistrarContext.Provider, {
-    value: props.register,
-    children: props.children,
-  });
-}
 
 /** Props for placing a typed React frame as a browser source. */
 export interface ViewProps<Params extends object> extends Omit<
@@ -57,24 +22,21 @@ export interface ViewProps<Params extends object> extends Omit<
 
 /** Declares and places a typed, parameterized React DOM frame. */
 export function View<Params extends object>(props: ViewProps<Params>): ReactElement {
-  const origin = useContext(FrameOriginContext);
-  if (origin === undefined) throw new Error("<View> must be rendered inside a <FrameProvider>.");
+  const scene = useContext(SceneContext);
+  if (scene === undefined) throw new Error("<View> must be rendered inside a <SceneProvider>.");
   const metadata = props.source.metadata;
   if (metadata === undefined) {
     throw new Error(
-      "The frame definition has no client metadata. Export it from a module processed by vignetteFrames().",
+      "The frame definition has no client metadata. Export it from a module processed by vignette().",
     );
   }
-  // Render-time registration is deliberate: it is idempotent, and it guarantees the route exists
-  // before any snapshot containing this frame's URL is published to a runtime.
-  useContext(FrameRegistrarContext)?.(props.source);
   const parsed = props.source.params.parse(props.params);
   const serialized = serializeFrameParams(parsed);
   const identity = props.id ?? `frame.${metadata.routeKey}.${hashFrameValue(serialized)}`;
   return createElement(BrowserView, {
     id: layerId(`${identity}.layer`),
     sourceId: sourceId(`${identity}.source`),
-    url: `${origin}${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
+    url: `${scene.origin}${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
     viewport: props.viewport ?? DEFAULT_VIEWPORT,
     ...(props.label === undefined ? {} : { label: props.label }),
     ...(props.shutdownWhenHidden === undefined
@@ -88,15 +50,4 @@ export function View<Params extends object>(props: ViewProps<Params>): ReactElem
     ...(props.opacity === undefined ? {} : { opacity: props.opacity }),
     ...(props.rotation === undefined ? {} : { rotation: props.rotation }),
   });
-}
-
-function normalizeOrigin(origin: string): string {
-  const parsed = new URL(origin);
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new TypeError("Frame origin must use HTTP(S).");
-  }
-  if (parsed.pathname !== "/" || parsed.search.length > 0 || parsed.hash.length > 0) {
-    throw new TypeError("Frame origin must not contain a path, query, or fragment.");
-  }
-  return parsed.origin;
 }

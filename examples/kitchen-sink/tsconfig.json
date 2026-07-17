@@ -5,14 +5,15 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "rootDir": ".",
     "outDir": "dist",
-    "tsBuildInfoFile": "tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "tsconfig.tsbuildinfo",
+    "types": ["node", "@cbj/vignette-vite/virtual"]
   },
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/frame" },
     { "path": "../../packages/moq" },
     { "path": "../../packages/react" },
-    { "path": "../../packages/server" },
+    { "path": "../../packages/vite" },
     { "path": "../../packages/target-dom" },
     { "path": "../../packages/target-obs" }
   ],

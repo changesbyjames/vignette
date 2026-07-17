@@ -1,11 +1,11 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-testkit",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.2.1",
-    "@cbj/vignette-target-obs": "jsr:@cbj/vignette-target-obs@^0.2.1"
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.0",
+    "@cbj/vignette-target-obs": "jsr:@cbj/vignette-target-obs@^0.3.0"
   },
   "exports": "./src/index.ts",
   "publish": {

@@ -32,7 +32,7 @@ describe("createComposerRoot", () => {
     await root.render(show("#112233"));
 
     expect(layout).toHaveBeenCalledOnce();
-    expect(root.getSnapshot()?.scenes[0]?.items[0]?.frame).toEqual({
+    expect(root.snapshot?.scenes[0]?.items[0]?.frame).toEqual({
       x: 0,
       y: 0,
       width: 640,
@@ -106,7 +106,7 @@ describe("createComposerRoot", () => {
       ),
     ).rejects.toThrow(/missing source/u);
 
-    expect(root.getSnapshot()?.revision).toBe(first.compiledRevision);
+    expect(root.snapshot?.revision).toBe(first.compiledRevision);
     await root.dispose();
   });
 });

@@ -1,13 +1,19 @@
-import { createClientManifestModuleHost } from "@cbj/vignette-frame/server/node";
-import { createComposerHost } from "@cbj/vignette-server";
-import { createNodeRequestHandler, type NodeRequestHandler } from "@cbj/vignette-server/node";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { consumeRuntimeMessages, toSseEvent } from "@cbj/vignette-core";
+import { createSceneStore, SceneProvider } from "@cbj/vignette-frame";
+import { createFrameRequestHandler } from "@cbj/vignette-frame/server";
+import { createComposerRoot } from "@cbj/vignette";
+import { streamSSE } from "hono/streaming";
+import { Hono } from "hono";
 import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { assets } from "virtual:vignette/assets";
+import { frames } from "virtual:vignette/frames";
 
 import { Show } from "../show.js";
-import { serveStaticFile } from "./static.js";
+import { createKitchenSinkObsRuntime } from "./kitchen-sink-obs.js";
 import {
   KITCHEN_SINK_CANVAS,
   KITCHEN_SINK_EXTENSIONS,
@@ -17,85 +23,76 @@ import {
 const port = readPort(process.env.PORT);
 const hostname = process.env.HOST ?? "127.0.0.1";
 const origin = readOrigin(process.env.VIGNETTE_ORIGIN ?? `http://${hostname}:${String(port)}`);
-const serverDirectory = dirname(fileURLToPath(import.meta.url));
-const clientDirectory = resolve(serverDirectory, "../client");
+const clientDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../client");
 const reportError = (error: Error) => {
   console.error(error.stack ?? error.message);
 };
-
-const host = createComposerHost({
+const scene = createSceneStore({ origin });
+const root = createComposerRoot({
   projectId: KITCHEN_SINK_PROJECT_ID,
   canvas: KITCHEN_SINK_CANVAS,
   extensions: KITCHEN_SINK_EXTENSIONS,
-  scene: <Show />,
-  frameOrigin: origin,
-  frames: await createClientManifestModuleHost({
-    clientDirectory,
-    clientHelperEntry: "src/frame-client-entry.ts",
+  assets,
+  onError: reportError,
+});
+await root.render(
+  <SceneProvider scene={scene}>
+    <Show />
+  </SceneProvider>,
+);
+
+const handleFrame = createFrameRequestHandler(frames);
+const app = new Hono();
+app.get("/runtime", (context) =>
+  streamSSE(context, async (stream) => {
+    for await (const message of root.messages(context.req.raw.signal)) {
+      await stream.writeSSE(toSseEvent(message));
+    }
   }),
-  manifest: { version: 1, assets: [] },
-});
-host.addEventListener("error", (event) => {
-  reportError(event.error);
-});
-const handleComposerRequest = createNodeRequestHandler(host);
+);
+app.all(
+  "/__vignette/*",
+  async (context) => (await handleFrame(context.req.raw)) ?? context.notFound(),
+);
+app.use("/*", serveStatic({ root: clientDirectory }));
 
-const server = createServer((request, response) => {
-  void handleRequest(handleComposerRequest, request, response, clientDirectory);
-});
-
-try {
-  await listen(server, port, hostname);
-  await host.start();
-  console.log(`Vignette kitchen sink listening at ${origin}`);
-} catch (error: unknown) {
-  if (server.listening) await closeServer(server);
-  await host.close();
-  throw error;
+const server = serve({ fetch: app.fetch, port, hostname });
+const runtimeAbort = new AbortController();
+let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined;
+let runtimeConsumer: Promise<void> | undefined;
+if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
+  runtime = createKitchenSinkObsRuntime({
+    url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
+    ...(process.env.VIGNETTE_OBS_PASSWORD === undefined
+      ? {}
+      : { password: process.env.VIGNETTE_OBS_PASSWORD }),
+    onError: reportError,
+  });
+  runtimeConsumer = consumeRuntimeMessages(runtime, root.messages(runtimeAbort.signal)).catch(
+    (cause: unknown) => {
+      reportError(cause instanceof Error ? cause : new Error(String(cause)));
+    },
+  );
 }
+console.log(`Vignette kitchen sink listening at ${origin}`);
 
 let shutdownPromise: Promise<void> | undefined;
 const shutdown = () => {
-  shutdownPromise ??= Promise.all([closeServer(server), host.close()]).then(() => undefined);
+  shutdownPromise ??= (async () => {
+    runtimeAbort.abort();
+    await closeServer();
+    await root.dispose();
+    await runtimeConsumer;
+    await runtime?.dispose();
+  })();
   return shutdownPromise;
 };
 process.once("SIGINT", () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 
-async function handleRequest(
-  handleComposerRequest: NodeRequestHandler,
-  request: IncomingMessage,
-  response: ServerResponse,
-  staticRoot: string,
-): Promise<void> {
-  try {
-    if (await handleComposerRequest(request, response)) return;
-    if (await serveStaticFile(request, response, staticRoot)) return;
-    response.statusCode = 404;
-    response.end("Not found.");
-  } catch (error: unknown) {
-    if (!response.headersSent) {
-      response.statusCode = 500;
-      response.setHeader("Content-Type", "text/plain; charset=utf-8");
-    }
-    response.end(error instanceof Error ? error.message : "Request failed.");
-    reportError(error instanceof Error ? error : new Error(String(error)));
-  }
-}
-
-function listen(serverToStart: Server, listenPort: number, listenHostname: string): Promise<void> {
+function closeServer(): Promise<void> {
   return new Promise((resolvePromise, reject) => {
-    serverToStart.once("error", reject);
-    serverToStart.listen(listenPort, listenHostname, () => {
-      serverToStart.removeListener("error", reject);
-      resolvePromise();
-    });
-  });
-}
-
-function closeServer(serverToClose: Server): Promise<void> {
-  return new Promise((resolvePromise, reject) => {
-    serverToClose.close((error) => {
+    server.close((error) => {
       if (error === undefined) resolvePromise();
       else reject(error);
     });

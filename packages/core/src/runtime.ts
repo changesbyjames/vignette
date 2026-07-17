@@ -10,7 +10,7 @@ export interface AssetManifestEntry {
 
 /** Versioned collection of assets required by runtime snapshots. */
 export interface AssetManifest {
-  readonly version: 1;
+  readonly version: 1 | `sha256-${string}`;
   readonly assets: readonly AssetManifestEntry[];
 }
 

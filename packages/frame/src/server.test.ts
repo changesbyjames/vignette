@@ -5,8 +5,10 @@ import { frame, type FrameMetadata } from "./definition.js";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
+  renderFrameHtml,
+  renderHydrationModule,
   type FrameRequestHandler,
-  type ModuleHost,
+  type FrameModuleHost,
 } from "./server.js";
 
 const metadata: FrameMetadata = {
@@ -34,7 +36,7 @@ const greeting = frame.withMetadata(metadata)({
 describe("frame request handler", () => {
   it("renders frame HTML with serialized props", async () => {
     const response = await request(
-      createHandler({ greeting }),
+      createHandler(),
       "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
     );
 
@@ -46,10 +48,7 @@ describe("frame request handler", () => {
   });
 
   it("uses host-resolved hydration module URLs", async () => {
-    const response = await request(
-      createHandler({ greeting }),
-      "/__vignette/frame/greeting-test/hydrate.js",
-    );
+    const response = await request(createHandler(), "/__vignette/frame/greeting-test/hydrate.js");
 
     expect(response.status).toBe(200);
     expect(response.text).toContain('from "https://assets.test/frames/greeting.js"');
@@ -59,7 +58,7 @@ describe("frame request handler", () => {
 
   it("maps props validation failures to 400", async () => {
     const response = await request(
-      createHandler({ greeting }),
+      createHandler(),
       "/__vignette/frame/greeting-test?props=%7B%22name%22%3A1%7D",
     );
 
@@ -68,17 +67,14 @@ describe("frame request handler", () => {
   });
 
   it("maps unknown frame routes to 404", async () => {
-    const response = await request(
-      createHandler({ greeting }),
-      "/__vignette/frame/unknown?props=%7B%7D",
-    );
+    const response = await request(createHandler(), "/__vignette/frame/unknown?props=%7B%7D");
 
     expect(response.status).toBe(404);
     expect(response.text).toBe("Frame route not found.");
   });
 
   it("leaves unrelated paths unhandled", async () => {
-    const response = await request(createHandler({ greeting }), "/health");
+    const response = await request(createHandler(), "/health");
 
     expect(response.status).toBe(404);
     expect(response.text).toBe("Not handled.");
@@ -87,13 +83,13 @@ describe("frame request handler", () => {
   it("serves registered definitions without any module loading", async () => {
     const registry = new FrameRouteRegistry();
     registry.registerDefinition(greeting);
-    const handler = createFrameRequestHandler(
-      {
+    const handler = createFrameRequestHandler({
+      modules: {
         resolveClientModule: (moduleUrl) => `https://assets.test${moduleUrl}`,
         resolveClientHelper: () => "https://assets.test/frame-client.js",
       },
       registry,
-    );
+    });
 
     const response = await request(
       handler,
@@ -104,25 +100,12 @@ describe("frame request handler", () => {
     expect(response.text).toContain("<strong>Hello Ada</strong>");
   });
 
-  it("reports metadata-only routes deterministically when the host cannot load modules", async () => {
-    const registry = new FrameRouteRegistry();
-    registry.registerFromTransform(metadata);
-    const handler = createFrameRequestHandler(
-      {
-        resolveClientModule: (moduleUrl) => moduleUrl,
-        resolveClientHelper: () => "/frame-client.js",
-      },
-      registry,
+  it("exports pure render kernels for platform routers", () => {
+    expect(renderFrameHtml(greeting, metadata, { name: "Ada" })).toContain(
+      "<strong>Hello Ada</strong>",
     );
-
-    const response = await request(
-      handler,
-      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
-    );
-
-    expect(response.status).toBe(500);
-    expect(response.text).toBe(
-      "Frame route 'greeting-test' has no rendered definition and this host cannot load modules.",
+    expect(renderHydrationModule(createHost(), metadata)).toContain(
+      'from "https://assets.test/frames/greeting.js"',
     );
   });
 });
@@ -142,14 +125,19 @@ describe("FrameRouteRegistry", () => {
     registry.registerDefinition(greeting);
 
     expect(() => {
-      registry.registerFromTransform({ ...metadata, moduleUrl: "/frames/other.js" });
+      registry.registerDefinition(
+        frame.withMetadata({ ...metadata, moduleUrl: "/frames/other.js" })({
+          params: passthroughParams,
+          view: EmptyView,
+        }),
+      );
     }).toThrow("Frame route collision for 'greeting-test'.");
   });
 
-  it("keeps the live definition when the transform re-registers the same route", () => {
+  it("allows idempotent registration of the same definition", () => {
     const registry = new FrameRouteRegistry();
     registry.registerDefinition(greeting);
-    registry.registerFromTransform(metadata);
+    registry.registerDefinition(greeting);
 
     expect(registry.get(metadata.routeKey)?.definition).toBe(greeting);
     expect(registry.get(metadata.routeKey)?.metadata).toEqual(metadata);
@@ -162,18 +150,17 @@ function EmptyView(): ReturnType<typeof createElement> {
   return createElement("div");
 }
 
-function createHandler(exports: Record<string, unknown>): FrameRequestHandler {
+function createHandler(): FrameRequestHandler {
   const registry = new FrameRouteRegistry();
-  registry.registerFromTransform(metadata);
-  return createFrameRequestHandler(
-    createHost(() => Promise.resolve(exports)),
+  registry.registerDefinition(greeting);
+  return createFrameRequestHandler({
+    modules: createHost(),
     registry,
-  );
+  });
 }
 
-function createHost(loadModule: NonNullable<ModuleHost["loadModule"]>): ModuleHost {
+function createHost(): FrameModuleHost {
   return {
-    loadModule,
     resolveClientModule: (moduleUrl) => `https://assets.test${moduleUrl}`,
     resolveClientHelper: () => "https://assets.test/frame-client.js",
   };

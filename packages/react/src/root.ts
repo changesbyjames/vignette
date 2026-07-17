@@ -1,11 +1,16 @@
 import {
   compileBroadcast,
+  deepFreeze,
   resolveSourceModules,
+  RuntimeMessageHub,
+  type AssetManifest,
   type BroadcastCanvas,
   type CompiledSnapshot,
   type Diagnostic,
   type LayoutEngine,
   type ProjectId,
+  type RuntimeEvent,
+  type RuntimeMessage,
   type SourceModule,
   type SourceModuleMap,
 } from "@cbj/vignette-core";
@@ -25,6 +30,8 @@ export interface ComposerRootOptions {
   readonly extensions?: readonly SourceModule[];
   /** Layout implementation. Defaults to the yoga-layout binding when omitted. */
   readonly layoutEngine?: LayoutEngine;
+  /** Assets required by this composition. Fixed for the root's lifetime. */
+  readonly assets?: AssetManifest;
   readonly onError?: (error: Error) => void;
 }
 
@@ -38,7 +45,11 @@ export interface CommitReceipt {
 /** Persistent Node-side React root that publishes compiled snapshots. */
 export interface ComposerRoot {
   render(element: ReactNode): Promise<CommitReceipt>;
-  getSnapshot(): CompiledSnapshot | undefined;
+  readonly snapshot: CompiledSnapshot | undefined;
+  settled(): Promise<CompiledSnapshot>;
+  messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage>;
+  snapshots(signal?: AbortSignal): AsyncIterable<CompiledSnapshot>;
+  publishEvent(event: RuntimeEvent): void;
   getStatus(): BroadcastRootStatus;
   subscribe(listener: (snapshot: CompiledSnapshot) => void): () => void;
   subscribeStatus(listener: () => void): () => void;
@@ -67,13 +78,20 @@ class ComposerRootImpl implements ComposerRoot {
   readonly #renderFailures = new Map<number, Error>();
   readonly #snapshotListeners = new Set<(snapshot: CompiledSnapshot) => void>();
   readonly #status = new RootStatusStore();
+  readonly #messages = new RuntimeMessageHub();
   #snapshot: CompiledSnapshot | undefined;
   #compileScheduled = false;
   #compiledRevision = -1;
   #disposed = false;
+  #compileFailure: { readonly revision: number; readonly error: Error } | undefined;
 
   constructor(options: ComposerRootOptions) {
     this.#options = options;
+    const manifest = deepFreeze<AssetManifest>({
+      version: options.assets?.version ?? 1,
+      assets: (options.assets?.assets ?? []).map((asset) => ({ ...asset })),
+    });
+    this.#messages.publish({ kind: "setup", manifest });
     this.#modules = resolveSourceModules(options.extensions);
     this.#container = {
       projectId: options.projectId,
@@ -117,13 +135,43 @@ class ComposerRootImpl implements ComposerRoot {
       reconciler.updateContainer(element, this.#internalRoot, null, () => {
         this.#renderRejectors.delete(rejectRender);
         if (renderFailed) return;
-        this.waitForCompile(this.#container.commitRevision).then(resolve, reject);
+        this.waitForCompile(this.#container.commitRevision).then((receipt) => {
+          reconciler.flushPassiveEffects();
+          resolve(receipt);
+        }, reject);
       });
     });
   }
 
-  getSnapshot(): CompiledSnapshot | undefined {
+  get snapshot(): CompiledSnapshot | undefined {
     return this.#snapshot;
+  }
+
+  async settled(): Promise<CompiledSnapshot> {
+    this.assertActive();
+    reconciler.flushSyncFromReconciler(() => undefined);
+    reconciler.flushSyncWork();
+    await this.waitForCompile(this.#container.commitRevision);
+    if (this.#snapshot === undefined) {
+      throw new Error("Composer root has not rendered a snapshot.");
+    }
+    return this.#snapshot;
+  }
+
+  messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage> {
+    this.assertActive();
+    return this.#messages.subscribe(signal);
+  }
+
+  async *snapshots(signal?: AbortSignal): AsyncIterable<CompiledSnapshot> {
+    for await (const message of this.messages(signal)) {
+      if (message.kind === "update") yield message.snapshot;
+    }
+  }
+
+  publishEvent(event: RuntimeEvent): void {
+    this.assertActive();
+    this.#messages.publish({ kind: "event", event });
   }
 
   getStatus(): BroadcastRootStatus {
@@ -154,6 +202,7 @@ class ComposerRootImpl implements ComposerRoot {
     for (const reject of this.#renderRejectors) reject(error);
     this.#renderRejectors.clear();
     this.#renderFailures.clear();
+    this.#messages.close();
     this.#snapshotListeners.clear();
     this.#snapshot = undefined;
     this.#status.set({
@@ -214,6 +263,8 @@ class ComposerRootImpl implements ComposerRoot {
   private publish(snapshot: CompiledSnapshot, diagnostics: readonly Diagnostic[]): void {
     this.#snapshot = snapshot;
     this.#compiledRevision = snapshot.revision;
+    this.#compileFailure = undefined;
+    this.#messages.publish({ kind: "update", snapshot });
     this.#status.set({
       phase: "ready",
       commitRevision: snapshot.revision,
@@ -229,6 +280,7 @@ class ComposerRootImpl implements ComposerRoot {
   }
 
   private failCompile(revision: number, error: Error, diagnostics: readonly Diagnostic[]): void {
+    this.#compileFailure = { revision, error };
     this.#status.set({
       phase: "error",
       commitRevision: revision,
@@ -242,6 +294,9 @@ class ComposerRootImpl implements ComposerRoot {
 
   private waitForCompile(revision: number): Promise<CommitReceipt> {
     if (this.#compiledRevision >= revision) return Promise.resolve(this.receipt(revision));
+    if (this.#compileFailure !== undefined && this.#compileFailure.revision >= revision) {
+      return Promise.reject(this.#compileFailure.error);
+    }
     return new Promise((resolve, reject) => {
       this.#compileWaiters.add({ revision, resolve, reject });
     });

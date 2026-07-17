@@ -1,25 +1,23 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-frame",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette": "jsr:@cbj/vignette@^0.2.1",
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.2.1",
+    "@cbj/vignette": "jsr:@cbj/vignette@^0.3.0",
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.0",
     "react": "npm:react@19.2.7",
     "react/jsx-runtime": "npm:react@19.2.7/jsx-runtime",
     "react-dom/client": "npm:react-dom@19.2.7/client",
     "react-dom/server": "npm:react-dom@19.2.7/server",
-    "typescript": "npm:typescript@6.0.3",
-    "vite": "npm:vite@8.1.4"
+    "typescript": "npm:typescript@6.0.3"
   },
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./server": "./src/server.ts",
     "./server/node": "./src/node-server.ts",
-    "./transform": "./src/transform.ts",
-    "./vite": "./src/vite.ts"
+    "./transform": "./src/transform.ts"
   },
   "publish": {
     "include": ["README.md", "src/**/*.ts", "src/**/*.tsx"],

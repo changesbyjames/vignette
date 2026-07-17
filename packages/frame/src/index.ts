@@ -12,11 +12,10 @@ export {
   type FrameParamsSchema,
 } from "./definition.js";
 export {
-  FrameProvider,
-  FrameRegistrarProvider,
-  View,
-  type FrameProviderProps,
-  type FrameRegistrar,
-  type FrameRegistrarProviderProps,
-  type ViewProps,
-} from "./view.js";
+  createSceneStore,
+  SceneProvider,
+  type SceneProviderProps,
+  type SceneState,
+  type SceneStore,
+} from "./scene.js";
+export { View, type ViewProps } from "./view.js";

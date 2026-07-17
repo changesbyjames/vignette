@@ -65,15 +65,21 @@ importers:
       '@cbj/vignette-moq':
         specifier: workspace:^
         version: link:../../packages/moq
-      '@cbj/vignette-server':
-        specifier: workspace:^
-        version: link:../../packages/server
       '@cbj/vignette-target-dom':
         specifier: workspace:^
         version: link:../../packages/target-dom
       '@cbj/vignette-target-obs':
         specifier: workspace:^
         version: link:../../packages/target-obs
+      '@cbj/vignette-vite':
+        specifier: workspace:^
+        version: link:../../packages/vite
+      '@hono/node-server':
+        specifier: 2.0.10
+        version: 2.0.10(hono@4.12.30)
+      hono:
+        specifier: 4.12.30
+        version: 4.12.30
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -140,9 +146,6 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
-      vite:
-        specifier: 8.1.4
-        version: 8.1.4(@types/node@26.1.1)
 
   packages/moq:
     dependencies:
@@ -187,25 +190,6 @@ importers:
       '@types/react-reconciler':
         specifier: 0.33.0
         version: 0.33.0(@types/react@19.2.17)
-      react:
-        specifier: 19.2.7
-        version: 19.2.7
-
-  packages/server:
-    dependencies:
-      '@cbj/vignette':
-        specifier: workspace:^
-        version: link:../react
-      '@cbj/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@cbj/vignette-frame':
-        specifier: workspace:^
-        version: link:../frame
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.17
-        version: 19.2.17
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -259,6 +243,25 @@ importers:
       '@cbj/vignette-target-obs':
         specifier: workspace:^
         version: link:../target-obs
+
+  packages/vite:
+    dependencies:
+      '@cbj/vignette-core':
+        specifier: workspace:^
+        version: link:../core
+      '@cbj/vignette-frame':
+        specifier: workspace:^
+        version: link:../frame
+      tinyglobby:
+        specifier: 0.2.17
+        version: 0.2.17
+    devDependencies:
+      '@types/node':
+        specifier: 26.1.1
+        version: 26.1.1
+      vite:
+        specifier: 8.1.4
+        version: 8.1.4(@types/node@26.1.1)
 
 packages:
 
@@ -373,6 +376,12 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@hono/node-server@2.0.10':
+    resolution: {integrity: sha512-ZcnNVhKTmyDJeg0UlnZjvM73JBsTAuhrH/J4fjwGOw59PwOW51r4J+p6CsKZWXdKSme4MFqU62CZMOsdDrU4CA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -889,6 +898,10 @@ packages:
   glob-parent@6.0.2:
     resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
     engines: {node: '>=10.13.0'}
+
+  hono@4.12.30:
+    resolution: {integrity: sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog==}
+    engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@6.0.0:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
@@ -1523,6 +1536,10 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
+  '@hono/node-server@2.0.10(hono@4.12.30)':
+    dependencies:
+      hono: 4.12.30
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -2063,6 +2080,8 @@ snapshots:
   glob-parent@6.0.2:
     dependencies:
       is-glob: 4.0.3
+
+  hono@4.12.30: {}
 
   html-encoding-sniffer@6.0.0:
     dependencies:

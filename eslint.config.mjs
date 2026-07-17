@@ -10,6 +10,7 @@ export default tseslint.config(
       "reference/**",
       "test-results/**",
       "playwright-report/**",
+      "packages/vite/test-fixtures/**",
     ],
   },
   eslint.configs.recommended,
@@ -58,6 +59,12 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  },
+  {
+    files: ["**/*.d.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
     },
   },
   {

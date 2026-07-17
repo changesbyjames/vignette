@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-moq",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Media over QUIC source extension for Vignette, DOM, and OBS targets.",
   "private": true,
   "license": "MIT",

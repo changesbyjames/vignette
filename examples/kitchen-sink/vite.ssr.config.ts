@@ -1,9 +1,9 @@
-import { FrameRouteRegistry, vignetteFrames } from "@cbj/vignette-frame/vite";
+import { vignette } from "@cbj/vignette-vite";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 export const viteSsrConfig = defineConfig({
-  plugins: [vignetteFrames(new FrameRouteRegistry())],
+  plugins: [vignette()],
   ssr: {
     external: [
       "@cbj/vignette-core",
@@ -13,7 +13,6 @@ export const viteSsrConfig = defineConfig({
       "@cbj/vignette-moq/obs",
       "@cbj/vignette-moq/react",
       "@cbj/vignette",
-      "@cbj/vignette-server",
       "@cbj/vignette-target-obs",
       "react",
       "react/jsx-runtime",

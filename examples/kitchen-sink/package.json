@@ -20,9 +20,11 @@
     "@cbj/vignette-frame": "workspace:^",
     "@cbj/vignette-moq": "workspace:^",
     "@cbj/vignette": "workspace:^",
-    "@cbj/vignette-server": "workspace:^",
     "@cbj/vignette-target-dom": "workspace:^",
     "@cbj/vignette-target-obs": "workspace:^",
+    "@cbj/vignette-vite": "workspace:^",
+    "@hono/node-server": "2.0.10",
+    "hono": "4.12.30",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.4.3"

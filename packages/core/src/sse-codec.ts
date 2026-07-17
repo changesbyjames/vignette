@@ -11,15 +11,28 @@ export const RUNTIME_SSE_EVENTS = ["setup", "update", "event"] as const;
 /** Named SSE event corresponding to a runtime message kind. */
 export type RuntimeSseEvent = (typeof RUNTIME_SSE_EVENTS)[number];
 
-/** Encodes one runtime message as a named SSE record. */
-export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
+/** Platform-neutral fields for one SSE event. */
+export interface RuntimeSseEventRecord {
+  readonly id: string;
+  readonly event: RuntimeSseEvent;
+  readonly data: string;
+}
+
+/** Converts one runtime message to fields that a platform-owned SSE writer can consume. */
+export function toSseEvent(message: RuntimeMessage): RuntimeSseEventRecord {
   const [id, payload] =
     message.kind === "setup"
       ? ["setup", message.manifest]
       : message.kind === "update"
         ? [String(message.snapshot.revision), message.snapshot]
         : [message.event.id, message.event];
-  return `id: ${id}\nevent: ${message.kind}\ndata: ${JSON.stringify(payload)}\n\n`;
+  return { id, event: message.kind, data: JSON.stringify(payload) };
+}
+
+/** Encodes one runtime message as a named SSE record. */
+export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
+  const event = toSseEvent(message);
+  return `id: ${event.id}\nevent: ${event.event}\ndata: ${event.data}\n\n`;
 }
 
 /** Decodes trusted SSE event data into a runtime message. */

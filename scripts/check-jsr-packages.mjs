@@ -24,14 +24,15 @@ const packages = [
   packageConfig(
     "packages/frame",
     "@cbj/vignette-frame",
-    [".", "./client", "./server", "./server/node", "./transform", "./vite"],
+    [".", "./client", "./server", "./server/node", "./transform"],
     ["@cbj/vignette-core", "@cbj/vignette"],
   ),
   packageConfig(
-    "packages/server",
-    "@cbj/vignette-server",
-    [".", "./node"],
-    ["@cbj/vignette-core", "@cbj/vignette-frame", "@cbj/vignette"],
+    "packages/vite",
+    "@cbj/vignette-vite",
+    [".", "./virtual"],
+    ["@cbj/vignette-core", "@cbj/vignette-frame"],
+    true,
   ),
   packageConfig(
     "packages/moq",
@@ -92,6 +93,7 @@ for (const candidate of packages) {
 
   if (!process.argv.includes("--skip-dry-run")) {
     const args = ["exec", "jsr", "publish", "--dry-run", "--allow-dirty"];
+    if (candidate.allowSlowTypes) args.push("--allow-slow-types");
     execFileSync("pnpm", args, { cwd: resolve(root, candidate.directory), stdio: "inherit" });
     console.log(`✓ ${candidate.name}@${jsr.version} passes JSR publish verification`);
   }
@@ -106,8 +108,8 @@ if (releaseTag) {
   );
 }
 
-function packageConfig(directory, name, exports, dependencies = []) {
-  return { directory, name, exports, dependencies };
+function packageConfig(directory, name, exports, dependencies = [], allowSlowTypes = false) {
+  return { directory, name, exports, dependencies, allowSlowTypes };
 }
 
 function assertExports(actual, expected, name) {

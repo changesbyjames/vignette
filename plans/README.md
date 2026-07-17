@@ -25,6 +25,7 @@ workspace and verification commands.
 | 010 | Add optional hydrated React DOM frames | P1 | L | 009 | DONE |
 | 011 | Make DOMRuntime an external store and add useCompositor | P1 | M | 009 | DONE |
 | 012 | Add a portable MoQ source | P1 | M | 009, 011 | DONE |
+| 013 | Recompose the host surface into a pull-based kernel | P1 | L | 009, 010, 012 | DONE |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED (<reason>)`, or
 `REJECTED (<reason>)`.
@@ -106,6 +107,8 @@ lifecycle behavior.
 - Multiple OBS canvases or scene collections.
 - Repeated placement of one source in the same scene; this requires durable
   placement metadata or a different materialization strategy.
+- Changing an asset manifest during a composer root's lifetime; construct a new root for a new
+  build-derived manifest.
 
 ## Findings considered and rejected
 

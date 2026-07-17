@@ -7,7 +7,7 @@ migrations rather than routine dependency bumps.
 ## Data flow
 
 ```text
-Composer host
+Platform host (Node, Worker, Durable Object)
   React components + hooks
     -> synchronous local authoring graph
     -> validation + Yoga + content fitting
@@ -78,7 +78,8 @@ protocol. See [`react-frames.md`](react-frames.md).
 - `@cbj/vignette-core`: graph vocabulary, immutable snapshots, runtime messages, validation, and
   Yoga.
 - `@cbj/vignette`: host-side React reconciler, primitives, and `createComposerRoot`.
-- `@cbj/vignette-frame`: optional typed browser views, SSR/hydration, and Vite adapter.
+- `@cbj/vignette-frame`: optional typed browser views and platform-neutral SSR/hydration kernels.
+- `@cbj/vignette-vite`: static frame registry, deterministic client entries, and asset manifests.
 - `@cbj/vignette-target-dom`: browser asset cache and `DOMRuntime`.
 - `@cbj/vignette-target-obs`: temporary-file asset cache, `OBSRuntime`, planner, and transport.
 - `@cbj/vignette-testkit`: deterministic OBS transport and planner test utilities.

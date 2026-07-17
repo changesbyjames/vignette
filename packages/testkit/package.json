@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-testkit",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Deterministic target, transport, clock, and OBS plan fakes for Vignette tests.",
   "private": true,
   "license": "MIT",

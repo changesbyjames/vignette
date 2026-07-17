@@ -56,9 +56,9 @@ jobs:
       - name: Publish frames
         working-directory: packages/frame
         run: pnpm exec jsr publish
-      - name: Publish server
-        working-directory: packages/server
-        run: pnpm exec jsr publish
+      - name: Publish Vite integration
+        working-directory: packages/vite
+        run: pnpm exec jsr publish --allow-slow-types
       - name: Publish MoQ extension
         working-directory: packages/moq
         run: pnpm exec jsr publish

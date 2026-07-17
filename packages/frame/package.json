@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-frame",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Typed React DOM frames with Vite SSR and hydration for Vignette browser sources.",
   "private": true,
   "license": "MIT",
@@ -26,10 +26,6 @@
     "./transform": {
       "types": "./dist/transform.d.ts",
       "default": "./dist/transform.js"
-    },
-    "./vite": {
-      "types": "./dist/vite.d.ts",
-      "default": "./dist/vite.js"
     }
   },
   "scripts": {
@@ -46,19 +42,12 @@
   },
   "peerDependencies": {
     "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "vite": "8.1.4"
-  },
-  "peerDependenciesMeta": {
-    "vite": {
-      "optional": true
-    }
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "vite": "8.1.4"
+    "react-dom": "19.2.7"
   }
 }

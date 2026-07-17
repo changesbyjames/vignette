@@ -10,7 +10,7 @@ const packageDirectories = [
   "packages/target-obs",
   "packages/react",
   "packages/frame",
-  "packages/server",
+  "packages/vite",
   "packages/moq",
   "packages/testkit",
 ];
@@ -36,6 +36,7 @@ for (const directory of packageDirectories) {
     const source = program.getSourceFile(entrypoint);
     if (source === undefined) throw new Error(`TypeScript did not load ${entrypoint}.`);
     const module = checker.getSymbolAtLocation(source);
+    if (module === undefined && source.isDeclarationFile) continue;
     if (module === undefined)
       throw new Error(`TypeScript did not resolve exports for ${entrypoint}.`);
     for (const exported of checker.getExportsOfModule(module)) {

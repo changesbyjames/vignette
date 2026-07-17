@@ -3,7 +3,7 @@
 Vignette is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once and
 materializing them in both the browser and OBS.
 
-React and Yoga run in a Node composer. It emits one target-neutral, complete immutable snapshot;
+React and Yoga run in a platform-owned composer. It emits one target-neutral immutable snapshot;
 independent DOM and OBS runtimes consume setup, update, and event messages over SSE or an in-memory
 `AsyncIterable`. The composer never waits for or observes runtime convergence.
 
@@ -14,7 +14,7 @@ composer with a browser preview:
 
 ```sh
 pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core \
-  jsr:@cbj/vignette-server jsr:@cbj/vignette-frame \
+  jsr:@cbj/vignette-frame jsr:@cbj/vignette-vite \
   jsr:@cbj/vignette-target-dom react react-dom
 ```
 
@@ -32,6 +32,7 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `packages/core` — target-neutral graph, validation, layout, snapshots, and stream contracts.
 - `packages/react` — Node-side custom React composer and typed authoring primitives.
 - `packages/frame` — optional typed React DOM frames with Vite SSR and hydration.
+- `packages/vite` — frame discovery, deterministic client entries, and build-derived assets.
 - `packages/target-dom` — manifest asset cache, browser `DOMRuntime`, and optional React hook.
 - `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
 - `packages/moq` — optional Media over QUIC source extension for all three layers.

@@ -7,13 +7,13 @@ that browser source.
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/vignette-frame jsr:@cbj/vignette jsr:@cbj/vignette-core react react-dom vite
+pnpm add jsr:@cbj/vignette-frame jsr:@cbj/vignette-vite react react-dom vite
 ```
 
 ## Define and place a frame
 
 ```tsx
-import { frame, View } from "@cbj/vignette-frame";
+import { createSceneStore, frame, SceneProvider, View } from "@cbj/vignette-frame";
 import { z } from "zod";
 
 export const LowerThird = frame({
@@ -22,24 +22,26 @@ export const LowerThird = frame({
 });
 
 export function Overlay() {
-  return <View source={LowerThird} params={{ name: "Ada" }} />;
+  return (
+    <SceneProvider scene={createSceneStore({ origin: "https://example.com" })}>
+      <View source={LowerThird} params={{ name: "Ada" }} />
+    </SceneProvider>
+  );
 }
 ```
 
 Export frame definitions from modules processed by the Vite plugin:
 
 ```ts
-import { vignetteFrames } from "@cbj/vignette-frame/vite";
+import { vignette } from "@cbj/vignette-vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({ plugins: [vignetteFrames()] });
+export default defineConfig({ plugins: [vignette()] });
 ```
 
-`./vite` provides development discovery and module hosting. `./server` provides
-`FrameRouteRegistry`, a Fetch API `createFrameRequestHandler`, and an injected-manifest module host.
-`./server/node` adds Node HTTP and filesystem adapters. `./transform` exposes the frame source
-transform without Vite or Node. `./client` exports the hydration helper. `@cbj/vignette-server`
-wires these seams together for the common host topology.
+`./server` provides `FrameRouteRegistry`, pure rendering kernels, and a Fetch API handler over a
+static frame bundle. `./server/node` adds a Node HTTP adapter. `./transform` exposes the source
+transform and `./client` exports the hydration helper. Applications own routing and transport.
 
 Hosts that cannot run the transform can provide supported metadata directly with
 `frame({ metadata, params, view })`.

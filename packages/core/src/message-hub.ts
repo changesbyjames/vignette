@@ -23,6 +23,10 @@ export class RuntimeMessageHub {
 
   subscribe(signal?: AbortSignal): AsyncIterable<RuntimeMessage> {
     const queue = createAsyncQueue<RuntimeMessage>();
+    if (signal?.aborted === true) {
+      queue.close();
+      return queue;
+    }
     if (this.#setup !== undefined) queue.push(this.#setup);
     if (this.#update !== undefined) queue.push(this.#update);
     if (this.#closed) {

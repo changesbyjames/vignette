@@ -22,7 +22,6 @@ const root = createComposerRoot({
   onError: console.error,
 });
 
-root.subscribe((snapshot) => publish(snapshot));
 await root.render(
   <Broadcast>
     <Sources>
@@ -33,6 +32,8 @@ await root.render(
     </Scene>
   </Broadcast>,
 );
+
+for await (const message of root.messages(signal)) publish(message);
 ```
 
 Sources are reusable resource definitions. Layers place sources in scenes. `Box` participates in
@@ -42,3 +43,7 @@ remote resources.
 Call `dispose()` when the composer shuts down. Observe asynchronous failures through `onError` and
 root status, not delayed React exceptions. Custom source packages provide a `sourceElement` wrapper
 and a core `SourceModule`; register the module through `createComposerRoot({ extensions })`.
+
+The root owns the immutable asset manifest and replays setup plus its latest update to every
+`messages()` subscriber. `settled()` synchronously flushes externally scheduled React work and
+resolves to the compiled snapshot, enabling read-your-writes after external-store mutations.
