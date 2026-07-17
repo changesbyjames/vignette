@@ -43,6 +43,56 @@ export default defineConfig({ plugins: [vignette()] });
 static frame bundle. `./server/node` adds a Node HTTP adapter. `./transform` exposes the source
 transform and `./client` exports the hydration helper. Applications own routing and transport.
 
+## Stream live state to a frame
+
+Frame parameters are part of the browser source URL. Use a remote store for live state that should
+update without reloading the frame. Define one typed reference in code shared by the application
+server and frame:
+
+```ts
+import { defineRemoteStore } from "@cbj/vignette-frame/remote-store";
+
+import type { CompositionStore } from "./composition-store";
+
+export const compositionStore = defineRemoteStore<CompositionStore>({
+  id: "composition",
+  url: "/api/store/composition",
+});
+```
+
+The application owns the endpoint URL and SSE response. The server helper yields an initial context
+snapshot followed by conflated live updates:
+
+```ts
+import { encodeRemoteStoreSnapshot } from "@cbj/vignette-frame/remote-store";
+import { remoteStoreSnapshots } from "@cbj/vignette-frame/remote-store/server";
+
+for await (const snapshot of remoteStoreSnapshots(store, request.signal)) {
+  await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
+}
+```
+
+Read the state inside a hydrated frame. The hook suspends during server rendering and until the
+browser receives its first snapshot, so render it beneath a Suspense boundary:
+
+```tsx
+import { useRemoteStore } from "@cbj/vignette-frame/remote-store/client";
+import { Suspense } from "react";
+
+function Title() {
+  return (
+    <Suspense fallback={null}>
+      <LiveTitle />
+    </Suspense>
+  );
+}
+
+function LiveTitle() {
+  const title = useRemoteStore(compositionStore, (snapshot) => snapshot.context.title);
+  return <div>{title}</div>;
+}
+```
+
 Hosts that cannot run the transform can provide supported metadata directly with
 `frame({ metadata, params, view })`.
 

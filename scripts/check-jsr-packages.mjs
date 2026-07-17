@@ -24,7 +24,16 @@ const packages = [
   packageConfig(
     "packages/frame",
     "@cbj/vignette-frame",
-    [".", "./client", "./server", "./server/node", "./transform"],
+    [
+      ".",
+      "./client",
+      "./remote-store",
+      "./remote-store/client",
+      "./remote-store/server",
+      "./server",
+      "./server/node",
+      "./transform",
+    ],
     ["@cbj/vignette-core", "@cbj/vignette"],
   ),
   packageConfig(

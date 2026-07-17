@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-target-obs",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "OBS runtime, planner, and transport contracts for Vignette snapshots.",
   "private": true,
   "license": "MIT",
