@@ -30,7 +30,7 @@ const packages = [
   packageConfig(
     "packages/vite",
     "@cbj/vignette-vite",
-    ["."],
+    [".", "./frame-client"],
     ["@cbj/vignette-core", "@cbj/vignette-frame"],
   ),
   packageConfig(

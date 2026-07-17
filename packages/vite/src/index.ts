@@ -15,6 +15,9 @@ const FRAMES_ID = "virtual:vignette/frames";
 const ASSETS_ID = "virtual:vignette/assets";
 const RESOLVED_FRAMES_ID = `\0${FRAMES_ID}`;
 const RESOLVED_ASSETS_ID = `\0${ASSETS_ID}`;
+// frame-client is referenced only by URL, so it must stay a deno.json export: JSR's npm
+// compatibility layer transpiles only export-reachable modules, and an unexported helper would
+// ship as raw .tsx/.ts with unrewritten jsr: specifiers.
 const HELPER_ENTRY = fileURLToPath(new URL("./frame-client.js", import.meta.url));
 
 /** Static frame and composition-asset discovery configured relative to the Vite root. */
