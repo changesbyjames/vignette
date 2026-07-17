@@ -1,15 +1,15 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-vite",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.1",
-    "@cbj/vignette-frame": "jsr:@cbj/vignette-frame@^0.3.1",
-    "@cbj/vignette-frame/client": "jsr:@cbj/vignette-frame@^0.3.1/client",
-    "@cbj/vignette-frame/server": "jsr:@cbj/vignette-frame@^0.3.1/server",
-    "@cbj/vignette-frame/server/node": "jsr:@cbj/vignette-frame@^0.3.1/server/node",
-    "@cbj/vignette-frame/transform": "jsr:@cbj/vignette-frame@^0.3.1/transform",
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.2",
+    "@cbj/vignette-frame": "jsr:@cbj/vignette-frame@^0.3.2",
+    "@cbj/vignette-frame/client": "jsr:@cbj/vignette-frame@^0.3.2/client",
+    "@cbj/vignette-frame/server": "jsr:@cbj/vignette-frame@^0.3.2/server",
+    "@cbj/vignette-frame/server/node": "jsr:@cbj/vignette-frame@^0.3.2/server/node",
+    "@cbj/vignette-frame/transform": "jsr:@cbj/vignette-frame@^0.3.2/transform",
     "tinyglobby": "npm:tinyglobby@0.2.17",
     "vite": "npm:vite@8.1.4"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "React renderer and authoring primitives for target-neutral broadcast scenes.",
   "private": true,
   "license": "MIT",

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,6 +63,7 @@ for (const candidate of packages) {
   );
   assertExports(jsr.exports, candidate.exports, candidate.name);
   assertExplicitImports(jsr.imports, candidate.name);
+  assertNoPublishedTsx(jsr.publish, candidate);
 
   for (const dependency of candidate.dependencies) {
     assert(
@@ -127,6 +128,20 @@ function assertExplicitImports(imports = {}, name) {
   assert(
     Object.keys(imports).every((specifier) => !specifier.endsWith("/")),
     `${name} must map JSR subpaths explicitly to avoid duplicate npm compatibility dependencies`,
+  );
+}
+
+function assertNoPublishedTsx(publish = {}, candidate) {
+  // JSR's npm compatibility tarball transpiles .ts but ships .tsx raw, leaving
+  // unresolvable ./*.tsx specifiers and duplicate module identities in bundles.
+  assert(
+    (publish.include ?? []).every((pattern) => !pattern.includes(".tsx")),
+    `${candidate.name} must not include .tsx files in its JSR publish set`,
+  );
+  const shipped = globSync(publish.include ?? [], { cwd: resolve(root, candidate.directory) });
+  assert(
+    shipped.every((path) => !path.endsWith(".tsx")),
+    `${candidate.name} would publish raw .tsx files; convert them to createElement .ts modules`,
   );
 }
 

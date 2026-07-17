@@ -1,13 +1,13 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@cbj/vignette-moq",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "license": "MIT",
   "imports": {
-    "@cbj/vignette": "jsr:@cbj/vignette@^0.3.1",
-    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.1",
-    "@cbj/vignette-target-dom": "jsr:@cbj/vignette-target-dom@^0.3.1",
-    "@cbj/vignette-target-obs": "jsr:@cbj/vignette-target-obs@^0.3.1",
+    "@cbj/vignette": "jsr:@cbj/vignette@^0.3.2",
+    "@cbj/vignette-core": "jsr:@cbj/vignette-core@^0.3.2",
+    "@cbj/vignette-target-dom": "jsr:@cbj/vignette-target-dom@^0.3.2",
+    "@cbj/vignette-target-obs": "jsr:@cbj/vignette-target-obs@^0.3.2",
     "@moq/watch/element": "npm:@moq/watch@0.3.0/element",
     "react": "npm:react@19.2.7"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-core",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for Vignette.",
   "private": true,
   "license": "MIT",
