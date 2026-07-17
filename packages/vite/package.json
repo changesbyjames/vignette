@@ -1,6 +1,6 @@
 {
   "name": "@cbj/vignette-vite",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Vite build integration for Vignette frames and composition assets.",
   "private": true,
   "license": "MIT",

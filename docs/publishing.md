@@ -41,7 +41,8 @@ package versions, and publishes in dependency order. JSR skips package versions 
 so a corrected rerun can continue after a partial release. Prereleases are intentionally not
 published.
 
-Seven packages pass JSR's default fast-type checks. `@cbj/vignette-vite` is published with
-`--allow-slow-types` because its `./virtual` entrypoint intentionally contributes ambient
-declarations for Vite-generated module IDs. Extension packages otherwise carry source types through
-generic contracts rather than modifying global or cross-package declarations.
+All eight packages pass JSR's default fast-type checks. JSR prohibits ambient global module
+declarations, so its `@cbj/vignette-vite` artifact omits the local `./virtual` convenience
+entrypoint; JSR consumers declare the two generated module IDs in their application. Extension
+packages carry source types through generic contracts rather than modifying global or cross-package
+declarations.
