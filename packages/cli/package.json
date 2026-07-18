@@ -1,12 +1,12 @@
 {
-  "name": "@strangecyan/vignette-preview",
-  "version": "0.3.5",
-  "description": "Headless PNG previews for Vignette compiled snapshots.",
+  "name": "@strangecyan/vignette-cli",
+  "version": "0.4.1",
+  "description": "Command-line helpers for Vignette projects.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/changesbyjames/vignette.git",
-    "directory": "packages/preview"
+    "directory": "packages/cli"
   },
   "type": "module",
   "files": [
@@ -33,12 +33,14 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --root ../.. packages/preview",
+    "test": "vitest run --root ../.. packages/cli",
     "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette-moq": "workspace:^",
     "@strangecyan/vignette-target-dom": "workspace:^",
+    "@strangecyan/vignette-target-obs": "workspace:^",
     "playwright": "1.61.1"
   },
   "devDependencies": {

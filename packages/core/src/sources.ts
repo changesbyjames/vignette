@@ -32,6 +32,8 @@ export interface MediaFileSource extends AnySourceDefinition {
   readonly loop?: boolean;
   readonly muted?: boolean;
   readonly playbackRate?: number;
+  /** Restart playback from the beginning whenever the source becomes active. */
+  readonly restartOnActivate?: boolean;
 }
 
 /** HTTP browser source with a fixed viewport. */

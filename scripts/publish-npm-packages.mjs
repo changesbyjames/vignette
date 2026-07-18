@@ -15,7 +15,7 @@ const packageDirectories = [
   "packages/vite",
   "packages/moq",
   "packages/testkit",
-  "packages/preview",
+  "packages/cli",
 ];
 
 for (const directory of packageDirectories) {

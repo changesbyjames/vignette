@@ -12,6 +12,17 @@
 Run all six before declaring a plan complete unless the operator explicitly prioritizes
 implementation progress over full verification.
 
+## Plumbing delegation
+
+- Delegate routine operational work to the `plumbing` subagent by default. This includes installs,
+  builds, tests, typechecks, linting, format checks, long-running or polling CLI commands, waiting
+  for command results, and browser interaction.
+- Batch related verification commands into one plumbing task when practical, and preserve any
+  operator-supplied command arguments and ordering exactly.
+- Keep implementation, source edits, architectural decisions, and substantive failure diagnosis in
+  the primary agent. Use the plumbing agent to execute commands and return exact results and
+  actionable diagnostics.
+
 ## Architecture boundaries
 
 - `core` may not import React, DOM, Yoga target objects, OBS protocol clients, or target packages.

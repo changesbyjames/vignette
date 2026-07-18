@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-target-dom",
-  "version": "0.3.5",
+  "version": "0.4.1",
   "description": "Browser DOM runtime and React compositor hook for Vignette snapshots.",
   "license": "MIT",
   "repository": {

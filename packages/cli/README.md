@@ -1,15 +1,32 @@
-# @strangecyan/vignette-preview
+# @strangecyan/vignette-cli
 
-Creates an exact-canvas PNG from a compiled Vignette snapshot. Images, colors, and browser sources
-render normally. Media files, MoQ streams, and extension sources render as labeled placeholders so a
-preview does not need live media infrastructure.
+Command-line helpers for running and inspecting Vignette projects.
 
 Install the npm CLI package in a Vignette project:
 
 ```sh
-pnpm add -D @strangecyan/vignette-preview
+pnpm add -D @strangecyan/vignette-cli
 pnpm exec playwright install chromium
 ```
+
+## Stream to OBS
+
+Stream a project's runtime SSE endpoint to OBS with the built-in source codecs and the official MoQ
+codec:
+
+```sh
+pnpm exec vignette obs \
+  --project demo \
+  --obs-url ws://localhost:4455 \
+  --password secret \
+  --url https://localhost:5173/api/runtime
+```
+
+`--password` is optional for OBS instances without WebSocket authentication. The command runs until
+it receives `SIGINT` or `SIGTERM`. It intentionally provides only the standard happy-path runtime:
+there is no health endpoint or readiness checking.
+
+## Capture a PNG
 
 ```sh
 pnpm exec vignette preview \

@@ -236,6 +236,68 @@ describe("DomTarget", () => {
 
     await target.dispose();
   });
+
+  it("can retain media playback position when it enters another active scene", async () => {
+    const graph = broadcast({
+      projectId: "demo",
+      children: [
+        sources(
+          mediaSource({
+            id: "clip",
+            asset: { kind: "asset", name: "clip" },
+            restartOnActivate: false,
+          }),
+        ),
+        scene({
+          id: "programme",
+          children: [
+            layer({
+              id: "programme.clip",
+              sourceId: "clip",
+              style: { width: 1280, height: 720 },
+            }),
+          ],
+        }),
+        scene({
+          id: "preview",
+          children: [
+            layer({
+              id: "preview.clip",
+              sourceId: "clip",
+              style: { width: 1280, height: 720 },
+            }),
+          ],
+        }),
+      ],
+    });
+    const compiled = compileBroadcast(graph, { revision: 1, layoutEngine: yogaLayoutEngine });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) return;
+
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const container = document.createElement("div");
+    document.body.append(container);
+    const target = new DomTarget({
+      container,
+      sceneId: "programme",
+      assetResolver: {
+        resolve: () => Promise.resolve({ kind: "url", url: "https://example.com/clip.mp4" }),
+      },
+    });
+    target.publish(compiled.snapshot);
+    await target.whenSettled(1);
+
+    const video = container.querySelector<HTMLVideoElement>("video");
+    expect(video).not.toBeNull();
+    if (video === null) return;
+    video.currentTime = 12;
+
+    await target.setScene("preview");
+    expect(video.currentTime).toBe(12);
+    expect(play).toHaveBeenCalledTimes(2);
+
+    await target.dispose();
+  });
 });
 
 function unexpectedAssetResolver(): AssetResolver {

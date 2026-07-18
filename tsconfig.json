@@ -9,7 +9,7 @@
     { "path": "./packages/frame" },
     { "path": "./packages/vite" },
     { "path": "./packages/moq" },
-    { "path": "./packages/preview" },
+    { "path": "./packages/cli" },
     { "path": "./examples/simple" },
     { "path": "./examples/kitchen-sink" }
   ]

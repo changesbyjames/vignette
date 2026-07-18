@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-moq",
-  "version": "0.3.5",
+  "version": "0.4.1",
   "description": "Media over QUIC source extension for Vignette, DOM, and OBS targets.",
   "license": "MIT",
   "repository": {

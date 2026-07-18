@@ -67,10 +67,15 @@ const packages = [
     ["@strangecyan/vignette-core", "@strangecyan/vignette-target-obs"],
   ),
   packageConfig(
-    "packages/preview",
-    "@strangecyan/vignette-preview",
+    "packages/cli",
+    "@strangecyan/vignette-cli",
     ["."],
-    ["@strangecyan/vignette-core", "@strangecyan/vignette-target-dom"],
+    [
+      "@strangecyan/vignette-core",
+      "@strangecyan/vignette-moq",
+      "@strangecyan/vignette-target-dom",
+      "@strangecyan/vignette-target-obs",
+    ],
     ["bin", "dist"],
   ),
 ];
@@ -98,7 +103,7 @@ for (const candidate of packages) {
     );
   }
 
-  if (candidate.directory === "packages/preview") {
+  if (candidate.directory === "packages/cli") {
     assert(
       manifest.bin?.vignette === "./bin/vignette.js",
       `${candidate.name} must publish its CLI`,

@@ -18,10 +18,10 @@ pnpm add @strangecyan/vignette @strangecyan/vignette-core \
   @strangecyan/vignette-target-dom react react-dom
 ```
 
-Add `@strangecyan/vignette-target-obs` for OBS output, `@strangecyan/vignette-moq` for Media over
-QUIC, or `@strangecyan/vignette-testkit` for target and planner tests. Install
-`@strangecyan/vignette-preview` for the PNG preview CLI. Each package README documents its
-entrypoints and extension seams. Start with the intentionally small
+Add `@strangecyan/vignette-target-obs` for custom OBS integrations, `@strangecyan/vignette-moq` for
+Media over QUIC, or `@strangecyan/vignette-testkit` for target and planner tests. Install
+`@strangecyan/vignette-cli` for the happy-path OBS runner and PNG previews. Each package README
+documents its entrypoints and extension seams. Start with the intentionally small
 [`examples/simple`](examples/simple), then use [`examples/kitchen-sink`](examples/kitchen-sink) as a
 Vite, frame, SSE, MoQ, and optional OBS application template.
 
@@ -38,7 +38,7 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
 - `packages/moq` — optional Media over QUIC source extension for all three layers.
 - `packages/testkit` — target and OBS fakes shared by package tests.
-- `packages/preview` — Playwright CLI for exact-canvas snapshot PNGs with static placeholders.
+- `packages/cli` — happy-path OBS runner and Playwright snapshot PNG CLI.
 - `examples/simple` — minimal local composition that prints one compiled snapshot.
 - `examples/kitchen-sink` — Node composer, SSE, frames, DOM, public MoQ demo, and optional OBS
   example.
@@ -64,6 +64,13 @@ To capture the first scene from a running composer or a saved snapshot:
 
 ```sh
 pnpm exec vignette preview --snapshot http://localhost:4173/runtime --name "test 01"
+```
+
+To stream a runtime into OBS with the standard codecs:
+
+```sh
+pnpm exec vignette obs --project demo --obs-url ws://localhost:4455 \
+  --password secret --url http://localhost:5173/api/runtime
 ```
 
 The first release intentionally supports a narrow common surface: image, local media, browser, and

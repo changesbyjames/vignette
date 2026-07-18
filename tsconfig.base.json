@@ -19,7 +19,7 @@
       "@strangecyan/vignette-moq/dom": ["./packages/moq/src/dom.ts"],
       "@strangecyan/vignette-moq/obs": ["./packages/moq/src/obs.ts"],
       "@strangecyan/vignette-moq/react": ["./packages/moq/src/react.ts"],
-      "@strangecyan/vignette-preview": ["./packages/preview/src/index.ts"],
+      "@strangecyan/vignette-cli": ["./packages/cli/src/index.ts"],
       "@strangecyan/vignette": ["./packages/react/src/index.ts"],
       "@strangecyan/vignette-target-dom": ["./packages/target-dom/src/index.ts"],
       "@strangecyan/vignette-target-dom/react": ["./packages/target-dom/src/react.ts"],

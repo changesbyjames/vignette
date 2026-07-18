@@ -14,9 +14,9 @@ importers:
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
-      '@strangecyan/vignette-preview':
+      '@strangecyan/vignette-cli':
         specifier: workspace:*
-        version: link:packages/preview
+        version: link:packages/cli
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
@@ -116,6 +116,28 @@ importers:
         specifier: 19.2.17
         version: 19.2.17
 
+  packages/cli:
+    dependencies:
+      '@strangecyan/vignette-core':
+        specifier: workspace:^
+        version: link:../core
+      '@strangecyan/vignette-moq':
+        specifier: workspace:^
+        version: link:../moq
+      '@strangecyan/vignette-target-dom':
+        specifier: workspace:^
+        version: link:../target-dom
+      '@strangecyan/vignette-target-obs':
+        specifier: workspace:^
+        version: link:../target-obs
+      playwright:
+        specifier: 1.61.1
+        version: 1.61.1
+    devDependencies:
+      '@types/node':
+        specifier: 26.1.1
+        version: 26.1.1
+
   packages/core:
     dependencies:
       yoga-layout:
@@ -171,22 +193,6 @@ importers:
       react:
         specifier: 19.2.7
         version: 19.2.7
-
-  packages/preview:
-    dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@strangecyan/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../target-dom
-      playwright:
-        specifier: 1.61.1
-        version: 1.61.1
-    devDependencies:
-      '@types/node':
-        specifier: 26.1.1
-        version: 26.1.1
 
   packages/react:
     dependencies:

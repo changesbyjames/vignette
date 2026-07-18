@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-core",
-  "version": "0.3.5",
+  "version": "0.4.1",
   "description": "Target-neutral scene graph, Yoga layout compiler, snapshots, and runtime contracts for Vignette.",
   "license": "MIT",
   "repository": {

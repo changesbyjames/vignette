@@ -70,7 +70,7 @@ test("captures an exact-canvas static CLI preview", async () => {
     const { stdout } = await executeFile(
       process.execPath,
       [
-        resolve("packages/preview/bin/vignette.js"),
+        resolve("packages/cli/bin/vignette.js"),
         "preview",
         "--snapshot",
         "http://127.0.0.1:4173/runtime",

@@ -7,6 +7,7 @@ export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
   kind: "source:media-file",
   create(document) {
     const video = document.createElement("video");
+    let restartOnActivate = true;
     video.playsInline = true;
     video.preload = "auto";
     video.autoplay = true;
@@ -23,9 +24,11 @@ export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
         video.loop = definition.loop ?? false;
         video.muted = definition.muted ?? true;
         video.playbackRate = definition.playbackRate ?? 1;
+        // Preserve the DOM target's historical restart behavior when omitted.
+        restartOnActivate = definition.restartOnActivate ?? true;
       },
       activate() {
-        video.currentTime = 0;
+        if (restartOnActivate) video.currentTime = 0;
         void video.play().catch(() => {
           // Autoplay policy can still require user interaction for unmuted media.
         });

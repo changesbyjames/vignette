@@ -21,7 +21,7 @@ export const mediaCodec: ObsSourceCodec<MediaFileSource> = {
         is_local_file: true,
         local_file: context.resolvedAsset,
         looping: source.loop ?? false,
-        restart_on_activate: false,
+        restart_on_activate: source.restartOnActivate ?? false,
       },
     };
   },

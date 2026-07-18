@@ -13,7 +13,7 @@ const packageDirectories = [
   "packages/vite",
   "packages/moq",
   "packages/testkit",
-  "packages/preview",
+  "packages/cli",
 ];
 const minimumCoverage = 0.8;
 let failed = false;
