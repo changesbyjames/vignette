@@ -1,4 +1,4 @@
-import type { ProjectId, SceneId, SourceId } from "@cbj/vignette-core";
+import type { ProjectId, SceneId, SourceId } from "@strangecyan/vignette-core";
 
 import { parseManagedName } from "./naming.js";
 import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";

@@ -10,7 +10,7 @@ import {
   type Size,
   type AnySourceDefinition,
   type SourceId,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { equals } from "ramda";
 
 import { validateObsCapabilities } from "./capabilities.js";

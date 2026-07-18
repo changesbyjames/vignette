@@ -10,9 +10,16 @@ import {
   type CompiledSnapshot,
   type CompiledSource,
   type BrowserSource,
-} from "@cbj/vignette-core";
-import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/vignette";
-import { managedSceneName, managedSourceName, OBSRuntime } from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-core";
+import {
+  Broadcast,
+  ColorSource,
+  Layer,
+  Scene,
+  Sources,
+  createComposerRoot,
+} from "@strangecyan/vignette";
+import { managedSceneName, managedSourceName, OBSRuntime } from "@strangecyan/vignette-target-obs";
 import { OBSWebSocket } from "obs-websocket-js";
 import { mkdir, writeFile } from "node:fs/promises";
 import process from "node:process";

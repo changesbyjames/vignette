@@ -6,7 +6,7 @@ import {
   type SnapshotRuntime,
   type TargetApplyReceipt,
   type TargetStatus,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 import { DomAssetStore, type DomAssetStoreOptions } from "./asset-store.js";
 import { DomTarget } from "./dom-target.js";

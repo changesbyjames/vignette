@@ -5,7 +5,7 @@ import type {
   TargetCapabilities,
   TargetKind,
   TargetStatus,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 /** In-memory render target that records every published snapshot. */
 export class FakeRenderTarget implements RenderTarget {

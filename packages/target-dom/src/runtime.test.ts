@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { compileBroadcast } from "@cbj/vignette-core";
-import { broadcast, colorSource, layer, scene, sources } from "@cbj/vignette-core/builders";
-import { yogaLayoutEngine } from "@cbj/vignette-core/layout-yoga";
+import { compileBroadcast } from "@strangecyan/vignette-core";
+import { broadcast, colorSource, layer, scene, sources } from "@strangecyan/vignette-core/builders";
+import { yogaLayoutEngine } from "@strangecyan/vignette-core/layout-yoga";
 import { describe, expect, it } from "vitest";
 
 import { DOMRuntime } from "./runtime.js";

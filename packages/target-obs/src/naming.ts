@@ -6,7 +6,7 @@ import {
   type ProjectId,
   type SceneId,
   type SourceId,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 const PREFIX = "vignette";
 const SEPARATOR = "::";

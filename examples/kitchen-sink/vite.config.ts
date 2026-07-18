@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { vignette } from "@cbj/vignette-vite";
+import { vignette } from "@strangecyan/vignette-vite";
 import { fileURLToPath } from "node:url";
 
 import { vignetteComposer } from "./src/backend/plugin.js";
@@ -11,7 +11,7 @@ export const viteConfig = defineConfig({
   server: { host: "127.0.0.1", port: 4173, strictPort: true },
   // The composer wraps the SSR-loaded scene in providers imported through Node. The frame package
   // must resolve to that same module instance or React context identity breaks.
-  ssr: { external: ["@cbj/vignette-frame"] },
+  ssr: { external: ["@strangecyan/vignette-frame"] },
   build: {
     outDir: "dist/client",
     rollupOptions: {

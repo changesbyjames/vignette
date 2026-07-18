@@ -1,4 +1,4 @@
-import type { CompiledSnapshot } from "@cbj/vignette-core";
+import type { CompiledSnapshot } from "@strangecyan/vignette-core";
 
 import { px } from "./styles.js";
 

@@ -6,7 +6,7 @@ import {
   type ColorSource as ColorSourceDefinition,
   type CompiledSnapshot,
   type LayoutEngine,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 

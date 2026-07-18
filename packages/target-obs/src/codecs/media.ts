@@ -1,4 +1,4 @@
-import type { MediaFileSource } from "@cbj/vignette-core";
+import type { MediaFileSource } from "@strangecyan/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 

@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/vignette-core";
+import type { ProjectId } from "@strangecyan/vignette-core";
 import {
   OBS_PHASES,
   indexManagedObservedState,
@@ -6,7 +6,7 @@ import {
   type ObsOperation,
   type ObsPlan,
   type ObservedObsState,
-} from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-target-obs";
 
 /** Returns operation discriminators in execution order. */
 export function obsOperationKinds(plan: ObsPlan): readonly ObsOperation["kind"][] {

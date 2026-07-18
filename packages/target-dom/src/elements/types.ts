@@ -1,9 +1,11 @@
-import type { AnySourceDefinition, CompiledItem } from "@cbj/vignette-core";
+import type { AnySourceDefinition, CompiledItem } from "@strangecyan/vignette-core";
 
 /** One live DOM element rendering one source instance. */
 export interface DomSourceView {
   readonly element: HTMLElement;
   update(source: AnySourceDefinition, item: CompiledItem, resolvedUrl?: string): void;
+  /** Called after the element enters an active layer. */
+  activate?(): void;
   dispose(): void;
 }
 

@@ -7,22 +7,23 @@ The kitchen-sink production build creates a static client and two independent No
 
 ```sh
 pnpm build
-pnpm --filter @cbj/vignette-kitchen-sink start:host
+pnpm --filter @strangecyan/vignette-kitchen-sink start:host
 VIGNETTE_RUNTIME_URL=http://127.0.0.1:4173/runtime \
-  pnpm --filter @cbj/vignette-kitchen-sink start:obs
+  pnpm --filter @strangecyan/vignette-kitchen-sink start:obs
 ```
 
 Configure `PORT`, `HOST`, and `VIGNETTE_ORIGIN` on the host. Configure `VIGNETTE_RUNTIME_URL`,
 `VIGNETTE_ASSET_ORIGIN`, `VIGNETTE_OBS_URL`, and `VIGNETTE_OBS_PASSWORD` on the worker. The worker
-uses `@cbj/vignette-target-obs`'s `sseRuntimeSource`, which has the same `RuntimeMessageSource` API
-as the DOM runtime's SSE source and reconnects to the host with setup/latest-snapshot replay.
+uses `@strangecyan/vignette-target-obs`'s `sseRuntimeSource`, which has the same
+`RuntimeMessageSource` API as the DOM runtime's SSE source and reconnects to the host with
+setup/latest-snapshot replay.
 
 `VIGNETTE_ORIGIN` is the public URL embedded in browser-source snapshots, so for local Docker it is
 `http://127.0.0.1:4173`. `VIGNETTE_ASSET_ORIGIN` rewrites only the worker's manifest downloads to
 the internal service URL (`http://vignette-host:4173`); it does not leak into UI or OBS URLs.
 
-`@cbj/vignette-vite` emits frame entries under `assets/vignette/frame/` and the hydration helper at
-`assets/vignette/frame-client.js`. These deterministic entry names are intentionally not
+`@strangecyan/vignette-vite` emits frame entries under `assets/vignette/frame/` and the hydration
+helper at `assets/vignette/frame-client.js`. These deterministic entry names are intentionally not
 content-hashed and should be served with `Cache-Control: no-store`.
 
 ## Docker example

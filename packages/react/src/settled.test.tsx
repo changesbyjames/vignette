@@ -4,7 +4,7 @@ import {
   sourceId,
   type LayoutEngine,
   type RuntimeMessage,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { useSyncExternalStore } from "react";
 import { describe, expect, it } from "vitest";
 

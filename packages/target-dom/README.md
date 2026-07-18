@@ -1,4 +1,4 @@
-# @cbj/vignette-target-dom
+# @strangecyan/vignette-target-dom
 
 Browser target for compiled Vignette snapshots. It applies the compiler's absolute layout rather
 than asking CSS to independently lay out a scene.
@@ -6,13 +6,13 @@ than asking CSS to independently lay out a scene.
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/vignette-target-dom jsr:@cbj/vignette-core
+pnpm add @strangecyan/vignette-target-dom @strangecyan/vignette-core
 ```
 
 ## React compositor
 
 ```tsx
-import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
+import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
 
 export function Program() {
   const [ref, status] = useCompositor({

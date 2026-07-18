@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import type { RuntimeMessage } from "@cbj/vignette-core";
-import { sseRuntimeSource } from "@cbj/vignette-target-obs";
+import type { RuntimeMessage } from "@strangecyan/vignette-core";
+import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";

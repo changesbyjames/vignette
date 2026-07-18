@@ -32,10 +32,10 @@ load when the iframe document is same-origin. Browser same-origin policy prevent
 arbitrary cross-origin URL; in that case the iframe has `data-vignette-css-injection="blocked"`, and
 the served page must include equivalent CSS itself.
 
-Optional `@cbj/vignette-frame` views compile to this same browser-source contract. The Vite adapter
-serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each load that
-URL in their own browser instance, so markup and behavior are shared but hook state and timing are
-not synchronized.
+Optional `@strangecyan/vignette-frame` views compile to this same browser-source contract. The Vite
+adapter serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each
+load that URL in their own browser instance, so markup and behavior are shared but hook state and
+timing are not synchronized.
 
 The declared browser viewport is the intrinsic coordinate space used by common fit and crop
 calculation. Each target renders the page at the layer's realized pixel size. In OBS, the planner

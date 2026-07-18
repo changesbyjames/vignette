@@ -1,5 +1,5 @@
 {
-  "name": "@cbj/vignette-simple-example",
+  "name": "@strangecyan/vignette-simple-example",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
-    "@cbj/vignette": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette": "workspace:^",
     "react": "19.2.7"
   },
   "devDependencies": {

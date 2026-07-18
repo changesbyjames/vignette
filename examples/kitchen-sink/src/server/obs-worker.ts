@@ -1,5 +1,5 @@
-import { consumeRuntimeMessages } from "@cbj/vignette-core";
-import { sseRuntimeSource } from "@cbj/vignette-target-obs";
+import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
+import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
 import process from "node:process";
 
 import { createKitchenSinkObsRuntime } from "./kitchen-sink-obs.js";

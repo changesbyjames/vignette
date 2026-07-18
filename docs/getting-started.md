@@ -6,13 +6,13 @@ Install Node.js 22 or newer, then install and verify the workspace:
 corepack pnpm install
 corepack pnpm build
 corepack pnpm test
-corepack pnpm --filter @cbj/vignette-simple-example start
+corepack pnpm --filter @strangecyan/vignette-simple-example start
 ```
 
 This prints a compiled snapshot without starting any services. For the complete application:
 
 ```sh
-corepack pnpm --filter @cbj/vignette-kitchen-sink dev
+corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 ```
 
 Open `http://127.0.0.1:4173`. The Vite backend owns a persistent custom React root. A timer inside
@@ -47,7 +47,7 @@ Enable it while running the kitchen sink with:
 VIGNETTE_ENABLE_EMBEDDED=1 \
 VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
 VIGNETTE_OBS_PASSWORD='runtime-only' \
-corepack pnpm --filter @cbj/vignette-kitchen-sink dev
+corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 ```
 
 A standalone OBS process uses the same `OBSRuntime`; only `messageBus.subscribe()` changes to an SSE

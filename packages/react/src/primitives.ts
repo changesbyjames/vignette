@@ -12,7 +12,7 @@ import type {
   Size,
   AnySourceDefinition,
   SourceId,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { createElement, type ReactElement, type ReactNode } from "react";
 
 import { sourceElement, type SourceProps } from "./source-element.js";

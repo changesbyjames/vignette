@@ -1,4 +1,4 @@
-import type { LayerId, SceneId, SourceId } from "@cbj/vignette-core";
+import type { LayerId, SceneId, SourceId } from "@strangecyan/vignette-core";
 
 /** JSON primitive accepted by obs-websocket settings. */
 export type ObsJsonPrimitive = string | number | boolean | null;

@@ -5,13 +5,13 @@ import {
   sourceId,
   type ColorSource,
   type CompiledSnapshot,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import {
   planObsUpdate,
   REQUIRED_OBS_REQUESTS,
   resolveObsCodecs,
   type ObservedObsState,
-} from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-target-obs";
 
 const codecs = resolveObsCodecs();
 import { describe, expect, it } from "vitest";

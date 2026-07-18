@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { DomSourceRenderer } from "@cbj/vignette-target-dom";
+import type { DomSourceRenderer } from "@strangecyan/vignette-target-dom";
 
 import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 

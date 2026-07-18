@@ -13,7 +13,7 @@ import {
   type RuntimeMessage,
   type SourceModule,
   type SourceModuleMap,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import type { ReactNode } from "react";
 
 import { hostTreeToBroadcast } from "./host-tree.js";
@@ -339,7 +339,7 @@ class ComposerRootImpl implements ComposerRoot {
 let defaultLayoutEngine: Promise<LayoutEngine> | undefined;
 
 function loadDefaultLayoutEngine(): Promise<LayoutEngine> {
-  defaultLayoutEngine ??= import(/* @vite-ignore */ "@cbj/vignette-core/layout-yoga").then(
+  defaultLayoutEngine ??= import(/* @vite-ignore */ "@strangecyan/vignette-core/layout-yoga").then(
     (module: { yogaLayoutEngine: LayoutEngine }) => Promise.resolve(module.yogaLayoutEngine),
   );
   return defaultLayoutEngine;

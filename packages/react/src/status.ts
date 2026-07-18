@@ -1,4 +1,4 @@
-import type { Diagnostic } from "@cbj/vignette-core";
+import type { Diagnostic } from "@strangecyan/vignette-core";
 
 /** Synchronous lifecycle phase of the Node composer root. */
 export type BroadcastRootPhase = "idle" | "compiling" | "ready" | "error" | "disposed";

@@ -1,5 +1,5 @@
-import { layerId, sourceId, type Size } from "@cbj/vignette-core";
-import { BrowserView, type BrowserViewProps } from "@cbj/vignette";
+import { layerId, sourceId, type Size } from "@strangecyan/vignette-core";
+import { BrowserView, type BrowserViewProps } from "@strangecyan/vignette";
 import { createElement, useContext, type ReactElement } from "react";
 
 import type { FrameDefinition } from "./definition.js";

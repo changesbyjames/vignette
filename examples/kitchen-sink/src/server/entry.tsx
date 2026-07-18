@@ -1,9 +1,9 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { consumeRuntimeMessages, toSseEvent } from "@cbj/vignette-core";
-import { createSceneStore, SceneProvider } from "@cbj/vignette-frame";
-import { createFrameRequestHandler } from "@cbj/vignette-frame/server";
-import { createComposerRoot } from "@cbj/vignette";
+import { consumeRuntimeMessages, toSseEvent } from "@strangecyan/vignette-core";
+import { createSceneStore, SceneProvider } from "@strangecyan/vignette-frame";
+import { createFrameRequestHandler } from "@strangecyan/vignette-frame/server";
+import { createComposerRoot } from "@strangecyan/vignette";
 import { streamSSE } from "hono/streaming";
 import { Hono } from "hono";
 import { dirname, resolve } from "node:path";

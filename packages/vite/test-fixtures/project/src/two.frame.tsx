@@ -1,4 +1,4 @@
-import { frame } from "@cbj/vignette-frame";
+import { frame } from "@strangecyan/vignette-frame";
 
 const params = { parse: (input: unknown) => input as object };
 const view = () => null;

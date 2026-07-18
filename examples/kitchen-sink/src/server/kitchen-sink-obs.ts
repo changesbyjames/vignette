@@ -1,5 +1,5 @@
-import { moqObsCodec } from "@cbj/vignette-moq/obs";
-import { OBSRuntime } from "@cbj/vignette-target-obs";
+import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
+import { OBSRuntime } from "@strangecyan/vignette-target-obs";
 
 import { KITCHEN_SINK_PROJECT_ID } from "./kitchen-sink.js";
 

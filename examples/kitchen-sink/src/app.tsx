@@ -1,5 +1,5 @@
-import { moqDomRenderer } from "@cbj/vignette-moq/dom";
-import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
+import { moqDomRenderer } from "@strangecyan/vignette-moq/dom";
+import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
 import type { ReactElement } from "react";
 
 const transport = sseRuntimeSource("/runtime");

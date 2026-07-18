@@ -1,11 +1,21 @@
 {
-  "name": "@cbj/vignette-frame",
-  "version": "0.3.4",
+  "name": "@strangecyan/vignette-frame",
+  "version": "0.3.5",
   "description": "Typed React DOM frames with Vite SSR and hydration for Vignette browser sources.",
-  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/frame"
+  },
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -43,18 +53,19 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/frame",
-    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+    "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
-    "@cbj/vignette": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette": "workspace:^",
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/react": "19.2.17",

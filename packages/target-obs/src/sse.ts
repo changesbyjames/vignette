@@ -4,7 +4,7 @@ import {
   type RuntimeMessage,
   type RuntimeMessageSource,
   type RuntimeSseEvent,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 /** Reconnection behavior and error observation for an SSE runtime source. */
 export interface SseRuntimeSourceOptions {

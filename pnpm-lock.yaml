@@ -14,6 +14,9 @@ importers:
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
+      '@strangecyan/vignette-preview':
+        specifier: workspace:*
+        version: link:packages/preview
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
@@ -26,9 +29,6 @@ importers:
       jsdom:
         specifier: 29.1.1
         version: 29.1.1
-      jsr:
-        specifier: 0.14.3
-        version: 0.14.3
       obs-websocket-js:
         specifier: 5.0.8
         version: 5.0.8
@@ -53,30 +53,30 @@ importers:
 
   examples/kitchen-sink:
     dependencies:
-      '@cbj/vignette':
-        specifier: workspace:^
-        version: link:../../packages/react
-      '@cbj/vignette-core':
-        specifier: workspace:^
-        version: link:../../packages/core
-      '@cbj/vignette-frame':
-        specifier: workspace:^
-        version: link:../../packages/frame
-      '@cbj/vignette-moq':
-        specifier: workspace:^
-        version: link:../../packages/moq
-      '@cbj/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../../packages/target-dom
-      '@cbj/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../../packages/target-obs
-      '@cbj/vignette-vite':
-        specifier: workspace:^
-        version: link:../../packages/vite
       '@hono/node-server':
         specifier: 2.0.10
         version: 2.0.10(hono@4.12.30)
+      '@strangecyan/vignette':
+        specifier: workspace:^
+        version: link:../../packages/react
+      '@strangecyan/vignette-core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@strangecyan/vignette-frame':
+        specifier: workspace:^
+        version: link:../../packages/frame
+      '@strangecyan/vignette-moq':
+        specifier: workspace:^
+        version: link:../../packages/moq
+      '@strangecyan/vignette-target-dom':
+        specifier: workspace:^
+        version: link:../../packages/target-dom
+      '@strangecyan/vignette-target-obs':
+        specifier: workspace:^
+        version: link:../../packages/target-obs
+      '@strangecyan/vignette-vite':
+        specifier: workspace:^
+        version: link:../../packages/vite
       hono:
         specifier: 4.12.30
         version: 4.12.30
@@ -102,10 +102,10 @@ importers:
 
   examples/simple:
     dependencies:
-      '@cbj/vignette':
+      '@strangecyan/vignette':
         specifier: workspace:^
         version: link:../../packages/react
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../../packages/core
       react:
@@ -124,10 +124,10 @@ importers:
 
   packages/frame:
     dependencies:
-      '@cbj/vignette':
+      '@strangecyan/vignette':
         specifier: workspace:^
         version: link:../react
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
       typescript:
@@ -149,21 +149,21 @@ importers:
 
   packages/moq:
     dependencies:
-      '@cbj/vignette':
-        specifier: workspace:^
-        version: link:../react
-      '@cbj/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@cbj/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../target-dom
-      '@cbj/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../target-obs
       '@moq/watch':
         specifier: 0.3.0
         version: 0.3.0(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)(zod@4.4.3)
+      '@strangecyan/vignette':
+        specifier: workspace:^
+        version: link:../react
+      '@strangecyan/vignette-core':
+        specifier: workspace:^
+        version: link:../core
+      '@strangecyan/vignette-target-dom':
+        specifier: workspace:^
+        version: link:../target-dom
+      '@strangecyan/vignette-target-obs':
+        specifier: workspace:^
+        version: link:../target-obs
     devDependencies:
       '@types/react':
         specifier: 19.2.17
@@ -172,16 +172,32 @@ importers:
         specifier: 19.2.7
         version: 19.2.7
 
+  packages/preview:
+    dependencies:
+      '@strangecyan/vignette-core':
+        specifier: workspace:^
+        version: link:../core
+      '@strangecyan/vignette-target-dom':
+        specifier: workspace:^
+        version: link:../target-dom
+      playwright:
+        specifier: 1.61.1
+        version: 1.61.1
+    devDependencies:
+      '@types/node':
+        specifier: 26.1.1
+        version: 26.1.1
+
   packages/react:
     dependencies:
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
       react-reconciler:
         specifier: 0.33.0
         version: 0.33.0(react@19.2.7)
     devDependencies:
-      '@cbj/vignette-testkit':
+      '@strangecyan/vignette-testkit':
         specifier: workspace:^
         version: link:../testkit
       '@types/react':
@@ -196,7 +212,7 @@ importers:
 
   packages/target-dom:
     dependencies:
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
       ramda:
@@ -221,7 +237,7 @@ importers:
 
   packages/target-obs:
     dependencies:
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
       obs-websocket-js:
@@ -237,19 +253,19 @@ importers:
 
   packages/testkit:
     dependencies:
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@cbj/vignette-target-obs':
+      '@strangecyan/vignette-target-obs':
         specifier: workspace:^
         version: link:../target-obs
 
   packages/vite:
     dependencies:
-      '@cbj/vignette-core':
+      '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@cbj/vignette-frame':
+      '@strangecyan/vignette-frame':
         specifier: workspace:^
         version: link:../frame
       tinyglobby:
@@ -956,10 +972,6 @@ packages:
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
-  jsr@0.14.3:
-    resolution: {integrity: sha512-PGxnDepx7vwJoZQe2SHbyBiFfpGwsOKmX4kn/wZZqfMafV7fjXqTxSaX6lp9QHYkSTLKkER+P/wmrZY3gVJNzg==}
-    hasBin: true
-
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
@@ -1065,10 +1077,6 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
-
-  node-stream-zip@1.15.0:
-    resolution: {integrity: sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw==}
-    engines: {node: '>=0.12.0'}
 
   obs-websocket-js@5.0.8:
     resolution: {integrity: sha512-QDnQJMr5wuCoYugK02ggZ1/cvESs4KJDEK+UhGg0Ry35jnY8tK1Xr3KoPjKyoD6sd8G+WdtIdzuY+yUyPtogQQ==}
@@ -1182,10 +1190,6 @@ packages:
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
-
-  semiver@1.1.0:
-    resolution: {integrity: sha512-QNI2ChmuioGC1/xjyYwyZYADILWyW6AmS1UH6gDj/SFUUUS4MBAWs/7mxnkRPc/F4iHezDP+O8t0dO8WHiEOdg==}
-    engines: {node: '>=6'}
 
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
@@ -2141,11 +2145,6 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
-  jsr@0.14.3:
-    dependencies:
-      node-stream-zip: 1.15.0
-      semiver: 1.1.0
-
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
@@ -2225,8 +2224,6 @@ snapshots:
   nanoid@3.3.16: {}
 
   natural-compare@1.4.0: {}
-
-  node-stream-zip@1.15.0: {}
 
   obs-websocket-js@5.0.8:
     dependencies:
@@ -2345,8 +2342,6 @@ snapshots:
       xmlchars: 2.2.0
 
   scheduler@0.27.0: {}
-
-  semiver@1.1.0: {}
 
   semver@7.8.5: {}
 

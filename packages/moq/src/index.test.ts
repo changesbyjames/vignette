@@ -1,5 +1,5 @@
-import { resolveSourceModules, validateBroadcast } from "@cbj/vignette-core";
-import { broadcast, layer, scene, sources } from "@cbj/vignette-core/builders";
+import { resolveSourceModules, validateBroadcast } from "@strangecyan/vignette-core";
+import { broadcast, layer, scene, sources } from "@strangecyan/vignette-core/builders";
 import { describe, expect, it } from "vitest";
 
 import { moqSource, moqSourceModule } from "./index.js";

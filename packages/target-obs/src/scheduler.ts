@@ -10,7 +10,7 @@ import type {
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { clamp } from "ramda";
 
 import { bootstrapObsState } from "./bootstrap.js";

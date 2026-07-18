@@ -1,4 +1,4 @@
-import { asset } from "@cbj/vignette-core";
+import { asset } from "@strangecyan/vignette-core";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

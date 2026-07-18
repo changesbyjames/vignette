@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { asset } from "@cbj/vignette-core";
+import { asset } from "@strangecyan/vignette-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { DomAssetStore } from "./asset-store.js";

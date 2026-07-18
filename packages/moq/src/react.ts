@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { sourceElement, type SourceProps } from "@cbj/vignette";
+import { sourceElement, type SourceProps } from "@strangecyan/vignette";
 import type { ReactElement } from "react";
 
 import type { MoqSource as MoqSourceDefinition } from "./index.js";

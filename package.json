@@ -1,6 +1,6 @@
 {
   "name": "vignette-workspace",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "repository": {
     "type": "git",
@@ -12,7 +12,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b && pnpm --filter @cbj/vignette-kitchen-sink build:app",
+    "build": "tsc -b && pnpm --filter @strangecyan/vignette-kitchen-sink build:app",
     "clean": "tsc -b --clean && pnpm -r --if-present clean",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
@@ -22,16 +22,17 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "publish:check": "node scripts/check-jsr-docs.mjs && node scripts/check-jsr-packages.mjs",
+    "publish:check": "node scripts/check-docs.mjs && node scripts/check-npm-packages.mjs",
+    "publish:npm": "node scripts/publish-npm-packages.mjs",
     "ready": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check && pnpm publish:check && pnpm test:e2e"
   },
   "devDependencies": {
+    "@strangecyan/vignette-preview": "workspace:*",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
     "eslint": "10.7.0",
     "jsdom": "29.1.1",
-    "jsr": "0.14.3",
     "obs-websocket-js": "5.0.8",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",

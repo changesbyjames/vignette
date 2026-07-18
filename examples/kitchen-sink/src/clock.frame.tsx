@@ -1,4 +1,4 @@
-import { frame } from "@cbj/vignette-frame";
+import { frame } from "@strangecyan/vignette-frame";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 

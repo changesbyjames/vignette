@@ -1,12 +1,12 @@
 # React DOM frames
 
-`@cbj/vignette-frame` lowers typed React DOM content to ordinary browser sources. Core snapshots
-remain unaware of schemas, React DOM, SSR, and hydration.
+`@strangecyan/vignette-frame` lowers typed React DOM content to ordinary browser sources. Core
+snapshots remain unaware of schemas, React DOM, SSR, and hydration.
 
 ## Authoring
 
 ```tsx
-import { createSceneStore, frame, SceneProvider, View } from "@cbj/vignette-frame";
+import { createSceneStore, frame, SceneProvider, View } from "@strangecyan/vignette-frame";
 import { z } from "zod";
 
 export const greeting = frame({
@@ -28,7 +28,7 @@ JSON-safe. They appear in the URL, so never include secrets or sensitive data.
 ## Build Integration
 
 ```ts
-import { vignette } from "@cbj/vignette-vite";
+import { vignette } from "@strangecyan/vignette-vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({ plugins: [vignette()] });

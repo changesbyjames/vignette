@@ -9,7 +9,7 @@ import {
   type ColorSource,
   type CompiledSnapshot,
   type ImageSource,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import {
   createObsTargetWithTransport,
   managedSceneName,
@@ -17,7 +17,7 @@ import {
   registrySceneName,
   REQUIRED_OBS_REQUESTS,
   type ObsJsonObject,
-} from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-target-obs";
 import { describe, expect, it } from "vitest";
 
 import { FakeObsTransport } from "./fake-obs-transport.js";

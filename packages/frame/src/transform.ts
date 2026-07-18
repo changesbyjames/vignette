@@ -69,7 +69,7 @@ function findFrameImportNames(source: ts.SourceFile): ReadonlySet<string> {
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
     if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (statement.moduleSpecifier.text !== "@cbj/vignette-frame") continue;
+    if (statement.moduleSpecifier.text !== "@strangecyan/vignette-frame") continue;
     const bindings = statement.importClause?.namedBindings;
     if (bindings === undefined || !ts.isNamedImports(bindings)) continue;
     for (const element of bindings.elements) {

@@ -1,4 +1,4 @@
-import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@cbj/vignette-core";
+import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@strangecyan/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 

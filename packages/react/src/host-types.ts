@@ -1,4 +1,4 @@
-import type { BroadcastCanvas, ProjectId } from "@cbj/vignette-core";
+import type { BroadcastCanvas, ProjectId } from "@strangecyan/vignette-core";
 
 export type HostType =
   "broadcast" | "sources" | "scene" | "box" | "layer" | "scene-layer" | "source" | "browser-view";

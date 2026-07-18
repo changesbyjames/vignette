@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { layerId, sourceId, type CompiledItem } from "@cbj/vignette-core";
+import { layerId, sourceId, type CompiledItem } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { moqDomRenderer } from "./dom.js";

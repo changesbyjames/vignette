@@ -1,4 +1,4 @@
-import type { AnySourceDefinition, Size } from "@cbj/vignette-core";
+import type { AnySourceDefinition, Size } from "@strangecyan/vignette-core";
 
 import type { ObsJsonObject } from "../operations.js";
 

@@ -1,4 +1,4 @@
-import type { CompiledItem, Rect } from "@cbj/vignette-core";
+import type { CompiledItem, Rect } from "@strangecyan/vignette-core";
 
 export function px(value: number): string {
   return `${String(value)}px`;

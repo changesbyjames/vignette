@@ -1,4 +1,4 @@
-import type { MediaFileSource } from "@cbj/vignette-core";
+import type { MediaFileSource } from "@strangecyan/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
@@ -23,6 +23,12 @@ export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
         video.loop = definition.loop ?? false;
         video.muted = definition.muted ?? true;
         video.playbackRate = definition.playbackRate ?? 1;
+      },
+      activate() {
+        video.currentTime = 0;
+        void video.play().catch(() => {
+          // Autoplay policy can still require user interaction for unmuted media.
+        });
       },
       dispose() {
         video.pause();

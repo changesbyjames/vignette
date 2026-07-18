@@ -1,4 +1,4 @@
-import { vignette } from "@cbj/vignette-vite";
+import { vignette } from "@strangecyan/vignette-vite";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
@@ -6,14 +6,14 @@ export const viteSsrConfig = defineConfig({
   plugins: [vignette()],
   ssr: {
     external: [
-      "@cbj/vignette-core",
-      "@cbj/vignette-frame",
-      "@cbj/vignette-frame/server",
-      "@cbj/vignette-moq",
-      "@cbj/vignette-moq/obs",
-      "@cbj/vignette-moq/react",
-      "@cbj/vignette",
-      "@cbj/vignette-target-obs",
+      "@strangecyan/vignette-core",
+      "@strangecyan/vignette-frame",
+      "@strangecyan/vignette-frame/server",
+      "@strangecyan/vignette-moq",
+      "@strangecyan/vignette-moq/obs",
+      "@strangecyan/vignette-moq/react",
+      "@strangecyan/vignette",
+      "@strangecyan/vignette-target-obs",
       "react",
       "react/jsx-runtime",
     ],

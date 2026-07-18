@@ -1,8 +1,8 @@
 /** @jsxImportSource react */
-import { layerId, sceneId, sourceId, type LayoutStyle } from "@cbj/vignette-core";
-import { View } from "@cbj/vignette-frame";
-import { MoqSource } from "@cbj/vignette-moq/react";
-import { Box, Broadcast, ColorSource, Layer, Scene, Sources } from "@cbj/vignette";
+import { layerId, sceneId, sourceId, type LayoutStyle } from "@strangecyan/vignette-core";
+import { View } from "@strangecyan/vignette-frame";
+import { MoqSource } from "@strangecyan/vignette-moq/react";
+import { Box, Broadcast, ColorSource, Layer, Scene, Sources } from "@strangecyan/vignette";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { clockFrame } from "./clock.frame.js";

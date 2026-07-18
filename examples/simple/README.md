@@ -5,8 +5,8 @@ renders locally and prints the compiled, target-neutral snapshot without requiri
 server, OBS, or third-party service.
 
 ```sh
-corepack pnpm --filter @cbj/vignette-simple-example build
-corepack pnpm --filter @cbj/vignette-simple-example start
+corepack pnpm --filter @strangecyan/vignette-simple-example build
+corepack pnpm --filter @strangecyan/vignette-simple-example start
 ```
 
 Start with [`src/index.tsx`](src/index.tsx). Move to [`../kitchen-sink`](../kitchen-sink) when you

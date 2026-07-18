@@ -1,4 +1,4 @@
-import { layerId, projectId, sceneId, sourceId } from "@cbj/vignette-core";
+import { layerId, projectId, sceneId, sourceId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { executeObsPlan } from "./executor.js";

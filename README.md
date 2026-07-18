@@ -9,17 +9,18 @@ independent DOM and OBS runtimes consume setup, update, and event messages over 
 
 ## Published packages
 
-The packages are published as TypeScript source on [JSR](https://jsr.io/@cbj). For a Node/Vite
-composer with a browser preview:
+The packages are published on [npm](https://www.npmjs.com/org/strangecyan). For a Node/Vite composer
+with a browser preview:
 
 ```sh
-pnpm add jsr:@cbj/vignette jsr:@cbj/vignette-core \
-  jsr:@cbj/vignette-frame jsr:@cbj/vignette-vite \
-  jsr:@cbj/vignette-target-dom react react-dom
+pnpm add @strangecyan/vignette @strangecyan/vignette-core \
+  @strangecyan/vignette-frame @strangecyan/vignette-vite \
+  @strangecyan/vignette-target-dom react react-dom
 ```
 
-Add `jsr:@cbj/vignette-target-obs` for OBS output, `jsr:@cbj/vignette-moq` for Media over QUIC, or
-`jsr:@cbj/vignette-testkit` for target and planner tests. Each package README documents its
+Add `@strangecyan/vignette-target-obs` for OBS output, `@strangecyan/vignette-moq` for Media over
+QUIC, or `@strangecyan/vignette-testkit` for target and planner tests. Install
+`@strangecyan/vignette-preview` for the PNG preview CLI. Each package README documents its
 entrypoints and extension seams. Start with the intentionally small
 [`examples/simple`](examples/simple), then use [`examples/kitchen-sink`](examples/kitchen-sink) as a
 Vite, frame, SSE, MoQ, and optional OBS application template.
@@ -37,6 +38,7 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
 - `packages/moq` — optional Media over QUIC source extension for all three layers.
 - `packages/testkit` — target and OBS fakes shared by package tests.
+- `packages/preview` — Playwright CLI for exact-canvas snapshot PNGs with static placeholders.
 - `examples/simple` — minimal local composition that prints one compiled snapshot.
 - `examples/kitchen-sink` — Node composer, SSE, frames, DOM, public MoQ demo, and optional OBS
   example.
@@ -56,6 +58,12 @@ pnpm typecheck
 pnpm test
 pnpm lint
 pnpm format:check
+```
+
+To capture the first scene from a running composer or a saved snapshot:
+
+```sh
+pnpm exec vignette preview --snapshot http://localhost:4173/runtime --name "test 01"
 ```
 
 The first release intentionally supports a narrow common surface: image, local media, browser, and

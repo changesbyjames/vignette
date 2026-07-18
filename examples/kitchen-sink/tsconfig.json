@@ -6,7 +6,7 @@
     "rootDir": ".",
     "outDir": "dist",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo",
-    "types": ["node", "@cbj/vignette-vite/virtual"]
+    "types": ["node", "@strangecyan/vignette-vite/virtual"]
   },
   "references": [
     { "path": "../../packages/core" },

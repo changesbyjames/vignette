@@ -1,5 +1,5 @@
-import { projectId, sceneId, type BrowserSource } from "@cbj/vignette-core";
-import { Broadcast, Scene, createComposerRoot } from "@cbj/vignette";
+import { projectId, sceneId, type BrowserSource } from "@strangecyan/vignette-core";
+import { Broadcast, Scene, createComposerRoot } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 import { frame } from "./definition.js";

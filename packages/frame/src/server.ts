@@ -1,5 +1,5 @@
 /** Fetch routing and pure SSR kernels for Vignette frames. */
-import { DEFAULT_BROWSER_SOURCE_CSS } from "@cbj/vignette-core";
+import { DEFAULT_BROWSER_SOURCE_CSS } from "@strangecyan/vignette-core";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 

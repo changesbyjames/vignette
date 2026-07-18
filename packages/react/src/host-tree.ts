@@ -6,7 +6,7 @@ import type {
   SceneNode,
   AnySourceDefinition,
   SourcesNode,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 import type { HostContainer, HostNode, HostType } from "./host-types.js";
 

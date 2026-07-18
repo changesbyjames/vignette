@@ -1,4 +1,4 @@
-import { projectId } from "@cbj/vignette-core";
+import { projectId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { registrySceneName } from "./naming.js";

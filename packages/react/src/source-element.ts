@@ -1,4 +1,4 @@
-import { deepFreeze, type SourceBase } from "@cbj/vignette-core";
+import { deepFreeze, type SourceBase } from "@strangecyan/vignette-core";
 import { createElement, type ReactElement } from "react";
 
 /** Author-facing props for a source definition, excluding its fixed kind discriminator. */

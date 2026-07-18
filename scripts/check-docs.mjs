@@ -13,14 +13,16 @@ const packageDirectories = [
   "packages/vite",
   "packages/moq",
   "packages/testkit",
+  "packages/preview",
 ];
 const minimumCoverage = 0.8;
 let failed = false;
 
 for (const directory of packageDirectories) {
-  const config = JSON.parse(readFileSync(resolve(root, directory, "deno.json"), "utf8"));
-  const exports = typeof config.exports === "string" ? { ".": config.exports } : config.exports;
-  const entrypoints = Object.values(exports).map((path) => resolve(root, directory, path));
+  const manifest = JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8"));
+  const entrypoints = Object.values(manifest.exports).map(({ types }) =>
+    resolve(root, directory, sourceEntrypoint(types)),
+  );
   const program = ts.createProgram(entrypoints, {
     allowJs: false,
     jsx: ts.JsxEmit.ReactJSX,
@@ -69,7 +71,7 @@ for (const directory of packageDirectories) {
   const documented = entries.filter(([, symbol]) => symbol.documented).length;
   const coverage = entries.length === 0 ? 1 : documented / entries.length;
   console.log(
-    `${config.name}: ${String(documented)}/${String(entries.length)} documented (${(coverage * 100).toFixed(1)}%)`,
+    `${manifest.name}: ${String(documented)}/${String(entries.length)} documented (${(coverage * 100).toFixed(1)}%)`,
   );
   if (coverage >= minimumCoverage) continue;
   failed = true;
@@ -79,3 +81,8 @@ for (const directory of packageDirectories) {
 }
 
 if (failed) process.exitCode = 1;
+
+function sourceEntrypoint(types) {
+  if (types.startsWith("./src/")) return types;
+  return types.replace(/^\.\/dist\//u, "./src/").replace(/\.d\.ts$/u, ".ts");
+}

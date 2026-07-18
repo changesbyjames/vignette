@@ -1,4 +1,4 @@
-# @cbj/vignette-testkit
+# @strangecyan/vignette-testkit
 
 Deterministic test utilities for Vignette packages and extensions. Production packages must not
 depend on this package.
@@ -6,7 +6,7 @@ depend on this package.
 ## Install
 
 ```sh
-pnpm add -D jsr:@cbj/vignette-testkit
+pnpm add -D @strangecyan/vignette-testkit
 ```
 
 `FakeRenderTarget` records setup, snapshot, event, and disposal behavior. `FakeObsTransport` scripts

@@ -1,4 +1,4 @@
-# @cbj/vignette-frame
+# @strangecyan/vignette-frame
 
 Typed React DOM frames that become ordinary browser sources in Vignette snapshots. A frame is
 server-rendered and hydrated as an independent React root, so hooks and client state remain local to
@@ -7,13 +7,13 @@ that browser source.
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/vignette-frame jsr:@cbj/vignette-vite react react-dom vite
+pnpm add @strangecyan/vignette-frame @strangecyan/vignette-vite react react-dom vite
 ```
 
 ## Define and place a frame
 
 ```tsx
-import { createSceneStore, frame, SceneProvider, View } from "@cbj/vignette-frame";
+import { createSceneStore, frame, SceneProvider, View } from "@strangecyan/vignette-frame";
 import { z } from "zod";
 
 export const LowerThird = frame({
@@ -33,7 +33,7 @@ export function Overlay() {
 Export frame definitions from modules processed by the Vite plugin:
 
 ```ts
-import { vignette } from "@cbj/vignette-vite";
+import { vignette } from "@strangecyan/vignette-vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({ plugins: [vignette()] });
@@ -50,7 +50,7 @@ update without reloading the frame. Define one typed reference in code shared by
 server and frame:
 
 ```ts
-import { defineRemoteStore } from "@cbj/vignette-frame/remote-store";
+import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
 
 import type { CompositionStore } from "./composition-store";
 
@@ -64,8 +64,8 @@ The application owns the endpoint URL and SSE response. The server helper yields
 snapshot followed by conflated live updates:
 
 ```ts
-import { encodeRemoteStoreSnapshot } from "@cbj/vignette-frame/remote-store";
-import { remoteStoreSnapshots } from "@cbj/vignette-frame/remote-store/server";
+import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
+import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
 
 for await (const snapshot of remoteStoreSnapshots(store, request.signal)) {
   await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
@@ -76,7 +76,7 @@ Read the state inside a hydrated frame. The hook suspends during server renderin
 browser receives its first snapshot, so render it beneath a Suspense boundary:
 
 ```tsx
-import { useRemoteStore } from "@cbj/vignette-frame/remote-store/client";
+import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
 import { Suspense } from "react";
 
 function Title() {

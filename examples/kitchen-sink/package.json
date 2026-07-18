@@ -1,10 +1,10 @@
 {
-  "name": "@cbj/vignette-kitchen-sink",
+  "name": "@strangecyan/vignette-kitchen-sink",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter '@cbj/vignette-kitchen-sink^...' build && pnpm typecheck && pnpm build:app",
+    "build": "pnpm --filter '@strangecyan/vignette-kitchen-sink^...' build && pnpm typecheck && pnpm build:app",
     "build:app": "vite build && vite build --config vite.ssr.config.ts",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "dev": "vite --host 127.0.0.1",
@@ -16,13 +16,13 @@
     "test": "vitest run --root ../.. examples/kitchen-sink"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
-    "@cbj/vignette-frame": "workspace:^",
-    "@cbj/vignette-moq": "workspace:^",
-    "@cbj/vignette": "workspace:^",
-    "@cbj/vignette-target-dom": "workspace:^",
-    "@cbj/vignette-target-obs": "workspace:^",
-    "@cbj/vignette-vite": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette-frame": "workspace:^",
+    "@strangecyan/vignette-moq": "workspace:^",
+    "@strangecyan/vignette": "workspace:^",
+    "@strangecyan/vignette-target-dom": "workspace:^",
+    "@strangecyan/vignette-target-obs": "workspace:^",
+    "@strangecyan/vignette-vite": "workspace:^",
     "@hono/node-server": "2.0.10",
     "hono": "4.12.30",
     "react": "19.2.7",

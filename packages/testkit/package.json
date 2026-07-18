@@ -1,11 +1,21 @@
 {
-  "name": "@cbj/vignette-testkit",
-  "version": "0.3.4",
+  "name": "@strangecyan/vignette-testkit",
+  "version": "0.3.5",
   "description": "Deterministic target, transport, clock, and OBS plan fakes for Vignette tests.",
-  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/testkit"
+  },
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,12 +25,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/testkit",
-    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+    "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
-    "@cbj/vignette-target-obs": "workspace:^"
+    "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette-target-obs": "workspace:^"
   }
 }

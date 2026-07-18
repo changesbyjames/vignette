@@ -8,7 +8,7 @@ import type {
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 import { DomAssetRegistry } from "./media-registry.js";
 import {

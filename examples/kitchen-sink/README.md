@@ -6,7 +6,7 @@ and hydration, runtime updates over SSE, production builds, and optional OBS out
 input is the public `https://cdn.moq.dev/demo` / `bbb.hang` MoQ demo stream.
 
 ```sh
-corepack pnpm --filter @cbj/vignette-kitchen-sink dev
+corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 ```
 
 Open `http://127.0.0.1:4173`. The custom React reconciler runs in the Vite Node process, `/runtime`
@@ -22,7 +22,7 @@ Useful entry points:
 - `src/app.tsx` consumes the same runtime stream in the browser.
 
 The browser preview renders the MoQ source through `@moq/watch`. OBS output requires the
-`moq_source` plugin that implements the contract used by `@cbj/vignette-moq/obs`.
+`moq_source` plugin that implements the contract used by `@strangecyan/vignette-moq/obs`.
 
 To connect a disposable local OBS instance while developing, set `VIGNETTE_ENABLE_EMBEDDED=1` and
 optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`.

@@ -1,11 +1,22 @@
 {
-  "name": "@cbj/vignette-vite",
-  "version": "0.3.4",
+  "name": "@strangecyan/vignette-vite",
+  "version": "0.3.5",
   "description": "Vite build integration for Vignette frames and composition assets.",
-  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/vite"
+  },
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist",
+    "src/virtual.d.ts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -22,16 +33,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --root ../.. packages/vite"
+    "test": "vitest run --root ../.. packages/vite",
+    "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
-    "@cbj/vignette-frame": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
+    "@strangecyan/vignette-frame": "workspace:^",
     "tinyglobby": "0.2.17"
   },
   "peerDependencies": {
-    "vite": "8.1.4"
+    "vite": "^8.1.0"
   },
   "devDependencies": {
     "@types/node": "26.1.1",

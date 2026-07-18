@@ -1,5 +1,18 @@
-import { layerId, projectId, sceneId, sourceId, type CompiledSnapshot } from "@cbj/vignette-core";
-import { Broadcast, ColorSource, Layer, Scene, Sources, createComposerRoot } from "@cbj/vignette";
+import {
+  layerId,
+  projectId,
+  sceneId,
+  sourceId,
+  type CompiledSnapshot,
+} from "@strangecyan/vignette-core";
+import {
+  Broadcast,
+  ColorSource,
+  Layer,
+  Scene,
+  Sources,
+  createComposerRoot,
+} from "@strangecyan/vignette";
 
 const root = createComposerRoot({
   projectId: projectId("simple-example"),

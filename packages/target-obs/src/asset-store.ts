@@ -4,7 +4,7 @@ import {
   type AssetRef,
   type AssetResolver,
   type ResolvedAsset,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

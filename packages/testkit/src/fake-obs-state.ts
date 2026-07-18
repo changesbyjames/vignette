@@ -1,4 +1,4 @@
-import type { ProjectId } from "@cbj/vignette-core";
+import type { ProjectId } from "@strangecyan/vignette-core";
 import {
   managedSceneName,
   managedSourceName,
@@ -12,7 +12,7 @@ import {
   type ObservedObsScene,
   type ObservedObsSceneItem,
   type ObservedObsState,
-} from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-target-obs";
 
 /** Observed state, plan, namespace, and interruption point for fake execution. */
 export interface ApplyFakeObsPlanOptions {

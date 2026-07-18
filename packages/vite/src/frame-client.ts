@@ -1,1 +1,1 @@
-export { hydrateFrame } from "@cbj/vignette-frame/client";
+export { hydrateFrame } from "@strangecyan/vignette-frame/client";

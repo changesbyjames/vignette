@@ -183,11 +183,11 @@ All in `packages/react/src/root.ts` unless noted.
    re-export (keep the plain Node HTTP adapter if the kitchen sink still wants it; otherwise
    delete the file). Update `packages/frame/deno.json` exports accordingly.
 
-### Stage 4 — new package `packages/vite`: `@cbj/vignette-vite` exporting `vignette()`
+### Stage 4 — new package `packages/vite`: `@strangecyan/vignette-vite` exporting `vignette()`
 
 One plugin, environment-aware (Vite 8 environment API; must compose with
 `@cloudflare/vite-plugin` and plain Node dev servers), emitting two virtual modules. Depends on
-`@cbj/vignette-frame/transform` and `@cbj/vignette-core` types only.
+`@strangecyan/vignette-frame/transform` and `@strangecyan/vignette-core` types only.
 
 1. **Transform**: apply `transformFrameDefinitions` (unchanged,
    `packages/frame/src/transform.ts`) to non-`node_modules` modules in every environment, as
@@ -220,7 +220,7 @@ One plugin, environment-aware (Vite 8 environment API; must compose with
    `assets/vignette/asset/<name>-<hash8><ext>` and reference that same computed string from
    every environment. No globs configured → `{ version: 1, assets: [] }`, preserving current
    behavior with zero config. Export ambient types for both virtual modules from
-   `@cbj/vignette-vite/virtual` so consumers add one `types` reference instead of hand-writing
+   `@strangecyan/vignette-vite/virtual` so consumers add one `types` reference instead of hand-writing
    `.d.ts` files (the example currently hand-writes `src/vignette-virtual.d.ts`).
 5. **Dev serving for pure-Node setups**: `configureServer` middleware mounting the Stage 3 Fetch
    handler over the virtual registry (replaces `vignetteFrames`'s middleware). Cloudflare dev

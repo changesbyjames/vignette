@@ -3,13 +3,14 @@ import type {
   CompiledItem,
   CompiledSource,
   SourceId,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 import type { DomRendererMap, DomSourceView } from "./elements/index.js";
 
 interface SourceRecord {
   readonly kind: AnySourceDefinition["kind"];
   readonly view: DomSourceView;
+  active: boolean;
   retainWhenInactive: boolean;
 }
 
@@ -49,6 +50,7 @@ export class DomSourceRegistry {
       record = {
         kind: source.kind,
         view: this.createView(source),
+        active: false,
         retainWhenInactive: this.shouldRetain(source),
       };
       this.#records.set(source.id, record);
@@ -56,8 +58,11 @@ export class DomSourceRegistry {
     record.retainWhenInactive = this.shouldRetain(source);
 
     const element = record.view.element;
+    const activating = !record.active || element.parentNode !== host;
     if (element.parentNode !== host) moveElement(host, element);
     record.view.update(source, item, resolvedUrl);
+    if (activating) record.view.activate?.();
+    record.active = true;
     element.dataset.vignetteSource = source.id;
     return record.view;
   }
@@ -65,6 +70,7 @@ export class DomSourceRegistry {
   releaseFrom(host: HTMLElement): boolean {
     const located = this.locateIn(host);
     if (located === undefined) return true;
+    located.record.active = false;
     if (!located.record.retainWhenInactive) {
       this.disposeRecord(located.id, located.record);
       return true;

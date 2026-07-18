@@ -6,7 +6,7 @@ import type {
   Size,
   AnySourceDefinition,
   SourceId,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 import type { DomRendererMap } from "./elements/index.js";
 import { DomSourceRegistry } from "./source-registry.js";

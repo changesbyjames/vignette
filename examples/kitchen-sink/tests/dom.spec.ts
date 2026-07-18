@@ -1,4 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { PNG } from "pngjs";
+
+const executeFile = promisify(execFile);
 
 test("receives the kitchen-sink snapshot over SSE", async ({ page }) => {
   await page.goto("/");
@@ -52,4 +60,32 @@ test("publishes dynamic layer updates from the Node composer", async ({ page }) 
   await expect
     .poll(async () => Number(await revision.textContent()), { timeout: 5000 })
     .toBeGreaterThan(initial);
+});
+
+test("captures an exact-canvas static CLI preview", async () => {
+  test.setTimeout(30_000);
+  const directory = await mkdtemp(join(tmpdir(), "vignette-preview-e2e-"));
+  const output = join(directory, "kitchen-sink.png");
+  try {
+    const { stdout } = await executeFile(
+      process.execPath,
+      [
+        resolve("packages/preview/bin/vignette.js"),
+        "preview",
+        "--snapshot",
+        "http://127.0.0.1:4173/runtime",
+        "--scene",
+        "main",
+        "--out",
+        output,
+      ],
+      { timeout: 25_000 },
+    );
+    const image = PNG.sync.read(await readFile(output));
+    expect(image.width).toBe(1920);
+    expect(image.height).toBe(1080);
+    expect(stdout).toContain("placeholders");
+  } finally {
+    await rm(directory, { recursive: true });
+  }
 });

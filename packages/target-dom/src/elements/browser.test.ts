@@ -6,7 +6,7 @@ import {
   sourceId,
   type BrowserSource,
   type CompiledItem,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { browserRenderer } from "./browser.js";

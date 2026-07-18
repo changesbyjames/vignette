@@ -1,4 +1,4 @@
-import type { TargetStatus } from "@cbj/vignette-core";
+import type { TargetStatus } from "@strangecyan/vignette-core";
 
 export class ObsStatusStore {
   readonly #listeners = new Set<() => void>();

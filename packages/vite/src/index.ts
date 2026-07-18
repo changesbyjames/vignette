@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { extname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AssetManifest, AssetManifestEntry } from "@cbj/vignette-core";
-import type { FrameMetadata } from "@cbj/vignette-frame";
-import { createFrameRequestHandler, type FrameBundle } from "@cbj/vignette-frame/server";
-import { createNodeFrameRequestHandler } from "@cbj/vignette-frame/server/node";
-import { transformFrameDefinitions } from "@cbj/vignette-frame/transform";
+import type { AssetManifest, AssetManifestEntry } from "@strangecyan/vignette-core";
+import type { FrameMetadata } from "@strangecyan/vignette-frame";
+import { createFrameRequestHandler, type FrameBundle } from "@strangecyan/vignette-frame/server";
+import { createNodeFrameRequestHandler } from "@strangecyan/vignette-frame/server/node";
+import { transformFrameDefinitions } from "@strangecyan/vignette-frame/transform";
 import { globSync } from "tinyglobby";
 import type { Plugin } from "vite";
 
@@ -15,9 +15,7 @@ const FRAMES_ID = "virtual:vignette/frames";
 const ASSETS_ID = "virtual:vignette/assets";
 const RESOLVED_FRAMES_ID = `\0${FRAMES_ID}`;
 const RESOLVED_ASSETS_ID = `\0${ASSETS_ID}`;
-// frame-client is referenced only by URL, so it must stay a deno.json export: JSR's npm
-// compatibility layer transpiles only export-reachable modules, and an unexported helper would
-// ship as raw .tsx/.ts with unrewritten jsr: specifiers.
+// The browser loads this entry by URL rather than through the plugin's module graph.
 const HELPER_ENTRY = fileURLToPath(new URL("./frame-client.js", import.meta.url));
 
 /** Static frame and composition-asset discovery configured relative to the Vite root. */
@@ -233,7 +231,7 @@ function generateFramesModule(registrations: readonly FrameRegistration[], dev: 
     ]),
   );
   return `${imports.join("\n")}
-import { FrameRouteRegistry } from "@cbj/vignette-frame/server";
+import { FrameRouteRegistry } from "@strangecyan/vignette-frame/server";
 const registry = new FrameRouteRegistry();
 ${registrationsCode.join("\n")}
 const clientUrls = ${JSON.stringify(clientUrls)};

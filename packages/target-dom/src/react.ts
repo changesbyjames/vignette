@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { RuntimeMessageSource, TargetPhase, TargetStatus } from "@cbj/vignette-core";
+import type { RuntimeMessageSource, TargetPhase, TargetStatus } from "@strangecyan/vignette-core";
 import { equals } from "ramda";
 import { useMemo, useRef, useSyncExternalStore, type RefCallback } from "react";
 
@@ -209,4 +209,4 @@ class CompositorController {
 }
 
 export { sseRuntimeSource } from "./sse.js";
-export type { RuntimeMessageSource } from "@cbj/vignette-core";
+export type { RuntimeMessageSource } from "@strangecyan/vignette-core";

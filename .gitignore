@@ -9,5 +9,6 @@ coverage/
 !.env.example
 playwright-report/
 test-results/
+vignette-preview/
 examples/studio/.vite/
 .pnpm-store

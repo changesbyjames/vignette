@@ -1,10 +1,11 @@
 # DOM compositor React hook
 
-`@cbj/vignette-target-dom` remains React-free. Its optional `@cbj/vignette-target-dom/react` entry
-point provides a lifecycle wrapper for React applications:
+`@strangecyan/vignette-target-dom` remains React-free. Its optional
+`@strangecyan/vignette-target-dom/react` entry point provides a lifecycle wrapper for React
+applications:
 
 ```tsx
-import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
+import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
 
 export function Preview() {
   const [ref, compositor] = useCompositor({

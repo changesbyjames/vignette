@@ -1,7 +1,7 @@
 import { getRequestListener } from "@hono/node-server";
-import { toSseEvent, type AssetManifest } from "@cbj/vignette-core";
-import { createSceneStore, SceneProvider } from "@cbj/vignette-frame";
-import { createComposerRoot } from "@cbj/vignette";
+import { toSseEvent, type AssetManifest } from "@strangecyan/vignette-core";
+import { createSceneStore, SceneProvider } from "@strangecyan/vignette-frame";
+import { createComposerRoot } from "@strangecyan/vignette";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { createElement, type ComponentType } from "react";
@@ -73,7 +73,7 @@ export function vignetteComposer(): Plugin {
           onError: reportError,
         });
         runtime = connectedRuntime;
-        consumer = import("@cbj/vignette-core").then(({ consumeRuntimeMessages }) =>
+        consumer = import("@strangecyan/vignette-core").then(({ consumeRuntimeMessages }) =>
           consumeRuntimeMessages(connectedRuntime, root.messages(abort.signal)),
         );
       }

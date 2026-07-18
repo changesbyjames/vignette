@@ -1,11 +1,21 @@
 {
-  "name": "@cbj/vignette-target-obs",
-  "version": "0.3.4",
+  "name": "@strangecyan/vignette-target-obs",
+  "version": "0.3.5",
   "description": "OBS runtime, planner, and transport contracts for Vignette snapshots.",
-  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/target-obs"
+  },
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,12 +25,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/target-obs",
-    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+    "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
     "obs-websocket-js": "5.0.8",
     "ramda": "0.32.0"
   },

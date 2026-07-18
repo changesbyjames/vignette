@@ -1,11 +1,21 @@
 {
-  "name": "@cbj/vignette",
-  "version": "0.3.4",
+  "name": "@strangecyan/vignette",
+  "version": "0.3.5",
   "description": "React renderer and authoring primitives for target-neutral broadcast scenes.",
-  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/react"
+  },
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,19 +25,20 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/react",
-    "publish:check": "pnpm dlx jsr publish --dry-run --allow-dirty"
+    "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@cbj/vignette-core": "workspace:^",
+    "@strangecyan/vignette-core": "workspace:^",
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {
-    "react": "19.2.7"
+    "react": "^19.2.0"
   },
   "devDependencies": {
-    "@cbj/vignette-testkit": "workspace:^",
+    "@strangecyan/vignette-testkit": "workspace:^",
     "@types/react": "19.2.17",
     "@types/react-reconciler": "0.33.0",
     "react": "19.2.7"

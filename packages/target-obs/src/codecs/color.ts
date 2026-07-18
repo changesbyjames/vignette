@@ -1,4 +1,4 @@
-import type { ColorSource } from "@cbj/vignette-core";
+import type { ColorSource } from "@strangecyan/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
 

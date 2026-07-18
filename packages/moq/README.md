@@ -1,4 +1,4 @@
-# @cbj/vignette-moq
+# @strangecyan/vignette-moq
 
 Media over QUIC source extension for Vignette. It provides one source model plus separate React,
 DOM, and OBS facets so each architecture layer depends only on the contracts it needs.
@@ -6,14 +6,14 @@ DOM, and OBS facets so each architecture layer depends only on the contracts it 
 ## Install
 
 ```sh
-pnpm add jsr:@cbj/vignette-moq
+pnpm add @strangecyan/vignette-moq
 ```
 
 ```tsx
-import { moqSourceModule } from "@cbj/vignette-moq";
-import { moqDomRenderer } from "@cbj/vignette-moq/dom";
-import { moqObsCodec } from "@cbj/vignette-moq/obs";
-import { MoqSource } from "@cbj/vignette-moq/react";
+import { moqSourceModule } from "@strangecyan/vignette-moq";
+import { moqDomRenderer } from "@strangecyan/vignette-moq/dom";
+import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
+import { MoqSource } from "@strangecyan/vignette-moq/react";
 
 const composerExtensions = [moqSourceModule];
 const domExtensions = [moqDomRenderer];

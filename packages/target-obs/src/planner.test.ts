@@ -6,7 +6,7 @@ import {
   type BrowserSource,
   type ColorSource,
   type CompiledSnapshot,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { REQUIRED_OBS_REQUESTS } from "./capabilities.js";

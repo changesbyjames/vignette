@@ -6,7 +6,7 @@ import type {
   ObsEventListener,
   ObsJsonObject,
   ObsTransport,
-} from "@cbj/vignette-target-obs";
+} from "@strangecyan/vignette-target-obs";
 
 /** OBS request captured by `FakeObsTransport`. */
 export interface FakeObsRequest {

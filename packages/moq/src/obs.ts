@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { selectInputKind, type ObsSourceCodec } from "@cbj/vignette-target-obs";
+import { selectInputKind, type ObsSourceCodec } from "@strangecyan/vignette-target-obs";
 
 import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 

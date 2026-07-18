@@ -12,7 +12,7 @@ import {
   type Size,
   type SourceBase,
   type SourceModule,
-} from "@cbj/vignette-core";
+} from "@strangecyan/vignette-core";
 
 /** Default end-to-end latency requested from a MoQ source. */
 export const DEFAULT_MOQ_LATENCY_MS = 100;
