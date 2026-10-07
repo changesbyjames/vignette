@@ -4,6 +4,23 @@ The authoring renderer is tested against the exact pair `react@19.2.7` and
 `react-reconciler@0.33.0`. Because the reconciler API is experimental, upgrades are host-config
 migrations rather than routine dependency bumps.
 
+## Vocabulary
+
+Vignette's pipeline is **composer → stream → target**:
+
+| Term               | Meaning                                                                                                                                       | API                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Composition**    | A project's identity (ID, canvas), extension source modules, and top-level React component.                                                   | `defineComposition`                                                      |
+| **Composer**       | The Node-side React root that renders a composition, compiles each commit into a snapshot, and publishes the stream.                          | `createComposerRoot`, `ComposerRoot`, `compile`                          |
+| **Snapshot**       | Immutable, target-neutral compiled scene data with a revision.                                                                                | `CompiledSnapshot`                                                       |
+| **Stream**         | The ordered messages a composer publishes: `setup`, then `update` (snapshots) and `event` (one-shot commands). Carried over SSE or in memory. | `StreamMessage`, `StreamSource`, `sseStream`, `consumeStream`, `/stream` |
+| **Target**         | Something that renders snapshots in one medium: the browser DOM or OBS.                                                                       | `DomTarget`, `createObsTarget`                                           |
+| **Target runtime** | Consumes a stream for one target: checks setup (project, extensions), downloads assets, applies updates, and forwards events.                 | `TargetRuntime`, `DOMRuntime`, `OBSRuntime`                              |
+| **Stage**          | A DOM container in a React app that a `DOMRuntime` renders a stream into.                                                                     | `useStage`                                                               |
+
+"Transport" is reserved for how bytes move (SSE, the OBS WebSocket `ObsTransport`); it is not a
+separate concept from the stream.
+
 ## Data flow
 
 ```text
@@ -13,7 +30,7 @@ Platform host (Node, Worker, Durable Object)
     -> validation + Yoga + content fitting
     -> one immutable complete snapshot (revision N)
          |
-         +-- SSE ----------------------> DOMRuntime -> browser DOM
+         +-- SSE (/stream) ------------> DOMRuntime -> browser DOM (useStage)
          |
          +-- in-memory AsyncIterable --> OBSRuntime -> OBS planner -> obs-websocket
          |
@@ -25,9 +42,9 @@ does not import a DOM implementation, an OBS client, or runtime status. It publi
 target-neutral snapshot after each valid React commit, including commits triggered by hooks and
 timers inside the composed tree.
 
-## Runtime message protocol
+## Stream protocol
 
-Every runtime input is one of three closed message types:
+Every message a composer streams to target runtimes is one of three closed types:
 
 - `setup`: the composition's project ID, its asset manifest, and the extension source kinds it
   registered (with target entrypoint hints), sent before snapshots;
@@ -41,8 +58,8 @@ phases with actionable messages, never exceptions thrown into the composer.
 
 SSE uses the same names as event types. A newly connected consumer receives the current setup and
 latest complete update. Transient commands are not part of snapshot replay. The example uses the
-same `AsyncIterable<RuntimeMessage>` contract directly for its embedded OBS runtime, so transports
-remain outside runtime implementations.
+same `AsyncIterable<StreamMessage>` contract directly (`consumeStream(runtime, root.messages())`)
+for its embedded OBS runtime, so transports remain outside target runtime implementations.
 
 Snapshots have monotonically increasing revisions. Runtimes use mailbox-of-one convergence and may
 discard stale revisions. Runtime application status is deliberately local: the composer does not
@@ -84,9 +101,12 @@ the common scene protocol. See [`react-frames.md`](react-frames.md).
 
 ## Package ownership
 
-- `@strangecyan/vignette-core`: graph vocabulary, immutable snapshots, runtime messages, validation,
+- `@strangecyan/vignette-core`: graph vocabulary, immutable snapshots, stream messages, validation,
   and Yoga.
-- `@strangecyan/vignette`: host-side React reconciler, primitives, and `createComposerRoot`.
+- `@strangecyan/vignette`: host-side React reconciler, primitives, `createComposerRoot`, `compile`,
+  and re-exports of the core types composition authors use (layout styles, geometry, canvas, assets,
+  snapshot and stream message types). Core stays the low-level contract for target and extension
+  authors.
 - `@strangecyan/vignette-frame`: optional typed browser views and platform-neutral SSR/hydration
   kernels.
 - `@strangecyan/vignette-vite`: static frame registry, deterministic client entries, asset
@@ -100,6 +120,5 @@ The renderer remains synchronous and local. All downloads, sockets, retries, DOM
 are runtime concerns beyond the compiled snapshot boundary.
 
 The base DOM target has no React dependency. `@strangecyan/vignette-target-dom/react` is an optional
-adapter that combines a container callback ref, abort-aware runtime stream, DOMRuntime lifecycle,
-and a cached `useSyncExternalStore` subscription. See
-[`dom-compositor-hook.md`](dom-compositor-hook.md).
+adapter that combines a container callback ref, abort-aware composer stream, DOMRuntime lifecycle,
+and a cached `useSyncExternalStore` subscription. See [`dom-stage-hook.md`](dom-stage-hook.md).

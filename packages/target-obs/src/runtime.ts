@@ -1,10 +1,9 @@
 import { describeMissingExtensions, omitUndefined } from "@strangecyan/vignette-core";
 import type {
   CompiledSnapshot,
-  ProjectId,
-  RuntimeEvent,
-  RuntimeSetup,
-  SnapshotRuntime,
+  StreamEvent,
+  StreamSetup,
+  TargetRuntime,
   TargetApplyReceipt,
   TargetStatus,
 } from "@strangecyan/vignette-core";
@@ -24,28 +23,28 @@ import type { ObsTransport } from "./transport.js";
  * used for browser sources; defaults to `baseUrl`).
  */
 export interface OBSRuntimeOptions extends ObsAssetStoreOptions {
-  readonly id?: string;
-  readonly url?: string;
-  readonly password?: string;
-  readonly projectId: ProjectId;
+  readonly id?: string | undefined;
+  readonly url?: string | undefined;
+  readonly password?: string | undefined;
+  readonly projectId: string;
   /** Base for root-relative URLs OBS loads itself (browser sources). Defaults to `baseUrl`. */
-  readonly browserSourceBaseUrl?: string;
-  readonly retry?: ObsRetryOptions;
+  readonly browserSourceBaseUrl?: string | undefined;
+  readonly retry?: ObsRetryOptions | undefined;
   /** Source codecs contributed by extension packages (built-ins are always registered). */
-  readonly extensions?: readonly ObsSourceCodec[];
-  readonly onError?: (error: Error) => void;
-  readonly transport?: ObsTransport;
-  readonly schedulerRuntime?: ObsSchedulerRuntime;
+  readonly extensions?: readonly ObsSourceCodec[] | undefined;
+  readonly onError?: ((error: Error) => void) | undefined;
+  readonly transport?: ObsTransport | undefined;
+  readonly schedulerRuntime?: ObsSchedulerRuntime | undefined;
 }
 
 /**
- * Applies runtime messages to OBS through dependency-aware convergence planning.
+ * Applies stream messages to OBS through dependency-aware convergence planning.
  *
  * Setup is the safety gate: a stream for a different project, or one that advertises an extension
  * source kind without a registered codec, puts the runtime into its `error` phase without touching
  * OBS. Updates and events are ignored until a setup the runtime can satisfy.
  */
-export class OBSRuntime implements SnapshotRuntime {
+export class OBSRuntime implements TargetRuntime {
   private readonly options: OBSRuntimeOptions;
   private readonly assets: ObsAssetStore;
   private readonly scheduler: ObsConvergenceScheduler;
@@ -67,7 +66,7 @@ export class OBSRuntime implements SnapshotRuntime {
   }
 
   /** Refuse foreign projects and unsupported extensions before downloading any asset. */
-  async setup(setup: RuntimeSetup): Promise<void> {
+  async setup(setup: StreamSetup): Promise<void> {
     const failure = this.checkSetup(setup);
     if (failure !== undefined) {
       this.setupFailure = new Error(failure);
@@ -85,7 +84,7 @@ export class OBSRuntime implements SnapshotRuntime {
     this.scheduler.publish(snapshot);
   }
 
-  event(event: RuntimeEvent): Promise<void> {
+  event(event: StreamEvent): Promise<void> {
     if (this.setupFailure !== undefined) return Promise.resolve();
     this.assertSetup();
     return this.scheduler.event(event);
@@ -107,7 +106,7 @@ export class OBSRuntime implements SnapshotRuntime {
     this.hasSetup = false;
   }
 
-  private checkSetup(setup: RuntimeSetup): string | undefined {
+  private checkSetup(setup: StreamSetup): string | undefined {
     if (setup.projectId !== this.options.projectId) {
       return `Stream is for project '${setup.projectId}' but this OBS runtime manages project '${this.options.projectId}' (projectId / --project); refusing to manage OBS.`;
     }

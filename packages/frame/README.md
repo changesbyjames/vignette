@@ -21,10 +21,20 @@ export const LowerThird = frame({
   view: ({ name }) => <div>Hello {name}</div>,
 });
 
+export const OnAir = frame({ view: () => <div>On air</div> });
+
 export function Overlay() {
-  return <View source={LowerThird} params={{ name: "Ada" }} />;
+  return (
+    <>
+      <View source={LowerThird} params={{ name: "Ada" }} style={{ width: 960, height: 160 }} />
+      <View source={OnAir} style={{ width: 240, height: 80 }} />
+    </>
+  );
 }
 ```
+
+Frames without parameters omit `params` in both `frame()` and `<View>`. A view's page renders at the
+placement's laid-out size unless `viewport` is set.
 
 Export frame definitions from modules processed by the Vite plugin:
 
@@ -50,44 +60,44 @@ import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
 
 import type { CompositionStore } from "./composition-store";
 
-export const compositionStore = defineRemoteStore<CompositionStore>({
-  id: "composition",
-  url: "/api/store/composition",
-});
+export const compositionStore = defineRemoteStore<CompositionStore>({ id: "composition" });
+// compositionStore.url === "/__vignette/store/composition"
 ```
 
-The application owns the endpoint URL and SSE response. The server helper yields an initial context
-snapshot followed by conflated live updates:
+The endpoint defaults to `/__vignette/store/<id>`; pass `url` to serve it elsewhere. The application
+serves the SSE response at `ref.url`, so the route needs no ID check. The server helper yields an
+initial context snapshot followed by conflated live updates:
 
 ```ts
 import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
 import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
 
-for await (const snapshot of remoteStoreSnapshots(store, request.signal)) {
-  await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
-}
+app.get(compositionStore.url, (context) =>
+  streamSSE(context, async (stream) => {
+    for await (const snapshot of remoteStoreSnapshots(store, context.req.raw.signal)) {
+      await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
+    }
+  }),
+);
 ```
 
-Read the state inside a hydrated frame. The hook suspends during server rendering and until the
-browser receives its first snapshot, so render it beneath a Suspense boundary:
+Register store routes before any catch-all `/__vignette/*` handler. Read the state inside a frame.
+The hook suspends during server rendering and until the browser receives its first snapshot; every
+frame already renders beneath a root `<Suspense fallback={null}>`, so no boundary is needed:
 
 ```tsx
+import { frame } from "@strangecyan/vignette-frame";
 import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
-import { Suspense } from "react";
 
-function Title() {
-  return (
-    <Suspense fallback={null}>
-      <LiveTitle />
-    </Suspense>
-  );
-}
-
-function LiveTitle() {
-  const title = useRemoteStore(compositionStore, (snapshot) => snapshot.context.title);
-  return <div>{title}</div>;
-}
+export const titleFrame = frame({
+  view: () => {
+    const title = useRemoteStore(compositionStore, (snapshot) => snapshot.context.title);
+    return <div>{title}</div>;
+  },
+});
 ```
+
+Add your own `<Suspense>` only to scope a different fallback to part of a view.
 
 Hosts that cannot run the transform can provide supported metadata directly with
 `frame({ metadata, params, view })`.

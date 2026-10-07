@@ -11,5 +11,6 @@ corepack pnpm --filter @strangecyan/vignette-simple-example start
 
 Start with [`src/show.tsx`](src/show.tsx), which exports the composition definition — its project
 ID, canvas, and top-level component — as `composition`. [`src/index.ts`](src/index.ts) is the host:
-`createComposerRoot(composition)` followed by `root.render()`. Move to
+a one-shot `compile(composition)` that resolves to the settled snapshot. Long-running hosts use
+`createComposerRoot(composition)` and `root.render()` instead. Move to
 [`../kitchen-sink`](../kitchen-sink) when you need a browser preview, frames, SSE, or OBS.

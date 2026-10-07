@@ -1,18 +1,8 @@
-import type { CompiledSnapshot } from "@strangecyan/vignette-core";
-import { createComposerRoot } from "@strangecyan/vignette";
+import { compile } from "@strangecyan/vignette";
 
 import { composition } from "./show.js";
 
-const root = createComposerRoot(composition, { onError: console.error });
+// One-shot: render the composition, wait for it to settle, print the snapshot, and dispose.
+const snapshot = await compile(composition, { onError: console.error });
 
-let publishSnapshot: (snapshot: CompiledSnapshot) => void = () => undefined;
-const nextSnapshot = new Promise<CompiledSnapshot>((resolve) => {
-  publishSnapshot = resolve;
-});
-const unsubscribe = root.subscribe(publishSnapshot);
-
-await root.render();
-
-console.log(JSON.stringify(await nextSnapshot, null, 2));
-unsubscribe();
-await root.dispose();
+console.log(JSON.stringify(snapshot, null, 2));

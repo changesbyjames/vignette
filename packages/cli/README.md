@@ -11,14 +11,14 @@ pnpm exec playwright install chromium
 
 ## Stream to OBS
 
-Stream a project's runtime SSE endpoint to OBS with the built-in source codecs:
+Stream a composer stream (SSE) to OBS with the built-in source codecs:
 
 ```sh
 pnpm exec vignette obs \
   --project demo \
   --obs-url ws://localhost:4455 \
   --password secret \
-  --url https://localhost:5173/api/runtime
+  --url https://localhost:5173/api/stream
 ```
 
 `--project` is the safety boundary: the command only ever modifies OBS resources in that project's
@@ -32,7 +32,7 @@ Extension source kinds need their OBS codec loaded with `--extension <module>` (
 
 ```sh
 pnpm exec vignette obs --project demo --obs-url ws://localhost:4455 \
-  --url https://localhost:5173/api/runtime \
+  --url https://localhost:5173/api/stream \
   --extension @strangecyan/vignette-moq/obs
 ```
 
@@ -55,15 +55,15 @@ runtime: there is no health endpoint or readiness checking.
 
 ```sh
 pnpm exec vignette preview \
-  --snapshot http://localhost:4173/runtime \
+  --snapshot http://localhost:4173/stream \
   --scene programme \
   --name "test 01"
 ```
 
-`--snapshot` accepts a JSON file, a JSON URL, or a Vignette runtime SSE URL. JSON may contain the
-snapshot directly or an object with `{ "snapshot": ..., "manifest": ... }`. The first scene is used
-unless `--scene <id|label>` or `--all-scenes` is supplied. Root-relative URLs resolve against the
-snapshot URL; a snapshot file that contains them requires `--base-url <url>`.
+`--snapshot` accepts a JSON file, a JSON URL, or a Vignette composer stream (SSE) URL. JSON may
+contain the snapshot directly or an object with `{ "snapshot": ..., "manifest": ... }`. The first
+scene is used unless `--scene <id|label>` or `--all-scenes` is supplied. Root-relative URLs resolve
+against the snapshot URL; a snapshot file that contains them requires `--base-url <url>`.
 
 By default PNGs are written under `vignette-preview/`. Use `--out <file>` for one scene or
 `--out <directory> --all-scenes` for multiple scenes. `--json` prints result metadata for agents and

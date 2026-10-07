@@ -14,8 +14,18 @@ export const greeting = frame({
   view: ({ name }) => <div>Hello {name}!</div>,
 });
 
-<View source={greeting} params={{ name: "James" }} viewport={{ width: 1280, height: 720 }} />;
+export const banner = frame({ view: () => <div>On air</div> });
+
+<View source={greeting} params={{ name: "James" }} style={{ width: 1280, height: 720 }} />;
+<View source={banner} style={{ width: 800, height: 120 }} />;
 ```
+
+Omit `params` for a frame without parameters; its `<View>` placements omit `params` too. The page
+renders at the placement's laid-out size unless `viewport` is set (a frame source placed at several
+different sizes needs an explicit `viewport` or separate `id`s).
+
+Each frame renders beneath a root `<Suspense fallback={null}>` on the server and during hydration,
+so views can use suspending hooks such as `useRemoteStore` without their own boundary.
 
 `<View>` emits a root-relative browser-source URL (`/__vignette/frame/<routeKey>?props=...`), so the
 composer never needs its public origin. Each target resolves the URL against its own base URL (see

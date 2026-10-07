@@ -27,9 +27,9 @@ export interface ObsAssetStoreOptions {
    * Absolute HTTP(S) base for root-relative manifest URLs, as reachable from this process (the
    * asset downloader). Absolute manifest URLs are fetched unchanged.
    */
-  readonly baseUrl?: string;
-  readonly fetch?: AssetFetcher;
-  readonly temporaryDirectory?: string;
+  readonly baseUrl?: string | undefined;
+  readonly fetch?: AssetFetcher | undefined;
+  readonly temporaryDirectory?: string | undefined;
 }
 
 export class ObsAssetStore implements AssetResolver {

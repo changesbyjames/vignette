@@ -2,7 +2,7 @@
 
 Target-neutral contracts and compiler for Vignette. This package defines the authoring graph, stable
 ID validation, source modules, Yoga layout, immutable compiled snapshots, assets, diagnostics, and
-runtime message protocol. It does not import React or a target implementation.
+stream message protocol. It does not import React or a target implementation.
 
 ## Install
 
@@ -53,17 +53,23 @@ const layoutEngine = await createYogaWasmLayoutEngine(yogaWasm);
 
 `./yoga.wasm` is the vendored binary from the pinned yoga-layout version, so layout is identical on
 every host. Maintainers regenerate it with `pnpm --filter @strangecyan/vignette-core vendor:yoga`
-after changing that version. Runtime-only consumers can import `./runtime` and `./sse` without
-loading the layout compiler.
+after changing that version. Stream-only consumers (target runtimes) can import `./stream` and
+`./sse` without loading the layout compiler.
 
-Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use
-`RuntimeMessageHub`, `consumeRuntimeMessages`, and the SSE codecs to connect a composer to one or
-more independent targets. The `setup` message carries the project ID, the asset manifest, and the
-extension source kinds the composer registered; targets refuse a setup they cannot satisfy
+Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use `StreamHub`,
+`consumeStream`, and the SSE codecs to connect a composer's stream to one or more independent target
+runtimes. The `setup` message carries the project ID, the asset manifest, and the extension source
+kinds the composer registered; targets refuse a setup they cannot satisfy
 (`describeMissingExtensions` formats the shared actionable message). Extension packages define their
 own source type and contribute a generic `SourceModule`, optionally naming the target entrypoints
 that implement it in `entrypoints`; pass those modules to the compiler or composer rather than using
 an open settings bag.
 
+Source modules may implement `applyDefaults` for values that depend on the canvas or layout: color
+sources default `size` to the canvas, and browser sources default `viewport` to the frame size of
+the layers placing them (a diagnostic asks for an explicit viewport when those sizes differ).
+Compiled snapshots always carry the resolved values.
+
 The `./builders` entrypoint is optional. React projects normally author the same graph with
-`@strangecyan/vignette`.
+`@strangecyan/vignette`, which also re-exports the core types composition authors need; import core
+directly when implementing targets, extensions, or stream plumbing.

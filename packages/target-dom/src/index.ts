@@ -1,11 +1,11 @@
 /**
- * Browser DOM runtime and source renderers for compiled Vignette snapshots.
+ * Browser DOM target, its stream-consuming `DOMRuntime`, and source renderers.
  *
  * @module
  */
 export { DOMRuntime, type DOMRuntimeOptions } from "./runtime.js";
 export { DomTarget, type DomTargetOptions } from "./dom-target.js";
-export { sseRuntimeSource } from "./sse.js";
+export { sseStream } from "./sse.js";
 export {
   BUILTIN_DOM_RENDERERS,
   browserRenderer,

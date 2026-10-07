@@ -62,8 +62,9 @@ class RemoteStoreClient {
 }
 
 /**
- * Selects live state from a remote store. During SSR this suspends so the nearest Suspense fallback
- * is rendered; the selected state appears after hydration receives its first snapshot.
+ * Selects live state from a remote store. During SSR and until the first snapshot arrives this
+ * suspends. Frame roots already render beneath an empty Suspense boundary, so frames need no
+ * boundary of their own; add one only to scope a different fallback to part of a view.
  */
 export function useRemoteStore<TRef extends RemoteStoreRef<StoreWithContext>, TSelected>(
   ref: TRef,

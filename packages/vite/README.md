@@ -22,9 +22,9 @@ be served with `Cache-Control: no-store`.
 
 With `composition` set, `vite dev` loads that module's `composition` export (from
 `defineComposition`) in the SSR environment, renders it with `createComposerRoot`, and streams setup
-and update messages over SSE at `runtimePath` (default `/runtime`), ready for
-`sseRuntimeSource("/runtime")` or `vignette obs --url http://localhost:5173/runtime`. Production
-builds are unaffected; host the composer yourself there.
+and update messages over SSE at `streamPath` (default `/stream`), ready for `sseStream("/stream")`
+or `vignette obs --url http://localhost:5173/stream`. Production builds are unaffected; host the
+composer yourself there.
 
 - Editing the composition module or anything it imports re-renders the same root.
 - Changing the composition's `id`, `canvas`, or `extensions`, or adding or removing a discovered
@@ -33,9 +33,9 @@ builds are unaffected; host the composer yourself there.
   edit retries.
 
 `onComposerRoot(root, { composition, server, signal })` attaches extra consumers to each root, for
-example an embedded OBS runtime fed by `consumeRuntimeMessages(runtime, root.messages(signal))`. It
-is called again for every replacement root, and `signal` aborts when that root is retired or the
-server closes; return a promise that settles once the consumer has released its resources.
+example an embedded OBS runtime fed by `consumeStream(runtime, root.messages(signal))`. It is called
+again for every replacement root, and `signal` aborts when that root is retired or the server
+closes; return a promise that settles once the consumer has released its resources.
 
 ## Configuration defaults
 

@@ -3,10 +3,8 @@ import type {
   AssetResolver,
   Capability,
   CompiledSnapshot,
-  ProjectId,
   RenderTarget,
-  RuntimeEvent,
-  SourceId,
+  StreamEvent,
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
@@ -44,7 +42,7 @@ export interface ObsConvergenceSchedulerOptions {
   readonly id: string;
   readonly url: string;
   readonly password?: string;
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly assetResolver: AssetResolver;
   /** Absolute base OBS uses for root-relative URLs it loads itself, such as browser sources. */
   readonly browserSourceBaseUrl?: string;
@@ -96,7 +94,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
   private readonly runtime: ObsSchedulerRuntime;
   private readonly status: ObsStatusStore;
   private readonly waiters = new Set<SettlementWaiter>();
-  private readonly refreshedSources = new Set<SourceId>();
+  private readonly refreshedSources = new Set<string>();
   private readonly unsubscribeEvents: () => void;
   private desired: CompiledSnapshot | undefined;
   private pending: CompiledSnapshot | undefined;
@@ -176,7 +174,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     return this.status.subscribe(listener);
   }
 
-  async event(event: RuntimeEvent): Promise<void> {
+  async event(event: StreamEvent): Promise<void> {
     this.assertActive();
     await this.ensureObserved();
     await this.options.transport.call("SetCurrentProgramScene", {
@@ -337,8 +335,8 @@ export class ObsConvergenceScheduler implements RenderTarget {
     }
   }
 
-  private async resolveAssets(snapshot: CompiledSnapshot): Promise<ReadonlyMap<SourceId, string>> {
-    const resolved = new Map<SourceId, string>();
+  private async resolveAssets(snapshot: CompiledSnapshot): Promise<ReadonlyMap<string, string>> {
+    const resolved = new Map<string, string>();
     await Promise.all(
       snapshot.sources.map(async ({ id, asset }) => {
         if (asset === undefined) return;
@@ -363,7 +361,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
 
   /** Presses each codec's refresh property button once per connection after first settle. */
   private async refreshSources(snapshot: CompiledSnapshot): Promise<void> {
-    const referencedSources = new Set<SourceId>();
+    const referencedSources = new Set<string>();
     for (const scene of snapshot.scenes) {
       for (const item of scene.items) {
         if (item.content.kind === "source") referencedSources.add(item.content.sourceId);

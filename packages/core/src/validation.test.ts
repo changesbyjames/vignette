@@ -112,10 +112,10 @@ describe("validateBroadcast", () => {
 
 describe("resolveResourceUrl", () => {
   it("keeps absolute URLs and resolves root-relative URLs against the base origin", () => {
-    expect(resolveResourceUrl("https://cdn.example/a.png", "http://host:4173/runtime")).toBe(
+    expect(resolveResourceUrl("https://cdn.example/a.png", "http://host:4173/stream")).toBe(
       "https://cdn.example/a.png",
     );
-    expect(resolveResourceUrl("/assets/a.png?v=1", "http://host:4173/api/runtime")).toBe(
+    expect(resolveResourceUrl("/assets/a.png?v=1", "http://host:4173/api/stream")).toBe(
       "http://host:4173/assets/a.png?v=1",
     );
     expect(() => resolveResourceUrl("/assets/a.png", undefined)).toThrow(/no base URL/u);

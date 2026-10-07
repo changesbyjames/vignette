@@ -1,5 +1,5 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import type { LayoutEngine, RuntimeMessage } from "@strangecyan/vignette-core";
+import type { LayoutEngine, StreamMessage } from "@strangecyan/vignette-core";
 import { useSyncExternalStore } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -113,8 +113,8 @@ function makeRoot(assets?: MakeRootAssets) {
   );
 }
 
-async function next(iterator: AsyncIterator<RuntimeMessage>): Promise<RuntimeMessage> {
+async function next(iterator: AsyncIterator<StreamMessage>): Promise<StreamMessage> {
   const result = await iterator.next();
-  if (result.done) throw new Error("Runtime message stream ended unexpectedly.");
+  if (result.done) throw new Error("Composer stream ended unexpectedly.");
   return result.value;
 }

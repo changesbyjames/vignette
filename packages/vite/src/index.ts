@@ -26,20 +26,20 @@ const HELPER_ENTRY = fileURLToPath(new URL("./frame-client.js", import.meta.url)
 /** Frame and asset discovery, plus the optional dev composer, configured relative to the Vite root. */
 export interface VignettePluginOptions {
   /** Frame-module globs relative to the Vite root. */
-  readonly frames?: string | readonly string[];
+  readonly frames?: string | readonly string[] | undefined;
   /** Composition-asset globs relative to the Vite root. */
-  readonly assets?: string | readonly string[];
+  readonly assets?: string | readonly string[] | undefined;
   /**
    * Composition module (relative to the Vite root) whose `composition` export `vite dev` composes
-   * and streams at `runtimePath`. Edits to the module or its imports re-render the same root;
+   * and streams at `streamPath`. Edits to the module or its imports re-render the same root;
    * changing `id`, `canvas`, `extensions`, or the asset manifest replaces the root and closes open
    * streams so clients reconnect and receive the new setup. Omit to host the composer yourself.
    */
-  readonly composition?: string;
-  /** Path of the dev composer's runtime SSE stream. Defaults to `/runtime`. */
-  readonly runtimePath?: string;
+  readonly composition?: string | undefined;
+  /** Path at which the dev composer serves its stream over SSE. Defaults to `/stream`. */
+  readonly streamPath?: string | undefined;
   /** Attaches extra consumers, such as an embedded OBS runtime, to each dev composer root. */
-  readonly onComposerRoot?: ComposerRootHook;
+  readonly onComposerRoot?: ComposerRootHook | undefined;
 }
 
 /**
@@ -167,7 +167,7 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
         const { createDevComposer } = await import("./dev-composer.js");
         const devComposer = createDevComposer(server, {
           module: resolve(root, options.composition),
-          runtimePath: options.runtimePath ?? "/runtime",
+          streamPath: options.streamPath ?? "/stream",
           manifest: () => createAssetManifest(assets, "serve"),
           onComposerRoot: options.onComposerRoot,
         });

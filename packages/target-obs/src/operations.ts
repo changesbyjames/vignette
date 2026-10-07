@@ -1,22 +1,20 @@
-import type { LayerId, SceneId, SourceId } from "@strangecyan/vignette-core";
-
 interface ObsRegistrySceneRef {
   readonly kind: "registry";
 }
 
 interface ObsManagedSceneRef {
   readonly kind: "scene";
-  readonly sceneId: SceneId;
+  readonly sceneId: string;
 }
 
 interface ObsInputContentRef {
   readonly kind: "input";
-  readonly sourceId: SourceId;
+  readonly sourceId: string;
 }
 
 interface ObsSceneContentRef {
   readonly kind: "scene";
-  readonly sceneId: SceneId;
+  readonly sceneId: string;
 }
 
 interface ObsExistingPlacementRef {
@@ -27,7 +25,7 @@ interface ObsExistingPlacementRef {
 
 interface ObsCreatedPlacementRef {
   readonly kind: "created";
-  readonly layerId: LayerId;
+  readonly layerId: string;
   readonly scene: ObsSceneRef;
 }
 
@@ -97,7 +95,7 @@ export interface CreateSceneOperation extends ObsOperationBase {
 export interface CreateInputOperation extends ObsOperationBase {
   readonly kind: "create-input";
   readonly phase: "inputs";
-  readonly sourceId: SourceId;
+  readonly sourceId: string;
   readonly inputName: string;
   readonly inputKind: string;
   readonly inputSettings: ObsJsonObject;
@@ -107,7 +105,7 @@ export interface CreateInputOperation extends ObsOperationBase {
 export interface CreatePlacementOperation extends ObsOperationBase {
   readonly kind: "create-placement";
   readonly phase: "placements";
-  readonly layerId: LayerId;
+  readonly layerId: string;
   readonly scene: ObsSceneRef;
   readonly content: ObsContentRef;
 }
@@ -116,7 +114,7 @@ export interface CreatePlacementOperation extends ObsOperationBase {
 export interface SetInputSettingsOperation extends ObsOperationBase {
   readonly kind: "set-input-settings";
   readonly phase: "settings";
-  readonly sourceId: SourceId;
+  readonly sourceId: string;
   readonly inputSettings: ObsJsonObject;
 }
 

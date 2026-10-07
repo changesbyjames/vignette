@@ -1,4 +1,3 @@
-import type { ProjectId } from "@strangecyan/vignette-core";
 import {
   OBS_PHASES,
   indexManagedObservedState,
@@ -32,7 +31,7 @@ export function validateObsPhaseOrder(plan: ObsPlan): readonly string[] {
 export function validateManagedOnlyPlan(
   plan: ObsPlan,
   observed: ObservedObsState,
-  projectId: ProjectId,
+  projectId: string,
 ): readonly string[] {
   const managed = indexManagedObservedState(observed, projectId);
   const sceneUuids = new Set([
@@ -56,7 +55,7 @@ function unmanaged(operation: ObsOperation): string {
 /** Creation names and destructive UUIDs must both belong to the same managed namespace. */
 function isManagedOperation(
   operation: ObsOperation,
-  projectId: ProjectId,
+  projectId: string,
   sceneUuids: ReadonlySet<string>,
   inputUuids: ReadonlySet<string>,
 ): boolean {

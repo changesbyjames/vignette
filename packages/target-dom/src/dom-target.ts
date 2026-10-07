@@ -5,7 +5,6 @@ import type {
   CompiledScene,
   CompiledSnapshot,
   RenderTarget,
-  SourceId,
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
@@ -346,8 +345,8 @@ export class DomTarget implements RenderTarget {
 function collectSceneSourceIds(
   snapshot: CompiledSnapshot,
   root: CompiledScene,
-): ReadonlySet<SourceId> {
-  const result = new Set<SourceId>();
+): ReadonlySet<string> {
+  const result = new Set<string>();
   const scenes = new Map(snapshot.scenes.map((scene) => [scene.id, scene]));
   const visited = new Set<string>();
 

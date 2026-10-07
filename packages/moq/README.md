@@ -18,7 +18,7 @@ each layer depends only on the contracts it needs:
 | --------------------------------- | ----------------- | -------------------------------------------------------------------------------------- |
 | `@strangecyan/vignette-moq`       | `moqSourceModule` | `defineComposition({ extensions })`                                                    |
 | `@strangecyan/vignette-moq/react` | `<MoqSource>`     | use in the composition's component                                                     |
-| `@strangecyan/vignette-moq/dom`   | `moqDomRenderer`  | `useCompositor` / `DOMRuntime` `extensions`                                            |
+| `@strangecyan/vignette-moq/dom`   | `moqDomRenderer`  | `useStage` / `DOMRuntime` `extensions`                                                 |
 | `@strangecyan/vignette-moq/obs`   | `moqObsCodec`     | `OBSRuntime` `extensions`, or `vignette obs --extension @strangecyan/vignette-moq/obs` |
 
 ```tsx
@@ -48,11 +48,11 @@ export const composition = defineComposition({
 ```tsx
 import { moqDomRenderer } from "@strangecyan/vignette-moq/dom";
 
-useCompositor({ sceneId: "main", transport, extensions: [moqDomRenderer] });
+useStage({ sceneId: "main", stream, extensions: [moqDomRenderer] });
 ```
 
 `moqSourceModule` names the `/dom` and `/obs` entrypoints in its `entrypoints` metadata. The
-composer advertises `source:moq` in its runtime setup, so a DOM or OBS target that has not
+composer advertises `source:moq` in its stream's setup, so a DOM or OBS target that has not
 registered the matching facet enters its `error` phase with a message naming the entrypoint to
 register. The DOM facet uses `@moq/watch`. The OBS facet requires an installed input plugin exposing
 `moq_source`; unsupported capabilities are reported by the target rather than silently emulated.

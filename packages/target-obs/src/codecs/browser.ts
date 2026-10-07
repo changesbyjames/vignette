@@ -25,6 +25,9 @@ export const browserCodec: ObsSourceCodec<BrowserSource> = {
       };
     }
     const viewport = context.browserViewport ?? source.viewport;
+    if (viewport === undefined) {
+      return { supported: false, reason: `Browser source '${source.id}' has no viewport.` };
+    }
     return {
       supported: true,
       inputKind,

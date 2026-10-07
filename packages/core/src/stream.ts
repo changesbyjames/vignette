@@ -1,19 +1,18 @@
-import type { ProjectId, SceneId } from "./ids.js";
 import type { CompiledSnapshot } from "./snapshot.js";
 import type { SourceModuleEntrypoints } from "./source-module.js";
 
-interface RuntimeSetupMessage extends RuntimeSetup {
+interface StreamSetupMessage extends StreamSetup {
   readonly kind: "setup";
 }
 
-interface RuntimeUpdateMessage {
+interface StreamUpdateMessage {
   readonly kind: "update";
   readonly snapshot: CompiledSnapshot;
 }
 
-interface RuntimeEventMessage {
+interface StreamEventMessage {
   readonly kind: "event";
-  readonly event: RuntimeEvent;
+  readonly event: StreamEvent;
 }
 
 /** One downloadable project asset advertised to runtimes. */
@@ -39,50 +38,50 @@ export interface ExtensionSourceKind {
   readonly entrypoints?: SourceModuleEntrypoints;
 }
 
-/** Composition identity and requirements announced to a runtime before any snapshot. */
-export interface RuntimeSetup {
+/** Composition identity and requirements announced to target runtimes before any snapshot. */
+export interface StreamSetup {
   /** The composition's project ID; snapshots in the same stream carry the same ID. */
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly manifest: AssetManifest;
   /** Extension source kinds the composer registered; built-in kinds are never listed. */
   readonly extensions: readonly ExtensionSourceKind[];
 }
 
 /** One-shot command delivered separately from stable desired state. */
-export interface RuntimeEvent {
+export interface StreamEvent {
   readonly id: string;
   readonly kind: "scene:select";
-  readonly sceneId: SceneId;
+  readonly sceneId: string;
 }
 
-/** Setup, snapshot update, or one-shot event sent to a runtime. */
-export type RuntimeMessage = RuntimeSetupMessage | RuntimeUpdateMessage | RuntimeEventMessage;
+/** One message of a composer stream: setup, snapshot update, or one-shot event. */
+export type StreamMessage = StreamSetupMessage | StreamUpdateMessage | StreamEventMessage;
 
-/** Consumer contract shared by DOM, OBS, and test runtimes. */
-export interface SnapshotRuntime {
-  setup(setup: RuntimeSetup): Promise<void>;
+/** Consumes a composer stream for one target; implemented by DOM, OBS, and test runtimes. */
+export interface TargetRuntime {
+  setup(setup: StreamSetup): Promise<void>;
   update(snapshot: CompiledSnapshot): void;
-  event(event: RuntimeEvent): void | Promise<void>;
+  event(event: StreamEvent): void | Promise<void>;
   dispose(): Promise<void>;
 }
 
 /**
- * A transport that delivers runtime messages to a consumer. Implementations own connection
- * details (SSE, websockets, in-memory buses); runtimes stay transport-agnostic.
+ * A source of composer stream messages for a target runtime. Implementations own connection
+ * details (SSE, websockets, in-memory buses); target runtimes stay transport-agnostic.
  */
-export interface RuntimeMessageSource {
-  (signal: AbortSignal): AsyncIterable<RuntimeMessage>;
+export interface StreamSource {
+  (signal: AbortSignal): AsyncIterable<StreamMessage>;
   /**
-   * The URL this transport reads from, when it has one (possibly relative to the consumer's
+   * The URL this stream reads from, when it has one (possibly relative to the consumer's
    * document). Runtimes may use it as the default base for root-relative snapshot URLs.
    */
   readonly url?: string;
 }
 
-/** Sequentially applies a runtime message stream until it ends or fails. */
-export async function consumeRuntimeMessages(
-  runtime: SnapshotRuntime,
-  messages: AsyncIterable<RuntimeMessage>,
+/** Sequentially applies a composer stream to a target runtime until it ends or fails. */
+export async function consumeStream(
+  runtime: TargetRuntime,
+  messages: AsyncIterable<StreamMessage>,
 ): Promise<void> {
   for await (const message of messages) {
     switch (message.kind) {

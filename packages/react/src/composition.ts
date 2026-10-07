@@ -1,4 +1,4 @@
-import type { BroadcastCanvas, ProjectId, SourceModule } from "@strangecyan/vignette-core";
+import type { BroadcastCanvas, SourceModule } from "@strangecyan/vignette-core";
 import type { ComponentType } from "react";
 
 /**
@@ -11,7 +11,7 @@ import type { ComponentType } from "react";
  */
 export interface CompositionDefinition {
   /** Project ID; scopes managed OBS resources and is sent to runtimes in the setup message. */
-  readonly id: ProjectId;
+  readonly id: string;
   readonly canvas: BroadcastCanvas;
   /** Source modules contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly SourceModule[];

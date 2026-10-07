@@ -1,63 +1,69 @@
-import type { RuntimeMessage } from "@strangecyan/vignette-core";
-import { omitUndefined } from "@strangecyan/vignette-core";
 /**
- * React integration for mounting and observing a DOM compositor driven by runtime messages.
+ * React integration that mounts a DOM stage: a container rendered by a `DOMRuntime` consuming one
+ * composer stream.
  *
  * @module
  */
-import type { RuntimeMessageSource, TargetPhase, TargetStatus } from "@strangecyan/vignette-core";
+import {
+  omitUndefined,
+  type StreamMessage,
+  type StreamSource,
+  type TargetPhase,
+  type TargetStatus,
+} from "@strangecyan/vignette-core";
 import { equals } from "ramda";
 import { useMemo, useRef, useSyncExternalStore, type RefCallback } from "react";
 
 import { DOMRuntime, type DOMRuntimeOptions } from "./runtime.js";
 
-/** DOM runtime options plus the scene and runtime-message transport to consume. */
-export interface UseCompositorOptions extends Omit<DOMRuntimeOptions, "container" | "sceneId"> {
+/** DOM runtime options plus the scene to show and the composer stream to consume. */
+export interface UseStageOptions extends Omit<DOMRuntimeOptions, "container" | "sceneId"> {
   readonly sceneId: string;
   /**
-   * The transport delivering runtime messages, e.g. `sseRuntimeSource("/runtime")`. When
-   * `baseUrl` is omitted, root-relative snapshot URLs resolve against the transport's `url`.
+   * The composer stream to render, e.g. `sseStream("/stream")`. When `baseUrl` is omitted,
+   * root-relative snapshot URLs resolve against the stream's `url`.
    */
-  readonly transport: RuntimeMessageSource;
+  readonly stream: StreamSource;
 }
 
-/** Browser compositor lifecycle, including pre-runtime setup phases. */
-export type CompositorPhase =
+/** Stage lifecycle, including the phases before the DOM runtime reports target status. */
+export type StagePhase =
   | "waiting-for-container"
   | "connecting"
   | "downloading-assets"
   | TargetPhase;
 
-/** Stable React external-store snapshot for a mounted compositor. */
-export interface CompositorSnapshot {
+/** Stable React external-store status of a mounted stage. */
+export interface StageStatus {
   readonly targetId: string;
   readonly sceneId: string;
-  readonly phase: CompositorPhase;
+  readonly phase: StagePhase;
   readonly revision: number;
   readonly desiredRevision?: number;
   readonly settledRevision?: number;
   readonly message?: string;
 }
 
-/** Ref callback that owns the lifetime of a DOM compositor container. */
-export type CompositorRef = RefCallback<HTMLDivElement>;
-/** Container ref and current compositor status returned by `useCompositor`. */
-export type CompositorResult = readonly [ref: CompositorRef, snapshot: CompositorSnapshot];
+/** Ref callback that owns the lifetime of the stage container. */
+export type StageRef = RefCallback<HTMLDivElement>;
+/** Container ref and current stage status returned by `useStage`. */
+export type UseStageResult = readonly [ref: StageRef, status: StageStatus];
 
 /**
- * Owns a DOMRuntime for one container and subscribes to its cached external-store snapshot.
+ * Renders a composer stream into the returned container ref. Owns one `DOMRuntime` per attached
+ * container, consumes `stream` while attached, and returns the stage's cached status.
  */
-export function useCompositor(options: UseCompositorOptions): CompositorResult {
+export function useStage(options: UseStageOptions): UseStageResult {
   const optionsRef = useRef(options);
   optionsRef.current = options;
   const controller = useMemo(
     () =>
-      new CompositorController({
+      new StageController({
         sceneId: options.sceneId,
         ...omitUndefined({ id: options.id }),
-        ...omitUndefined({ baseUrl: options.baseUrl ?? options.transport.url }),
+        ...omitUndefined({ baseUrl: options.baseUrl ?? options.stream.url }),
         ...omitUndefined({ extensions: options.extensions }),
-        transport: options.transport,
+        stream: options.stream,
         onError: (error) => {
           optionsRef.current.onError?.(error);
         },
@@ -69,7 +75,7 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
           (optionsRef.current.revokeObjectURL ?? URL.revokeObjectURL.bind(URL))(url);
         },
       }),
-    [options.sceneId, options.id, options.baseUrl, options.extensions, options.transport],
+    [options.sceneId, options.id, options.baseUrl, options.extensions, options.stream],
   );
   const snapshot = useSyncExternalStore(
     controller.subscribe,
@@ -79,18 +85,18 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
   return [controller.ref, snapshot];
 }
 
-class CompositorController {
-  private readonly options: UseCompositorOptions;
+class StageController {
+  private readonly options: UseStageOptions;
   private readonly listeners = new Set<() => void>();
-  private readonly serverSnapshot: CompositorSnapshot;
-  private snapshot: CompositorSnapshot;
+  private readonly serverSnapshot: StageStatus;
+  private snapshot: StageStatus;
   private container: HTMLDivElement | undefined;
   private runtime: DOMRuntime | undefined;
   private unsubscribeRuntime: (() => void) | undefined;
   private abort: AbortController | undefined;
   private generation = 0;
 
-  constructor(options: UseCompositorOptions) {
+  constructor(options: UseStageOptions) {
     this.options = options;
     this.serverSnapshot = {
       targetId: options.id ?? "dom",
@@ -108,11 +114,11 @@ class CompositorController {
     };
   };
 
-  readonly getSnapshot = (): CompositorSnapshot => this.snapshot;
+  readonly getSnapshot = (): StageStatus => this.snapshot;
 
-  readonly getServerSnapshot = (): CompositorSnapshot => this.serverSnapshot;
+  readonly getServerSnapshot = (): StageStatus => this.serverSnapshot;
 
-  readonly ref: CompositorRef = (container) => {
+  readonly ref: StageRef = (container) => {
     if (container === null) {
       this.detach();
       return;
@@ -130,7 +136,7 @@ class CompositorController {
     const generation = ++this.generation;
     const abort = new AbortController();
     this.abort = abort;
-    const { transport, ...runtimeOptions } = this.options;
+    const { stream, ...runtimeOptions } = this.options;
     const runtime = new DOMRuntime({ ...runtimeOptions, container });
     this.runtime = runtime;
     this.unsubscribeRuntime = runtime.subscribe(() => {
@@ -138,7 +144,7 @@ class CompositorController {
       this.publishTarget(runtime.getSnapshot());
     });
     this.publish({ phase: "connecting", revision: 0 });
-    void this.consume(runtime, transport, abort.signal, generation);
+    void this.consume(runtime, stream, abort.signal, generation);
   }
 
   /** Invalidate the current generation before aborting subscriptions and releasing its runtime and container. */
@@ -159,12 +165,12 @@ class CompositorController {
   /** Ignore messages and failures from stale runtimes; publish disconnection only when the active stream ends. */
   private async consume(
     runtime: DOMRuntime,
-    transport: RuntimeMessageSource,
+    stream: StreamSource,
     signal: AbortSignal,
     generation: number,
   ): Promise<void> {
     try {
-      for await (const message of transport(signal)) {
+      for await (const message of stream(signal)) {
         if (!this.isActive(generation, runtime, signal)) return;
         await this.consumeMessage(message, runtime, generation);
       }
@@ -172,12 +178,12 @@ class CompositorController {
         this.publish({
           phase: "disconnected",
           revision: this.snapshot.revision,
-          message: "Runtime message stream ended.",
+          message: "Composer stream ended.",
         });
       }
     } catch (cause) {
       if (!this.isActive(generation, runtime, signal)) return;
-      const error = cause instanceof Error ? cause : new Error("DOM compositor failed.", { cause });
+      const error = cause instanceof Error ? cause : new Error("DOM stage failed.", { cause });
       this.publish({ phase: "error", revision: this.snapshot.revision, message: error.message });
       this.options.onError?.(error);
     }
@@ -185,7 +191,7 @@ class CompositorController {
 
   /** Setup may outlive the current connection; publish completion only for its original runtime. */
   private async consumeMessage(
-    message: RuntimeMessage,
+    message: StreamMessage,
     runtime: DOMRuntime,
     generation: number,
   ): Promise<void> {
@@ -221,7 +227,7 @@ class CompositorController {
     });
   }
 
-  private publish(update: Omit<CompositorSnapshot, "targetId" | "sceneId">): void {
+  private publish(update: Omit<StageStatus, "targetId" | "sceneId">): void {
     const next = {
       targetId: this.options.id ?? "dom",
       sceneId: this.options.sceneId,
@@ -233,5 +239,5 @@ class CompositorController {
   }
 }
 
-export { sseRuntimeSource } from "./sse.js";
-export type { RuntimeMessageSource } from "@strangecyan/vignette-core";
+export { sseStream } from "./sse.js";
+export type { StreamSource } from "@strangecyan/vignette-core";

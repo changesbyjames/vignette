@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { ProjectId } from "@strangecyan/vignette-core";
 
 import { ObsExecutionError, ObsRequestError } from "./errors.js";
 import { managedSceneName, managedSourceName, registrySceneName } from "./naming.js";
@@ -28,7 +27,7 @@ interface SceneItemAddress {
 
 /** Project namespace and validity guards used during plan execution. */
 export interface ObsExecutionContext {
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly isCurrentRevision: (revision: number) => boolean;
   readonly isExecutionValid?: () => boolean;
 }
@@ -116,7 +115,7 @@ async function executePhase(
 async function executeBatch(
   transport: ObsTransport,
   operations: readonly ObsOperation[],
-  projectId: ProjectId,
+  projectId: string,
   placements: ReadonlyMap<string, SceneItemAddress>,
 ): Promise<readonly string[]> {
   const requests = operations.map((operation) =>
@@ -159,7 +158,7 @@ function executionResult(
 async function executeOperation(
   transport: ObsTransport,
   operation: ObsOperation,
-  projectId: ProjectId,
+  projectId: string,
   placements: Map<string, SceneItemAddress>,
 ): Promise<void> {
   const request = operationRequest(operation, projectId, placements);
@@ -179,7 +178,7 @@ async function executeOperation(
 /** Translate each operation discriminator into its OBS request, resolving created placement addresses when needed. */
 function operationRequest(
   operation: ObsOperation,
-  projectId: ProjectId,
+  projectId: string,
   placements: ReadonlyMap<string, SceneItemAddress>,
 ): ObsBatchRequest {
   switch (operation.kind) {
@@ -303,7 +302,7 @@ function resolvePlacement(
   return result;
 }
 
-function sceneSelector(ref: ObsSceneRef, projectId: ProjectId): ObsJsonObject {
+function sceneSelector(ref: ObsSceneRef, projectId: string): ObsJsonObject {
   return {
     sceneName:
       ref.kind === "registry"
@@ -312,7 +311,7 @@ function sceneSelector(ref: ObsSceneRef, projectId: ProjectId): ObsJsonObject {
   };
 }
 
-function contentSelector(ref: ObsContentRef, projectId: ProjectId): ObsJsonObject {
+function contentSelector(ref: ObsContentRef, projectId: string): ObsJsonObject {
   return ref.kind === "input"
     ? { sourceName: managedSourceName(projectId, ref.sourceId) }
     : { sourceName: managedSceneName(projectId, ref.sceneId) };

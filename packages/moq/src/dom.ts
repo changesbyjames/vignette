@@ -33,7 +33,7 @@ interface MoqWatchElement extends HTMLElement {
 
 let elementRegistration: Promise<void> | undefined = undefined;
 
-/** DOM facet: register with the DOM runtime or `useCompositor` (`extensions: [moqDomRenderer]`). */
+/** DOM facet: register with the DOM runtime or `useStage` (`extensions: [moqDomRenderer]`). */
 export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
   kind: MOQ_SOURCE_KIND,
   async prepare(document) {

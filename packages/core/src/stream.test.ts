@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  consumeRuntimeMessages,
+  consumeStream,
   describeMissingExtensions,
-  type RuntimeMessage,
-  type SnapshotRuntime,
-} from "./runtime.js";
+  type StreamMessage,
+  type TargetRuntime,
+} from "./stream.js";
 
-describe("consumeRuntimeMessages", () => {
+describe("consumeStream", () => {
   it("applies setup, complete updates, and commands in stream order", async () => {
     const calls: string[] = [];
-    const runtime: SnapshotRuntime = {
+    const runtime: TargetRuntime = {
       setup: vi.fn(() =>
         Promise.resolve().then(() => {
           calls.push("setup");
@@ -25,7 +25,7 @@ describe("consumeRuntimeMessages", () => {
       dispose: vi.fn(() => Promise.resolve()),
     };
 
-    await consumeRuntimeMessages(runtime, messages());
+    await consumeStream(runtime, messages());
 
     expect(calls).toEqual(["setup", "update", "event"]);
   });
@@ -49,7 +49,7 @@ describe("describeMissingExtensions", () => {
   });
 });
 
-async function* messages(): AsyncIterable<RuntimeMessage> {
+async function* messages(): AsyncIterable<StreamMessage> {
   await Promise.resolve();
   yield { kind: "setup", projectId: "show", manifest: { version: 1, assets: [] }, extensions: [] };
   yield {

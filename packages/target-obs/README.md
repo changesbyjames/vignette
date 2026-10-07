@@ -13,22 +13,19 @@ pnpm add @strangecyan/vignette-target-obs @strangecyan/vignette-core
 ## Run against OBS
 
 ```ts
-import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
-import { OBSRuntime, sseRuntimeSource } from "@strangecyan/vignette-target-obs";
+import { consumeStream } from "@strangecyan/vignette-core";
+import { OBSRuntime, sseStream } from "@strangecyan/vignette-target-obs";
 
 const runtime = new OBSRuntime({
   projectId: "demo",
   url: "ws://127.0.0.1:4455",
-  baseUrl: "http://localhost:4173/runtime",
+  baseUrl: "http://localhost:4173/stream",
   password: process.env.OBS_PASSWORD,
   onError: console.error,
 });
 
 const controller = new AbortController();
-await consumeRuntimeMessages(
-  runtime,
-  sseRuntimeSource("http://localhost:4173/runtime")(controller.signal),
-);
+await consumeStream(runtime, sseStream("http://localhost:4173/stream")(controller.signal));
 await runtime.dispose();
 ```
 

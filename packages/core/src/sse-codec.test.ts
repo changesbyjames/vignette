@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeMessage } from "./runtime.js";
-import { decodeRuntimeSseEvent, encodeRuntimeMessageSse, toSseEvent } from "./sse-codec.js";
+import type { StreamMessage } from "./stream.js";
+import { decodeStreamSseEvent, encodeStreamMessageSse, toSseEvent } from "./sse-codec.js";
 
-describe("runtime SSE codec", () => {
-  const messages: readonly RuntimeMessage[] = [
+describe("stream SSE codec", () => {
+  const messages: readonly StreamMessage[] = [
     {
       kind: "setup",
       projectId: "codec",
@@ -33,21 +33,21 @@ describe("runtime SSE codec", () => {
       const fields = toSseEvent(message);
       const framed = `id: ${fields.id}\nevent: ${fields.event}\ndata: ${fields.data}\n\n`;
 
-      expect(framed).toBe(encodeRuntimeMessageSse(message));
-      expect(decodeRuntimeSseEvent(fields.event, parseSseData(framed))).toEqual(message);
+      expect(framed).toBe(encodeStreamMessageSse(message));
+      expect(decodeStreamSseEvent(fields.event, parseSseData(framed))).toEqual(message);
     });
   }
 
   it("rejects malformed wire IDs with a schema error", () => {
     const data = JSON.stringify({ id: "select", kind: "scene:select", sceneId: "bad::id" });
 
-    expect(() => decodeRuntimeSseEvent("event", data)).toThrow(/ID must start/u);
+    expect(() => decodeStreamSseEvent("event", data)).toThrow(/ID must start/u);
   });
 
   it("rejects a setup without project identity", () => {
     const data = JSON.stringify({ manifest: { version: 1, assets: [] }, extensions: [] });
 
-    expect(() => decodeRuntimeSseEvent("setup", data)).toThrow(/projectId/u);
+    expect(() => decodeStreamSseEvent("setup", data)).toThrow(/projectId/u);
   });
 
   it("rejects protocol-relative and bare relative manifest URLs", () => {
@@ -57,7 +57,7 @@ describe("runtime SSE codec", () => {
         manifest: { version: 1, assets: [{ name: "logo.png", url }] },
         extensions: [],
       });
-      expect(() => decodeRuntimeSseEvent("setup", data)).toThrow(/root-relative path/u);
+      expect(() => decodeStreamSseEvent("setup", data)).toThrow(/root-relative path/u);
     }
   });
 });

@@ -4,7 +4,7 @@ import { isStableId, STABLE_ID_RULE } from "./ids.js";
 import { omitUndefined } from "./objects.js";
 import { validateResourceUrl } from "./resource-url.js";
 import type { CompiledSnapshot } from "./snapshot.js";
-import type { AssetManifest, RuntimeEvent, RuntimeSetup } from "./runtime.js";
+import type { AssetManifest, StreamEvent, StreamSetup } from "./stream.js";
 
 /** Stable resource identifier; malformed IDs fail decoding instead of throwing. */
 export const StableIdWireSchema = z.string().refine(isStableId, STABLE_ID_RULE);
@@ -165,16 +165,16 @@ export const ExtensionSourceKindWireSchema = z
 /** Decoded extension source kind. */
 export type ExtensionSourceKindWire = z.output<typeof ExtensionSourceKindWireSchema>;
 /** Setup payload: project identity, asset manifest, and the extension kinds the stream requires. */
-export const RuntimeSetupWireSchema = z.object({
+export const StreamSetupWireSchema = z.object({
   projectId: StableIdWireSchema,
   manifest: AssetManifestWireSchema,
   extensions: z.array(ExtensionSourceKindWireSchema),
-}) satisfies z.ZodType<RuntimeSetup>;
+}) satisfies z.ZodType<StreamSetup>;
 /** Decoded setup payload. */
-export type RuntimeSetupWire = z.output<typeof RuntimeSetupWireSchema>;
-export const RuntimeEventWireSchema = z.object({
+export type StreamSetupWire = z.output<typeof StreamSetupWireSchema>;
+export const StreamEventWireSchema = z.object({
   id: z.string(),
   kind: z.literal("scene:select"),
   sceneId: StableIdWireSchema,
-}) satisfies z.ZodType<RuntimeEvent>;
-export type RuntimeEventWire = z.output<typeof RuntimeEventWireSchema>;
+}) satisfies z.ZodType<StreamEvent>;
+export type StreamEventWire = z.output<typeof StreamEventWireSchema>;

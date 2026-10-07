@@ -2,15 +2,16 @@ import type {
   ColorSource as ColorSourceDefinition,
   CompiledSnapshot,
   LayoutEngine,
-  RuntimeMessage,
+  StreamMessage,
   SourceModule,
 } from "@strangecyan/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { defineComposition } from "./composition.js";
+import { fill } from "./presets.js";
 import { Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
-import { createComposerRoot } from "./root.js";
+import { compile, createComposerRoot } from "./root.js";
 
 describe("createComposerRoot", () => {
   it("uses a supplied layout engine without requiring the default Yoga binding", async () => {
@@ -67,7 +68,7 @@ describe("createComposerRoot", () => {
     });
     const controller = new AbortController();
     const iterator = root.messages(controller.signal)[Symbol.asyncIterator]();
-    const setup: IteratorResult<RuntimeMessage> = await iterator.next();
+    const setup: IteratorResult<StreamMessage> = await iterator.next();
     expect(setup.value).toEqual({
       kind: "setup",
       projectId: "defined-show",
@@ -151,6 +152,64 @@ describe("createComposerRoot", () => {
 
     expect(root.snapshot?.revision).toBe(first.compiledRevision);
     await root.dispose();
+  });
+
+  it("resolves render with the compiled snapshot", async () => {
+    const root = makeRoot();
+
+    const receipt = await root.render(show("#123456"));
+
+    expect(receipt.snapshot).toBe(root.snapshot);
+    expect(receipt.snapshot.revision).toBe(receipt.compiledRevision);
+    await root.dispose();
+  });
+});
+
+describe("compile", () => {
+  it("renders a composition once and resolves to its snapshot", async () => {
+    function OneShotShow() {
+      return (
+        <Broadcast>
+          <Sources>
+            <ColorSource id="background" color="#222222" />
+          </Sources>
+          <Scene id="main">
+            <Layer id="background-layer" sourceId="background" style={fill} />
+          </Scene>
+        </Broadcast>
+      );
+    }
+
+    const snapshot = await compile(
+      defineComposition({
+        id: "one-shot",
+        canvas: { width: 640, height: 360 },
+        component: OneShotShow,
+      }),
+    );
+
+    expect(snapshot.projectId).toBe("one-shot");
+    expect(snapshot.sources[0]?.definition).toMatchObject({
+      color: "#222222",
+      size: { width: 640, height: 360 },
+    });
+    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({ x: 0, y: 0, width: 640, height: 360 });
+  });
+
+  it("rejects when the composition fails to compile", async () => {
+    const composition = defineComposition({
+      id: "broken",
+      canvas: { width: 640, height: 360 },
+      component: () => (
+        <Broadcast>
+          <Scene id="main">
+            <Layer id="missing-layer" sourceId="missing" />
+          </Scene>
+        </Broadcast>
+      ),
+    });
+
+    await expect(compile(composition)).rejects.toThrow(/missing source/u);
   });
 });
 

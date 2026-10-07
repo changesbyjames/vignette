@@ -8,7 +8,7 @@ import { DomAssetStore } from "./asset-store.js";
 describe("DomAssetStore", () => {
   it("downloads named assets and exposes browser-owned blob URLs", async () => {
     const revoked: string[] = [];
-    const store = new DomAssetStore("http://composer.example/runtime", {
+    const store = new DomAssetStore("http://composer.example/stream", {
       fetch: vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"])))),
       createObjectURL: () => "blob:vignette/background",
       revokeObjectURL: (url) => revoked.push(url),
@@ -29,7 +29,7 @@ describe("DomAssetStore", () => {
 
   it("downloads root-relative manifest URLs from the configured base origin", async () => {
     const fetch = vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"]))));
-    const store = new DomAssetStore("http://composer.example:4173/api/runtime", {
+    const store = new DomAssetStore("http://composer.example:4173/api/stream", {
       fetch,
       createObjectURL: () => "blob:vignette/logo",
       revokeObjectURL: () => undefined,

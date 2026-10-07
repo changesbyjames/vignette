@@ -1,14 +1,9 @@
-import type {
-  AnySourceDefinition,
-  CompiledItem,
-  CompiledSource,
-  SourceId,
-} from "@strangecyan/vignette-core";
+import type { AnySourceDefinition, CompiledItem, CompiledSource } from "@strangecyan/vignette-core";
 
 import type { DomRendererContext, DomRendererMap, DomSourceView } from "./elements/index.js";
 
 interface DomSourceRegistryLocateIn {
-  id: SourceId;
+  id: string;
   record: SourceRecord;
 }
 
@@ -24,7 +19,7 @@ export class DomSourceRegistry {
   private readonly renderers: DomRendererMap;
   private readonly context: DomRendererContext;
   private readonly parking: HTMLDivElement;
-  private readonly records = new Map<SourceId, SourceRecord>();
+  private readonly records = new Map<string, SourceRecord>();
 
   constructor(container: HTMLElement, renderers: DomRendererMap, context: DomRendererContext) {
     this.document = container.ownerDocument;
@@ -118,7 +113,7 @@ export class DomSourceRegistry {
     return undefined;
   }
 
-  private disposeRecord(id: SourceId, record: SourceRecord): void {
+  private disposeRecord(id: string, record: SourceRecord): void {
     record.view.dispose();
     record.view.element.remove();
     this.records.delete(id);

@@ -2,6 +2,7 @@ import {
   DEFAULT_BROWSER_SOURCE_CSS,
   resolveResourceUrl,
   type BrowserSource,
+  type Size,
 } from "@strangecyan/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
@@ -25,7 +26,7 @@ export const browserRenderer: DomSourceRenderer<BrowserSource> = {
 
     return {
       element: frame,
-      update(source) {
+      update(source, item) {
         if (source.kind !== "source:browser") {
           throw new TypeError("Browser renderer received another source kind.");
         }
@@ -33,6 +34,7 @@ export const browserRenderer: DomSourceRenderer<BrowserSource> = {
           frame,
           /* SAFETY: The source registry selects this module by its source kind after core validation of that definition. */ source as BrowserSource,
           context.baseUrl,
+          item.frame,
         );
         applyDefaultCss();
       },
@@ -66,9 +68,16 @@ function applyBrowserCss(frame: HTMLIFrameElement, css: string): void {
   }
 }
 
-function updateBrowser(frame: HTMLIFrameElement, source: BrowserSource, baseUrl: string): void {
+/** Compiled snapshots carry a resolved viewport; the layer frame is the same default core applies. */
+function updateBrowser(
+  frame: HTMLIFrameElement,
+  source: BrowserSource,
+  baseUrl: string,
+  layerFrame: Size,
+): void {
   const url = resolveResourceUrl(source.url, baseUrl);
   if (frame.src !== url) frame.src = url;
-  frame.width = String(source.viewport.width);
-  frame.height = String(source.viewport.height);
+  const viewport = source.viewport ?? layerFrame;
+  frame.width = String(viewport.width);
+  frame.height = String(viewport.height);
 }

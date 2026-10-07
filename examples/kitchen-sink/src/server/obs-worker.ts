@@ -1,21 +1,20 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
-import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
-import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
+import { consumeStream } from "@strangecyan/vignette-core";
+import { sseStream } from "@strangecyan/vignette-target-obs";
 import process from "node:process";
 
 import { composition } from "../show.js";
 import { createKitchenSinkObsRuntime } from "./kitchen-sink-obs.js";
 
-const runtimeUrl = process.env.VIGNETTE_RUNTIME_URL ?? "http://127.0.0.1:4173/runtime";
+const streamUrl = process.env.VIGNETTE_STREAM_URL ?? "http://127.0.0.1:4173/stream";
 const reportError = (error: Error): void => {
   console.error(error.stack ?? error.message);
 };
 const runtime = createKitchenSinkObsRuntime({
   projectId: composition.id,
   url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-  baseUrl: runtimeUrl,
-  ...omitUndefined({ browserSourceBaseUrl: process.env.VIGNETTE_BROWSER_SOURCE_BASE_URL }),
-  ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
+  baseUrl: streamUrl,
+  browserSourceBaseUrl: process.env.VIGNETTE_BROWSER_SOURCE_BASE_URL,
+  password: process.env.VIGNETTE_OBS_PASSWORD,
   onError: reportError,
 });
 const controller = new AbortController();
@@ -25,12 +24,9 @@ const shutdown = (): void => {
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 
-console.log(`Vignette worker consuming ${runtimeUrl}`);
+console.log(`Vignette worker consuming ${streamUrl}`);
 try {
-  await consumeRuntimeMessages(
-    runtime,
-    sseRuntimeSource(runtimeUrl, { onError: reportError })(controller.signal),
-  );
+  await consumeStream(runtime, sseStream(streamUrl, { onError: reportError })(controller.signal));
 } finally {
   await runtime.dispose();
 }

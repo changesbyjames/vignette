@@ -21,8 +21,9 @@ feature in V1.
 
 - Static image from a logical project asset.
 - Local media file from a logical project asset.
-- Browser source with an absolute HTTP(S) or root-relative URL and declared viewport.
-- Solid color source.
+- Browser source with an absolute HTTP(S) or root-relative URL and a viewport (defaulting to the
+  frame size of the layers placing it).
+- Solid color source (intrinsic size defaulting to the canvas).
 - Nested scenes as explicit compositing/reuse boundaries.
 
 Browser sources receive the same default CSS in both targets:
@@ -48,9 +49,9 @@ to know its public origin.
 
 Each target resolves root-relative URLs against its own base URL:
 
-- DOM: `DOMRuntime`/`DomTarget` option `baseUrl` (may be relative to the document). `useCompositor`
-  defaults it to the transport's URL, e.g. `sseRuntimeSource("/runtime")`; otherwise the document's
-  `baseURI` is used.
+- DOM: `DOMRuntime`/`DomTarget` option `baseUrl` (may be relative to the document). `useStage`
+  defaults it to the stream's URL, e.g. `sseStream("/stream")`; otherwise the document's `baseURI`
+  is used.
 - OBS: `OBSRuntime` option `baseUrl` (how the runtime process reaches the composer; used for asset
   downloads) and `browserSourceBaseUrl` (how OBS reaches the composer; used for browser-source
   settings, defaulting to `baseUrl`). A root-relative browser source with no base fails preflight
@@ -59,7 +60,8 @@ Each target resolves root-relative URLs against its own base URL:
 - CLI: `vignette obs --url` is the default base; `--browser-source-base-url` overrides it for OBS.
   `vignette preview` resolves against the snapshot URL, or `--base-url` for snapshot files.
 
-The declared browser viewport is the intrinsic coordinate space used by common fit and crop
+The browser viewport (declared, or resolved at compile time from the placing layers' frame size and
+always present in snapshots) is the intrinsic coordinate space used by common fit and crop
 calculation. Each target renders the page at the layer's realized pixel size. In OBS, the planner
 sets the browser input's native width and height to that realized size instead of rendering at the
 declared viewport and scaling the finished texture. A reusable browser source cannot have two

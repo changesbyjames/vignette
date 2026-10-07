@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { omitUndefined } from "@strangecyan/vignette-core";
 import {
-  decodeRuntimeSseEvent,
+  decodeStreamSseEvent,
   CompiledSnapshotWireSchema,
   AssetManifestWireSchema,
   isRootRelativeUrl,
   resolveResourceUrl,
   type AssetManifest,
   type CompiledSnapshot,
-  type RuntimeSseEvent,
+  type StreamSseEvent,
 } from "@strangecyan/vignette-core";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import type { LoadedSnapshot } from "./types.js";
 
 interface ParseSseRecord {
-  event: RuntimeSseEvent;
+  event: StreamSseEvent;
   data: string;
 }
 
@@ -32,7 +32,7 @@ interface SnapshotEnvelope {
 }
 
 /**
- * Load a compiled snapshot and its asset locations from JSON, a URL, or a runtime SSE stream.
+ * Load a compiled snapshot and its asset locations from JSON, a URL, or a composer stream (SSE).
  * Root-relative URLs resolve against `baseUrl`, else the snapshot URL; a file snapshot containing
  * root-relative URLs requires `baseUrl`.
  */
@@ -106,7 +106,7 @@ async function readSseSnapshot(response: Response): Promise<SnapshotEnvelope> {
         buffer = buffer.slice(boundary.index + boundary.length);
         boundary = sseBoundary(buffer);
         if (record === undefined) continue;
-        const message = decodeRuntimeSseEvent(record.event, record.data);
+        const message = decodeStreamSseEvent(record.event, record.data);
         if (message.kind === "setup") manifest = message.manifest;
         if (message.kind === "update") {
           return {
@@ -125,7 +125,7 @@ async function readSseSnapshot(response: Response): Promise<SnapshotEnvelope> {
 
 /** Ignore comments and unknown events while joining data lines according to the SSE record format. */
 function parseSseRecord(record: string): Readonly<ParseSseRecord> | undefined {
-  let event: RuntimeSseEvent | undefined = undefined;
+  let event: StreamSseEvent | undefined = undefined;
   const data: string[] = [];
   for (const line of record.split(/\r\n|\r|\n/gu)) {
     // Ignore comments and unknown events while joining data lines according to the SSE record format.
@@ -210,6 +210,6 @@ function isHttpUrl(value: string): boolean {
   return value.startsWith("http://") || value.startsWith("https://");
 }
 
-function isRuntimeEvent(value: string): value is RuntimeSseEvent {
+function isRuntimeEvent(value: string): value is StreamSseEvent {
   return value === "setup" || value === "update" || value === "event";
 }

@@ -3,6 +3,8 @@ import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { frame, type FrameMetadata } from "./definition.js";
+import { useRemoteStore } from "./remote-store-client.js";
+import { defineRemoteStore } from "./remote-store.js";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
@@ -26,6 +28,18 @@ const metadata: FrameMetadata = {
 
 interface GreetingParams {
   name: string;
+}
+
+interface LiveStoreContext {
+  readonly title: string;
+}
+
+interface LiveStoreSnapshot {
+  readonly context: LiveStoreContext;
+}
+
+interface LiveStore {
+  getSnapshot(): LiveStoreSnapshot;
 }
 
 const greeting = frame.withMetadata(metadata)({
@@ -113,6 +127,24 @@ describe("frame request handler", () => {
     expect(renderHydrationModule(createHost(), metadata)).toContain(
       'from "https://assets.test/frames/greeting.js"',
     );
+  });
+
+  it("renders views that suspend on the server without their own Suspense boundary", () => {
+    const liveStore = defineRemoteStore<LiveStore>({ id: "live" });
+    const liveMetadata: FrameMetadata = { ...metadata, routeKey: "live-test", exportName: "live" };
+    const live = frame.withMetadata(liveMetadata)({
+      view: () =>
+        createElement(
+          "em",
+          null,
+          useRemoteStore(liveStore, (state) => state.context.title),
+        ),
+    });
+
+    const html = renderFrameHtml(live, liveMetadata, {});
+
+    expect(html).toContain("<div data-vignette-frame-root>");
+    expect(html).not.toContain("<em>");
   });
 });
 

@@ -1,7 +1,6 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { consumeRuntimeMessages, toSseEvent } from "@strangecyan/vignette-core";
+import { consumeStream, toSseEvent } from "@strangecyan/vignette-core";
 import { createFrameRequestHandler } from "@strangecyan/vignette-frame/server";
 import { createComposerRoot } from "@strangecyan/vignette";
 import { streamSSE } from "hono/streaming";
@@ -29,7 +28,7 @@ await root.render();
 
 const handleFrame = createFrameRequestHandler(frames);
 const app = new Hono();
-app.get("/runtime", (context) =>
+app.get("/stream", (context) =>
   streamSSE(context, async (stream) => {
     for await (const message of root.messages(context.req.raw.signal)) {
       await stream.writeSSE(toSseEvent(message));
@@ -51,10 +50,10 @@ if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
     projectId: composition.id,
     url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
     baseUrl: localUrl,
-    ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
+    password: process.env.VIGNETTE_OBS_PASSWORD,
     onError: reportError,
   });
-  runtimeConsumer = consumeRuntimeMessages(runtime, root.messages(runtimeAbort.signal)).catch(
+  runtimeConsumer = consumeStream(runtime, root.messages(runtimeAbort.signal)).catch(
     (cause: unknown) => {
       reportError(cause instanceof Error ? cause : new Error(String(cause)));
     },

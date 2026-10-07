@@ -2,8 +2,8 @@ import { z } from "zod";
 import { omitUndefined } from "@strangecyan/vignette-core";
 import { expect, test } from "@playwright/test";
 import {
-  consumeRuntimeMessages,
-  RuntimeMessageHub,
+  consumeStream,
+  StreamHub,
   type CompiledItem,
   type CompiledSnapshot,
   type CompiledSource,
@@ -51,7 +51,7 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
 
   await assertDisposableCollection(url, password, expectedCollection);
 
-  const hub = new RuntimeMessageHub();
+  const hub = new StreamHub();
   hub.publish({
     kind: "setup",
     projectId: project,
@@ -59,7 +59,7 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
     extensions: [],
   });
   const runtime = new OBSRuntime({ id: "integration-obs", url, password, projectId: project });
-  const consuming = consumeRuntimeMessages(runtime, hub.subscribe());
+  const consuming = consumeStream(runtime, hub.subscribe());
   const root = createComposerRoot(
     defineComposition({
       id: project,
@@ -105,7 +105,7 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
   const prefix = `vignette::${project}::`;
 
   await assertDisposableCollection(url, password, expectedCollection);
-  const exampleSnapshot = await readExampleSnapshot(new URL("/runtime", baseURL));
+  const exampleSnapshot = await readExampleSnapshot(new URL("/stream", baseURL));
   const { snapshot, source, item } = isolateFrameSnapshot(exampleSnapshot, project);
   const width = Math.round(item.frame.width);
   const height = Math.round(item.frame.height);
@@ -227,7 +227,7 @@ async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
   const response = await fetch(url, { signal: controller.signal });
   if (!response.ok || response.body === null) {
     clearTimeout(timeout);
-    throw new Error(`Kitchen-sink runtime stream returned ${String(response.status)}.`);
+    throw new Error(`Kitchen-sink composer stream returned ${String(response.status)}.`);
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -260,7 +260,7 @@ async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
           data,
         ) as CompiledSnapshot;
       }
-      if (chunk.done) throw new Error("Kitchen-sink runtime stream ended before an update.");
+      if (chunk.done) throw new Error("Kitchen-sink composer stream ended before an update.");
     }
   } finally {
     clearTimeout(timeout);

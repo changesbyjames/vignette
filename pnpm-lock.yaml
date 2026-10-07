@@ -108,9 +108,6 @@ importers:
       '@strangecyan/vignette':
         specifier: workspace:^
         version: link:../../packages/react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../../packages/core
       react:
         specifier: 19.2.7
         version: 19.2.7

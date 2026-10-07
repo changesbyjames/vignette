@@ -10,7 +10,7 @@
       "@strangecyan/vignette-core/layout-yoga-wasm": [
         "./packages/core/src/layout/layout-yoga-wasm.ts"
       ],
-      "@strangecyan/vignette-core/runtime": ["./packages/core/src/runtime-api.ts"],
+      "@strangecyan/vignette-core/stream": ["./packages/core/src/stream-api.ts"],
       "@strangecyan/vignette-core/sse": ["./packages/core/src/sse-codec.ts"],
       "@strangecyan/vignette-frame": ["./packages/frame/src/index.ts"],
       "@strangecyan/vignette-frame/client": ["./packages/frame/src/client.ts"],

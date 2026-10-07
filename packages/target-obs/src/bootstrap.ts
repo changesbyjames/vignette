@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { ObsWireObjectSchema, ObsWireTransformSchema } from "./wire-schemas.js";
 import { omitUndefined } from "@strangecyan/vignette-core";
-import type { ProjectId } from "@strangecyan/vignette-core";
 
 import { parseManagedName } from "./naming.js";
 import type {
@@ -15,7 +14,7 @@ import type { ObsTransport } from "./transport.js";
 
 export async function bootstrapObsState(
   transport: ObsTransport,
-  projectId: ProjectId,
+  projectId: string,
   observationEpoch: number,
 ): Promise<ObservedObsState> {
   const [version, kinds, sceneList, inputList] = await Promise.all([

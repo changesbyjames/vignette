@@ -4,13 +4,13 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useCompositor, type RuntimeMessageSource } from "./react.js";
+import { useStage, type StreamSource } from "./react.js";
 
 interface ReactActEnvironment {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
 }
 
-interface CompositorRevision {
+interface StageRevision {
   readonly revision: number;
 }
 
@@ -18,7 +18,7 @@ interface CompositorRevision {
   globalThis as ReactActEnvironment
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe("useCompositor", () => {
+describe("useStage", () => {
   const mounted: ReturnType<typeof createRoot>[] = [];
 
   afterEach(() => {
@@ -29,7 +29,7 @@ describe("useCompositor", () => {
 
   it("does not restart when operational callback identities change", () => {
     const consume = vi.fn();
-    const transport: RuntimeMessageSource = () => {
+    const stream: StreamSource = () => {
       consume();
       return new ReadableStream();
     };
@@ -37,10 +37,10 @@ describe("useCompositor", () => {
     const root = createRoot(container);
     mounted.push(root);
 
-    function Compositor({ revision }: CompositorRevision) {
-      const [ref] = useCompositor({
+    function Stage({ revision }: StageRevision) {
+      const [ref] = useStage({
         sceneId: "main",
-        transport,
+        stream,
         onError: () => revision,
         fetch: (...input) => globalThis.fetch(...input),
         createObjectURL: () => `blob:${String(revision)}`,
@@ -50,10 +50,10 @@ describe("useCompositor", () => {
     }
 
     act(() => {
-      root.render(<Compositor revision={1} />);
+      root.render(<Stage revision={1} />);
     });
     act(() => {
-      root.render(<Compositor revision={2} />);
+      root.render(<Stage revision={2} />);
     });
 
     expect(consume).toHaveBeenCalledTimes(1);

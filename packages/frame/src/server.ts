@@ -1,9 +1,9 @@
 /** Fetch routing and pure SSR kernels for Vignette frames. */
 import { DEFAULT_BROWSER_SOURCE_CSS } from "@strangecyan/vignette-core";
-import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 
 import type { FrameDefinition, FrameMetadata, FrameParamsInput } from "./definition.js";
+import { frameElement } from "./frame-element.js";
 import { serializeFrameParams } from "./serialization.js";
 import { FRAME_ROUTE_PREFIX } from "./view.js";
 
@@ -71,7 +71,7 @@ export function renderFrameHtml<Params extends object>(
 ): string {
   const params = parseFrameParams(definition, rawProps);
   const serialized = serializeFrameParams(params);
-  const markup = renderToString(createElement(definition.view, params));
+  const markup = renderToString(frameElement(definition, params));
   const hydrationUrl = `${FRAME_ROUTE_PREFIX}/${metadata.routeKey}/hydrate.js`;
   return `<!doctype html>
 <html>

@@ -1,5 +1,3 @@
-/** @jsxImportSource react */
-import type { LayoutStyle } from "@strangecyan/vignette-core";
 import { View } from "@strangecyan/vignette-frame";
 import { moqSourceModule } from "@strangecyan/vignette-moq";
 import { MoqSource } from "@strangecyan/vignette-moq/react";
@@ -8,6 +6,7 @@ import {
   Broadcast,
   ColorSource,
   defineComposition,
+  fill,
   Layer,
   Scene,
   Sources,
@@ -17,7 +16,6 @@ import { useEffect, useState, type ReactElement } from "react";
 import { clockFrame } from "./clock.frame.js";
 import { labelFrame } from "./label.frame.js";
 
-const FILL: LayoutStyle = { position: "absolute", inset: 0, width: "100%", height: "100%" };
 const CARDS = [
   {
     id: "layout",
@@ -57,7 +55,7 @@ export function Show(): ReactElement {
   return (
     <Broadcast>
       <Sources>
-        <ColorSource id="background" color="#171717" size={{ width: 1920, height: 1080 }} />
+        <ColorSource id="background" color="#171717" />
         {CARDS.map((card) => (
           <ColorSource
             key={card.id}
@@ -81,13 +79,12 @@ export function Show(): ReactElement {
       </Sources>
 
       <Scene id="main" label="Kitchen sink">
-        <Layer id="background" sourceId="background" style={FILL} />
+        <Layer id="background" sourceId="background" style={fill} />
         <Box style={{ width: "100%", height: "100%", padding: 80, gap: 28 }}>
           <View
             id="clock"
             source={clockFrame}
             params={{ title: "Vignette kitchen sink" }}
-            viewport={{ width: 1760, height: 130 }}
             style={{ width: "100%", height: 130 }}
           />
 
@@ -97,16 +94,10 @@ export function Show(): ReactElement {
                 <Layer
                   id={`card.${card.id}.background`}
                   sourceId={`panel.${card.id}`}
-                  style={FILL}
+                  style={fill}
                   opacity={activeCard === index ? 1 : 0.72}
                 />
-                <View
-                  id={`card.${card.id}.label`}
-                  source={labelFrame}
-                  params={card}
-                  viewport={{ width: 568, height: 470 }}
-                  style={FILL}
-                />
+                <View id={`card.${card.id}.label`} source={labelFrame} params={card} style={fill} />
               </Box>
             ))}
           </Box>

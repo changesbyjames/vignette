@@ -7,10 +7,8 @@ import {
   type CompiledSource,
   type BrowserSource,
   type Insets,
-  type SceneId,
   type Size,
   type AnySourceDefinition,
-  type SourceId,
 } from "@strangecyan/vignette-core";
 import { equals } from "ramda";
 
@@ -53,7 +51,7 @@ interface CropScale {
 export interface ObsPlannerInput {
   readonly desired: CompiledSnapshot;
   readonly observed: ObservedObsState;
-  readonly resolvedAssets: ReadonlyMap<SourceId, string>;
+  readonly resolvedAssets: ReadonlyMap<string, string>;
   readonly codecs: ObsCodecMap;
   /** Absolute base OBS uses for root-relative URLs it loads itself, such as browser sources. */
   readonly browserSourceBaseUrl?: string;
@@ -105,7 +103,7 @@ export function planObsUpdate(input: ObsPlannerInput): ObsPlanningResult {
     });
   }
 
-  const sceneCreateKeys = new Map<SceneId, string>();
+  const sceneCreateKeys = new Map<string, string>();
   for (const scene of input.desired.scenes) {
     if (managed.scenes.has(scene.id)) continue;
     const key = `scene:create:${scene.id}`;
@@ -176,8 +174,8 @@ function planSceneItems(
   scene: CompiledScene,
   input: ObsPlannerInput,
   managed: ManagedObservedIndex,
-  plannedSources: ReadonlyMap<SourceId, PlannedSource>,
-  sceneCreateKeys: ReadonlyMap<SceneId, string>,
+  plannedSources: ReadonlyMap<string, PlannedSource>,
+  sceneCreateKeys: ReadonlyMap<string, string>,
   operations: ObsOperation[],
   diagnostics: ObsDiagnostic[],
   matchedSceneItemIds: Set<string>,
@@ -204,8 +202,8 @@ function planSceneItem(
   scene: CompiledScene,
   input: ObsPlannerInput,
   managed: ManagedObservedIndex,
-  plannedSources: ReadonlyMap<SourceId, PlannedSource>,
-  sceneCreateKeys: ReadonlyMap<SceneId, string>,
+  plannedSources: ReadonlyMap<string, PlannedSource>,
+  sceneCreateKeys: ReadonlyMap<string, string>,
   operations: ObsOperation[],
   diagnostics: ObsDiagnostic[],
   matchedSceneItemIds: Set<string>,
@@ -351,8 +349,8 @@ function resolveMaterialization(
   item: CompiledItem,
   canvas: Size,
   managed: ManagedObservedIndex,
-  plannedSources: ReadonlyMap<SourceId, PlannedSource>,
-  sceneCreateKeys: ReadonlyMap<SceneId, string>,
+  plannedSources: ReadonlyMap<string, PlannedSource>,
+  sceneCreateKeys: ReadonlyMap<string, string>,
 ): Materialization | undefined {
   if (item.content.kind === "source") {
     // Inputs inherit their compiled dimensions and creation dependency; nested scenes use the canvas dimensions.
@@ -398,8 +396,8 @@ function findObservedItem(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
-function collectReferencedSources(scenes: readonly CompiledScene[]): ReadonlySet<SourceId> {
-  const result = new Set<SourceId>();
+function collectReferencedSources(scenes: readonly CompiledScene[]): ReadonlySet<string> {
+  const result = new Set<string>();
   for (const scene of scenes) {
     for (const item of scene.items) {
       if (item.content.kind === "source") result.add(item.content.sourceId);
@@ -411,20 +409,21 @@ function collectReferencedSources(scenes: readonly CompiledScene[]): ReadonlySet
 /** Shared browser inputs must realize one viewport size; conflicting placements produce a diagnostic and remove that source's geometry. */
 function collectBrowserGeometries(
   scenes: readonly CompiledScene[],
-  sources: ReadonlyMap<SourceId, CompiledSource>,
+  sources: ReadonlyMap<string, CompiledSource>,
   diagnostics: ObsDiagnostic[],
-): ReadonlyMap<SourceId, BrowserGeometry> {
-  const result = new Map<SourceId, BrowserGeometry>();
-  const conflicts = new Set<SourceId>();
+): ReadonlyMap<string, BrowserGeometry> {
+  const result = new Map<string, BrowserGeometry>();
+  const conflicts = new Set<string>();
 
   for (const item of scenes.flatMap((scene) => scene.items)) {
     if (item.content.kind !== "source") continue;
     const source = sources.get(item.content.sourceId)?.definition;
     if (source?.kind !== "source:browser") continue;
     const geometry = realizeBrowserGeometry(
-      /* SAFETY: The source kind was checked as browser, whose registered module validates the viewport before compilation. */ (
-        source as BrowserSource
-      ).viewport,
+      /* SAFETY: The source kind was checked as browser, whose registered module validates the viewport before compilation. */ browserViewport(
+        source as BrowserSource,
+        item,
+      ),
       item,
     );
     if (geometry === undefined || conflicts.has(source.id)) continue;
@@ -448,6 +447,11 @@ function collectBrowserGeometries(
   }
 
   return result;
+}
+
+/** Compiled snapshots carry a resolved viewport; the layer frame is the same default core applies. */
+function browserViewport(source: BrowserSource, item: CompiledItem): Size {
+  return source.viewport ?? item.frame;
 }
 
 /** Expand the browser viewport to account for cropping, then round realized dimensions while preserving crop scale. */
@@ -590,7 +594,7 @@ function prepareSources(
   registryCreateKey: string | undefined,
   operations: ObsOperation[],
   diagnostics: ObsDiagnostic[],
-): ReadonlyMap<SourceId, PlannedSource> {
+): ReadonlyMap<string, PlannedSource> {
   const availableInputKinds = new Set(input.observed.capabilities.inputKinds);
   const referencedSourceIds = collectReferencedSources(input.desired.scenes);
   const compiledSources = new Map(input.desired.sources.map((source) => [source.id, source]));
@@ -599,7 +603,7 @@ function prepareSources(
     compiledSources,
     diagnostics,
   );
-  const plannedSources = new Map<SourceId, PlannedSource>();
+  const plannedSources = new Map<string, PlannedSource>();
 
   for (const sourceId of referencedSourceIds) {
     prepareSource(
@@ -620,14 +624,14 @@ function prepareSources(
 
 /** Reject unsupported codecs and kind changes before scheduling an input mutation. */
 function prepareSource(
-  sourceId: SourceId,
+  sourceId: string,
   input: ObsPlannerInput,
   managed: ManagedObservedIndex,
   registryCreateKey: string | undefined,
   availableInputKinds: ReadonlySet<string>,
-  compiledSources: ReadonlyMap<SourceId, CompiledSource>,
-  browserGeometries: ReadonlyMap<SourceId, BrowserGeometry>,
-  plannedSources: Map<SourceId, PlannedSource>,
+  compiledSources: ReadonlyMap<string, CompiledSource>,
+  browserGeometries: ReadonlyMap<string, BrowserGeometry>,
+  plannedSources: Map<string, PlannedSource>,
   operations: ObsOperation[],
   diagnostics: ObsDiagnostic[],
 ): void {
@@ -721,8 +725,8 @@ function prepareSource(
 function pruneManagedResources(
   input: ObsPlannerInput,
   managed: ManagedObservedIndex,
-  referencedSourceIds: ReadonlySet<SourceId>,
-  desiredSceneIds: ReadonlySet<SceneId>,
+  referencedSourceIds: ReadonlySet<string>,
+  desiredSceneIds: ReadonlySet<string>,
   matchedSceneItemIds: ReadonlySet<string>,
   removalKeys: string[],
   operations: ObsOperation[],
@@ -743,7 +747,7 @@ function pruneManagedResources(
 /** Remove registry placements only for managed inputs no longer referenced by the snapshot. */
 function pruneRegistryPlacements(
   managed: ManagedObservedIndex,
-  referencedSourceIds: ReadonlySet<SourceId>,
+  referencedSourceIds: ReadonlySet<string>,
   removalKeys: string[],
   operations: ObsOperation[],
 ): void {
@@ -775,7 +779,7 @@ function pruneRegistryPlacements(
 function pruneScenePlacements(
   input: ObsPlannerInput,
   managed: ManagedObservedIndex,
-  desiredSceneIds: ReadonlySet<SceneId>,
+  desiredSceneIds: ReadonlySet<string>,
   matchedSceneItemIds: ReadonlySet<string>,
   removalKeys: string[],
   operations: ObsOperation[],
@@ -806,7 +810,7 @@ function pruneScenePlacements(
 /** Unreferenced managed scenes can be removed before their source inputs. */
 function pruneScenes(
   managed: ManagedObservedIndex,
-  desiredSceneIds: ReadonlySet<SceneId>,
+  desiredSceneIds: ReadonlySet<string>,
   removalKeys: string[],
   operations: ObsOperation[],
 ): void {
@@ -827,7 +831,7 @@ function pruneScenes(
 /** Wait for placement and scene removals before releasing their shared inputs. */
 function pruneInputs(
   managed: ManagedObservedIndex,
-  referencedSourceIds: ReadonlySet<SourceId>,
+  referencedSourceIds: ReadonlySet<string>,
   removalKeys: string[],
   operations: ObsOperation[],
 ): void {

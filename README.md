@@ -3,9 +3,11 @@
 Vignette is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once and
 materializing them in both the browser and OBS.
 
-React and Yoga run in a platform-owned composer. It emits one target-neutral immutable snapshot;
-independent DOM and OBS runtimes consume setup, update, and event messages over SSE or an in-memory
-`AsyncIterable`. The composer never waits for or observes runtime convergence.
+The pipeline is **composer → stream → target**. React and Yoga run in a platform-owned composer,
+which compiles each commit into one target-neutral immutable snapshot and publishes a stream of
+setup, update, and event messages. Independent DOM and OBS target runtimes consume that stream over
+SSE or an in-memory `AsyncIterable`. The composer never waits for or observes target convergence.
+See the [vocabulary](docs/architecture.md#vocabulary).
 
 ## Published packages
 
@@ -75,14 +77,14 @@ Browser tests start their own kitchen-sink server. If port 4173 is occupied, run
 To capture the first scene from a running composer or a saved snapshot:
 
 ```sh
-pnpm exec vignette preview --snapshot http://localhost:4173/runtime --name "test 01"
+pnpm exec vignette preview --snapshot http://localhost:4173/stream --name "test 01"
 ```
 
-To stream a runtime into OBS, with the MoQ extension's codec loaded:
+To render a composer stream in OBS, with the MoQ extension's codec loaded:
 
 ```sh
 pnpm exec vignette obs --project demo --obs-url ws://localhost:4455 \
-  --password secret --url http://localhost:5173/api/runtime \
+  --password secret --url http://localhost:5173/api/stream \
   --extension @strangecyan/vignette-moq/obs
 ```
 

@@ -1,14 +1,5 @@
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 
-/** Explicit identifier for a managed Vignette project. Authors pass plain strings. */
-export type ProjectId = string;
-/** Explicit identifier for a scene. Authors pass plain strings. */
-export type SceneId = string;
-/** Explicit identifier for a reusable source. Authors pass plain strings. */
-export type SourceId = string;
-/** Explicit identifier for a layer placement. Authors pass plain strings. */
-export type LayerId = string;
-
 /** Human-readable rule enforced by {@link isStableId}, shared by diagnostics and wire decoding. */
 export const STABLE_ID_RULE =
   "ID must start with an alphanumeric character and contain only letters, numbers, '.', '_' or '-'.";

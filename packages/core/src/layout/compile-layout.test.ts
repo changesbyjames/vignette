@@ -9,6 +9,7 @@ import {
   box,
   broadcast,
   browserSource,
+  colorSource,
   imageSource,
   layer,
   mediaSource,
@@ -50,6 +51,91 @@ describe("compileBroadcast", () => {
 
     expect(compileBroadcast(graph, { revision: 3, layoutEngine })).toEqual(
       compileBroadcast(graph, { revision: 3, layoutEngine: yogaLayoutEngine }),
+    );
+  });
+
+  it("defaults color sizes to the canvas and browser viewports to their layer size", () => {
+    // One placed and one unplaced browser source show both viewport defaults; the color fills the canvas.
+    const result = compileBroadcast(
+      broadcast({
+        projectId: "defaults",
+        canvas: { width: 1280, height: 720 },
+        children: [
+          sources(
+            colorSource({ id: "background", color: "#000000" }),
+            browserSource({ id: "lower-third", url: "/__vignette/frame/lower-third" }),
+            browserSource({ id: "unplaced", url: "/__vignette/frame/unplaced" }),
+          ),
+          scene({
+            id: "main",
+            children: [
+              layer({
+                id: "background",
+                sourceId: "background",
+                style: { width: "100%", height: "100%" },
+              }),
+              layer({
+                id: "lower-third",
+                sourceId: "lower-third",
+                style: {
+                  position: "absolute",
+                  inset: { left: 40, bottom: 40 },
+                  width: 600,
+                  height: 120,
+                },
+              }),
+            ],
+          }),
+        ],
+      }),
+      { revision: 1, layoutEngine: yogaLayoutEngine },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const byId = new Map(result.snapshot.sources.map((source) => [source.id, source]));
+    expect(byId.get("background")?.definition).toMatchObject({
+      size: { width: 1280, height: 720 },
+    });
+    expect(byId.get("background")?.intrinsicSize).toEqual({ width: 1280, height: 720 });
+    expect(byId.get("lower-third")?.definition).toMatchObject({
+      viewport: { width: 600, height: 120 },
+    });
+    expect(byId.get("unplaced")?.definition).toMatchObject({
+      viewport: { width: 1280, height: 720 },
+    });
+  });
+
+  it("requires a viewport for browser sources placed at different sizes", () => {
+    const result = compileBroadcast(
+      broadcast({
+        projectId: "defaults",
+        children: [
+          sources(browserSource({ id: "shared", url: "/__vignette/frame/shared" })),
+          scene({
+            id: "small",
+            children: [
+              layer({ id: "small", sourceId: "shared", style: { width: 320, height: 180 } }),
+            ],
+          }),
+          scene({
+            id: "large",
+            children: [
+              layer({ id: "large", sourceId: "shared", style: { width: 640, height: 360 } }),
+            ],
+          }),
+        ],
+      }),
+      { revision: 1, layoutEngine: yogaLayoutEngine },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_SOURCE_SIZE",
+        path: "broadcast.children[0].children[0].viewport",
+        relatedIds: ["shared"],
+      }),
     );
   });
 

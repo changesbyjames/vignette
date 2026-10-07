@@ -75,6 +75,41 @@ describe("frame View", () => {
       kind: "source",
       sourceId: browserDefinition.id,
     });
+    // Without an explicit viewport, the page renders at the placement's laid-out size.
+    expect(browserDefinition.viewport).toEqual({ width: 640, height: 360 });
+    await root.dispose();
+  });
+
+  it("places frames without parameters without a params prop", async () => {
+    const banner = frame.withMetadata({
+      routeKey: "banner-abc123",
+      moduleUrl: "/src/banner.frame.tsx",
+      exportName: "banner",
+    })({ view: () => <div>Live</div> });
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
+          <Broadcast>
+            <Scene id="main">
+              <View source={banner} style={{ width: 800, height: 120 }} />
+            </Scene>
+          </Broadcast>
+        ),
+      }),
+    );
+
+    const { snapshot } = await root.render();
+
+    const definition =
+      /* SAFETY: The only source in this composition is the frame's browser source. */ snapshot
+        .sources[0]?.definition as BrowserSource | undefined;
+    expect(
+      new URL(definition?.url ?? "", "http://composer.invalid").searchParams.get("props"),
+    ).toBe("{}");
+    expect(banner.params.parse({})).toEqual({});
+    expect(() => banner.params.parse({ unexpected: true })).toThrow();
     await root.dispose();
   });
 
@@ -98,6 +133,8 @@ describe("frame View", () => {
             <Scene id="main">
               {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
               <View source={greeting} params={{}} />
+              {/* @ts-expect-error Frames with required parameters require `params`. */}
+              <View id="missing" source={greeting} />
             </Scene>
           </Broadcast>
         ),

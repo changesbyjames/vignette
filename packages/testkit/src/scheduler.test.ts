@@ -47,7 +47,7 @@ describe("OBS convergence scheduler", () => {
     await target.dispose();
   });
 
-  it("refuses a runtime stream for another project or with an unregistered extension", async () => {
+  it("refuses a composer stream for another project or with an unregistered extension", async () => {
     const cases = [
       {
         setup: { projectId: "someone-else", manifest: { version: 1, assets: [] }, extensions: [] },

@@ -2,7 +2,6 @@ import {
   omitUndefined,
   requireBaseUrl,
   type AssetResolver,
-  type ProjectId,
   type RenderTarget,
 } from "@strangecyan/vignette-core";
 
@@ -17,19 +16,19 @@ import type { ObsTransport } from "./transport.js";
 
 /** Connection and dependency options for a directly published OBS target. */
 export interface CreateObsTargetOptions {
-  readonly id?: string;
-  readonly url?: string;
-  readonly password?: string;
-  readonly projectId: ProjectId;
+  readonly id?: string | undefined;
+  readonly url?: string | undefined;
+  readonly password?: string | undefined;
+  readonly projectId: string;
   readonly assetResolver: AssetResolver;
   /**
    * Absolute HTTP(S) base OBS uses for root-relative URLs it loads itself (browser sources).
    * Without it, a snapshot with a root-relative browser source URL fails preflight.
    */
-  readonly browserSourceBaseUrl?: string;
-  readonly retry?: ObsRetryOptions;
-  readonly extensions?: readonly ObsSourceCodec[];
-  readonly onError?: (error: Error) => void;
+  readonly browserSourceBaseUrl?: string | undefined;
+  readonly retry?: ObsRetryOptions | undefined;
+  readonly extensions?: readonly ObsSourceCodec[] | undefined;
+  readonly onError?: ((error: Error) => void) | undefined;
 }
 
 /** Creates an OBS render target backed by the production WebSocket transport. */

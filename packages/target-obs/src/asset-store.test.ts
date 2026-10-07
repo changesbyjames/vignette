@@ -53,7 +53,7 @@ describe("ObsAssetStore", () => {
     };
     const store = new ObsAssetStore({
       temporaryDirectory: parent,
-      baseUrl: "http://vignette-host:4173/runtime",
+      baseUrl: "http://vignette-host:4173/stream",
       fetch,
     });
     const unconfigured = new ObsAssetStore({ temporaryDirectory: parent, fetch });

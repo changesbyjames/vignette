@@ -13,7 +13,7 @@ const packages = [
   packageConfig(
     "packages/core",
     "@strangecyan/vignette-core",
-    [".", "./builders", "./layout-yoga", "./layout-yoga-wasm", "./runtime", "./sse", "./yoga.wasm"],
+    [".", "./builders", "./layout-yoga", "./layout-yoga-wasm", "./sse", "./stream", "./yoga.wasm"],
     [],
     ["dist", "vendor", "src/yoga-wasm.d.ts"],
   ),
@@ -75,13 +75,14 @@ const packages = [
     ["."],
     [
       "@strangecyan/vignette-core",
-      "@strangecyan/vignette-moq",
       "@strangecyan/vignette-target-dom",
       "@strangecyan/vignette-target-obs",
     ],
     ["bin", "dist"],
   ),
 ];
+// The CLI loads extension codecs at runtime through `--extension <module>`; it must not bundle them.
+const cliExtensionPackages = ["@strangecyan/vignette-moq"];
 
 for (const candidate of packages) {
   // Check each publishable manifest's identity, exports, dependencies, and packed files against its package contract.
@@ -113,6 +114,12 @@ for (const candidate of packages) {
       manifest.bin?.vignette === "./bin/vignette.js",
       `${candidate.name} must publish its CLI`,
     );
+    for (const extension of cliExtensionPackages) {
+      assert(
+        manifest.dependencies?.[extension] === undefined,
+        `${candidate.name} must load ${extension} through --extension instead of depending on it`,
+      );
+    }
   }
 
   for (const path of ["README.md", "package.json"]) {

@@ -9,9 +9,9 @@ import {
 } from "@strangecyan/vignette-core";
 
 export interface DomAssetStoreOptions {
-  readonly fetch?: typeof globalThis.fetch;
-  readonly createObjectURL?: (blob: Blob) => string;
-  readonly revokeObjectURL?: (url: string) => void;
+  readonly fetch?: typeof globalThis.fetch | undefined;
+  readonly createObjectURL?: ((blob: Blob) => string) | undefined;
+  readonly revokeObjectURL?: ((url: string) => void) | undefined;
 }
 
 export class DomAssetStore implements AssetResolver {

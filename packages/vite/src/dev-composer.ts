@@ -7,7 +7,7 @@ import {
   type CompositionDefinition,
 } from "@strangecyan/vignette";
 import {
-  encodeRuntimeMessageSse,
+  encodeStreamMessageSse,
   type AssetManifest,
   type SourceModule,
 } from "@strangecyan/vignette-core";
@@ -38,14 +38,14 @@ export type ComposerRootHook = (
 export interface DevComposerSettings {
   /** Absolute path of the composition module. */
   readonly module: string;
-  readonly runtimePath: string;
+  readonly streamPath: string;
   readonly manifest: () => AssetManifest;
   readonly onComposerRoot: ComposerRootHook | undefined;
 }
 
 /** A dev-server composer that reloads its composition when the module graph changes. */
 export interface DevComposer {
-  /** Serves the runtime SSE stream; resolves false for requests it does not own. */
+  /** Serves the composer stream over SSE; resolves false for requests it does not own. */
   handle(request: IncomingMessage, response: ServerResponse): Promise<boolean>;
   /** Reloads when `file` belongs to the composition's evaluated module graph. */
   fileChanged(file: string): void;
@@ -115,7 +115,7 @@ class DevComposerImpl implements DevComposer {
   }
 
   async handle(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
-    if (request.method !== "GET" || request.url?.split("?", 1)[0] !== this.settings.runtimePath) {
+    if (request.method !== "GET" || request.url?.split("?", 1)[0] !== this.settings.streamPath) {
       return false;
     }
     await this.queue;
@@ -140,7 +140,7 @@ class DevComposerImpl implements DevComposer {
       // Retiring a root aborts its streams before it unmounts, so clients never see the teardown.
       const signal = AbortSignal.any([abort.signal, active.abort.signal]);
       for await (const message of active.root.messages(signal)) {
-        response.write(encodeRuntimeMessageSse(message));
+        response.write(encodeStreamMessageSse(message));
       }
     } catch {
       // The root was disposed between lookup and subscription; the client reconnects.

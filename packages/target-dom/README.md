@@ -9,27 +9,28 @@ than asking CSS to independently lay out a scene.
 pnpm add @strangecyan/vignette-target-dom @strangecyan/vignette-core
 ```
 
-## React compositor
+## React stage
 
 ```tsx
-import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
+import { sseStream, useStage } from "@strangecyan/vignette-target-dom/react";
 
 export function Program() {
-  const [ref, status] = useCompositor({
+  const [ref, status] = useStage({
     sceneId: "main",
-    transport: sseRuntimeSource("/runtime"),
+    stream: sseStream("/stream"),
     onError: console.error,
   });
   return <div ref={ref} data-phase={status.phase} />;
 }
 ```
 
-The hook owns the SSE subscription and `DOMRuntime`, supports server rendering, and disposes both
-when its container detaches. Importing `./react` requires React.
+`useStage` renders a composer stream into the returned container ref (the stage). The hook owns the
+SSE subscription and `DOMRuntime`, supports server rendering, and disposes both when its container
+detaches. Importing `./react` requires React.
 
 Snapshots and manifests may carry root-relative URLs such as `/__vignette/frame/...` and
-`/assets/...`. They resolve against the `baseUrl` option, which defaults to the transport URL
-(`/runtime` above, relative to the page) and otherwise to `document.baseURI`. Absolute URLs are used
+`/assets/...`. They resolve against the `baseUrl` option, which defaults to the stream URL
+(`/stream` above, relative to the page) and otherwise to `document.baseURI`. Absolute URLs are used
 unchanged.
 
 For non-React clients, construct `DOMRuntime` with a container, call `setup(setup)` (project ID,

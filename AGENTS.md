@@ -42,6 +42,22 @@ implementation progress over full verification.
 - A **compiled snapshot** is immutable, target-neutral plain data with a revision.
 - A **target plan** is a DOM patch or dependency-aware OBS operation plan.
 
+The pipeline is **composer → stream → target**; use these names consistently in code and docs:
+
+- A **composition** is a project's ID, canvas, extension source modules, and top-level component
+  (`defineComposition`).
+- The **composer** is the Node-side React root that compiles a composition into snapshots and
+  publishes its stream (`createComposerRoot`, one-shot `compile`).
+- The **stream** is the ordered `setup` / `update` / `event` messages a composer publishes
+  (`StreamMessage`, `StreamSource`, `sseStream`, `consumeStream`, served at `/stream` by
+  convention).
+- A **target** renders snapshots in one medium (DOM or OBS). A **target runtime** (`TargetRuntime`,
+  `DOMRuntime`, `OBSRuntime`) consumes a stream for one target: setup checks, assets, updates,
+  events.
+- A **stage** is the DOM container a React app renders a stream into (`useStage`).
+- **Transport** means only how bytes move (SSE, the OBS WebSocket `ObsTransport`). Do not use
+  "compositor", "runtime message", or "transport" for the stream itself.
+
 ## Non-negotiable invariants
 
 1. React host methods perform only synchronous local mutation.

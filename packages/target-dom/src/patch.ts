@@ -5,7 +5,6 @@ import type {
   CompiledSource,
   Size,
   AnySourceDefinition,
-  SourceId,
 } from "@strangecyan/vignette-core";
 
 import type { DomRendererContext, DomRendererMap } from "./elements/index.js";
@@ -16,7 +15,7 @@ interface LayerRecord {
   readonly wrapper: HTMLDivElement;
   readonly contentHost: HTMLDivElement;
   contentKind: AnySourceDefinition["kind"] | "scene";
-  sourceId?: SourceId;
+  sourceId?: string;
   nestedRecords?: Map<string, LayerRecord>;
 }
 

@@ -175,8 +175,7 @@ function collectBrowserViewSources(node: HostNode): readonly AnySourceDefinition
         kind: "source:browser",
         id: required(node.props, "sourceId"),
         url: required(node.props, "url"),
-        viewport: required(node.props, "viewport"),
-        ...optionalProps(node.props, ["label", "shutdownWhenHidden"]),
+        ...optionalProps(node.props, ["viewport", "label", "shutdownWhenHidden"]),
       } as AnySourceDefinition,
     ];
   }

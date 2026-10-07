@@ -16,7 +16,7 @@ const browser: BrowserSource = {
   viewport: { width: 1280, height: 720 },
 };
 
-const context = { baseUrl: "http://composer.example:4173/runtime" };
+const context = { baseUrl: "http://composer.example:4173/stream" };
 
 const item: CompiledItem = {
   id: "browser-layer",

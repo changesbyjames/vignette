@@ -27,9 +27,9 @@
       "types": "./dist/builders.d.ts",
       "default": "./dist/builders.js"
     },
-    "./runtime": {
-      "types": "./dist/runtime-api.d.ts",
-      "default": "./dist/runtime-api.js"
+    "./stream": {
+      "types": "./dist/stream-api.d.ts",
+      "default": "./dist/stream-api.js"
     },
     "./sse": {
       "types": "./dist/sse-codec.d.ts",

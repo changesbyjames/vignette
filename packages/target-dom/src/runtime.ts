@@ -2,9 +2,9 @@ import {
   describeMissingExtensions,
   omitUndefined,
   type CompiledSnapshot,
-  type RuntimeEvent,
-  type RuntimeSetup,
-  type SnapshotRuntime,
+  type StreamEvent,
+  type StreamSetup,
+  type TargetRuntime,
   type TargetApplyReceipt,
   type TargetStatus,
 } from "@strangecyan/vignette-core";
@@ -13,20 +13,20 @@ import { DomAssetStore, type DomAssetStoreOptions } from "./asset-store.js";
 import { DomTarget } from "./dom-target.js";
 import type { DomSourceRenderer } from "./elements/index.js";
 
-/** Configuration for a transport-agnostic DOM snapshot runtime. */
+/** Configuration for a transport-agnostic DOM target runtime. */
 export interface DOMRuntimeOptions extends DomAssetStoreOptions {
-  readonly id?: string;
+  readonly id?: string | undefined;
   readonly container: HTMLElement;
   readonly sceneId: string;
   /**
    * Base for root-relative snapshot and manifest URLs, such as `/__vignette/frame/...` and
    * `/assets/...`. May be relative to the container document. Defaults to the document's
-   * `baseURI`; `useCompositor` defaults it to the transport's URL.
+   * `baseURI`; `useStage` defaults it to the stream's URL.
    */
-  readonly baseUrl?: string;
+  readonly baseUrl?: string | undefined;
   /** Source renderers contributed by extension packages (built-ins are always registered). */
-  readonly extensions?: readonly DomSourceRenderer[];
-  readonly onError?: (error: Error) => void;
+  readonly extensions?: readonly DomSourceRenderer[] | undefined;
+  readonly onError?: ((error: Error) => void) | undefined;
 }
 
 /**
@@ -35,7 +35,7 @@ export interface DOMRuntimeOptions extends DomAssetStoreOptions {
  * A setup that advertises an extension source kind without a registered renderer puts the runtime
  * into its `error` phase; updates and events are ignored until a setup the runtime can satisfy.
  */
-export class DOMRuntime implements SnapshotRuntime {
+export class DOMRuntime implements TargetRuntime {
   private readonly options: DOMRuntimeOptions;
   private readonly assets: DomAssetStore;
   private readonly target: DomTarget;
@@ -78,7 +78,7 @@ export class DOMRuntime implements SnapshotRuntime {
   readonly getServerSnapshot = (): TargetStatus => this.serverSnapshot;
 
   /** Verify advertised extension kinds before downloading assets; a failure is observable status. */
-  async setup(setup: RuntimeSetup): Promise<void> {
+  async setup(setup: StreamSetup): Promise<void> {
     const missing = describeMissingExtensions(
       setup.extensions,
       new Set(this.target.capabilities.capabilities),
@@ -104,7 +104,7 @@ export class DOMRuntime implements SnapshotRuntime {
     this.target.publish(snapshot);
   }
 
-  event(event: RuntimeEvent): Promise<void> {
+  event(event: StreamEvent): Promise<void> {
     if (this.setupFailure !== undefined) return Promise.resolve();
     this.assertSetup();
     return this.target.setScene(event.sceneId);

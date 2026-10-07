@@ -53,7 +53,7 @@ describe("parsePreviewOptions", () => {
       ]),
     ).toMatchObject({ baseUrl: "http://127.0.0.1:4173/" });
     expect(() =>
-      parsePreviewOptions(["preview", "--snapshot", "snapshot.json", "--base-url", "/runtime"]),
+      parsePreviewOptions(["preview", "--snapshot", "snapshot.json", "--base-url", "/stream"]),
     ).toThrow("--base-url must be an absolute HTTP(S) URL");
   });
 
@@ -76,13 +76,13 @@ describe("parseObsOptions", () => {
         "--password",
         "secret",
         "--url",
-        "https://localhost:5173/api/runtime",
+        "https://localhost:5173/api/stream",
       ]),
     ).toEqual({
       project: "demo",
       obsUrl: "ws://localhost:4455",
       password: "secret",
-      url: "https://localhost:5173/api/runtime",
+      url: "https://localhost:5173/api/stream",
       extensions: [],
     });
   });
@@ -96,12 +96,12 @@ describe("parseObsOptions", () => {
         "--obs-url",
         "ws://localhost:4455",
         "--url",
-        "http://localhost:5173/api/runtime",
+        "http://localhost:5173/api/stream",
       ]),
     ).toEqual({
       project: "demo",
       obsUrl: "ws://localhost:4455",
-      url: "http://localhost:5173/api/runtime",
+      url: "http://localhost:5173/api/stream",
       extensions: [],
     });
   });
@@ -117,7 +117,7 @@ describe("parseObsOptions", () => {
         "--obs-url",
         "ws://localhost:4455",
         "--url",
-        "http://localhost:5173/api/runtime",
+        "http://localhost:5173/api/stream",
         "--extension",
         "./codecs.js",
       ]).extensions,
@@ -133,12 +133,12 @@ describe("parseObsOptions", () => {
         "--obs-url",
         "ws://localhost:4455",
         "--url",
-        "http://vignette-host:4173/runtime",
+        "http://vignette-host:4173/stream",
         "--browser-source-base-url",
         "http://127.0.0.1:4173/",
       ]),
     ).toMatchObject({
-      url: "http://vignette-host:4173/runtime",
+      url: "http://vignette-host:4173/stream",
       browserSourceBaseUrl: "http://127.0.0.1:4173/",
     });
   });
@@ -151,7 +151,7 @@ describe("parseObsOptions", () => {
       "--obs-url",
       "ws://localhost:4455",
       "--url",
-      "http://localhost:5173/api/runtime",
+      "http://localhost:5173/api/stream",
     ];
     arguments_.splice(arguments_.indexOf(flag), 2);
     expect(() => parseObsOptions(arguments_)).toThrow(`${flag} is required`);

@@ -1,4 +1,3 @@
-import type { ProjectId } from "@strangecyan/vignette-core";
 import {
   managedSceneName,
   managedSourceName,
@@ -24,7 +23,7 @@ interface ResolveContentResult {
 export interface ApplyFakeObsPlanOptions {
   readonly state: ObservedObsState;
   readonly plan: ObsPlan;
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   /** Number of operations to confirm before simulating an interrupted execution. */
   readonly stopAfter?: number;
 }
@@ -89,7 +88,7 @@ export function applyFakeObsPlan(options: ApplyFakeObsPlanOptions): FakeObsApply
 /** Apply operations in plan order, recording created placement addresses for later property updates. */
 function applyOperation(
   operation: ObsOperation,
-  projectId: ProjectId,
+  projectId: string,
   scenes: ObservedObsScene[],
   inputs: ObservedObsInput[],
   items: ObservedObsSceneItem[],
@@ -174,7 +173,7 @@ function applyOperation(
 
 function resolveScene(
   ref: ObsSceneRef,
-  projectId: ProjectId,
+  projectId: string,
   scenes: readonly ObservedObsScene[],
 ): ObservedObsScene {
   const name =
@@ -186,7 +185,7 @@ function resolveScene(
 
 function resolveContent(
   ref: ObsContentRef,
-  projectId: ProjectId,
+  projectId: string,
   scenes: readonly ObservedObsScene[],
   inputs: readonly ObservedObsInput[],
 ): ResolveContentResult {
@@ -316,7 +315,7 @@ function removeResource(
 /** Settings updates replace only the addressed managed input. */
 function setInputSettings(
   operation: SetInputSettingsOperation,
-  projectId: ProjectId,
+  projectId: string,
   inputs: ObservedObsInput[],
 ): void {
   const name = managedSourceName(projectId, operation.sourceId);

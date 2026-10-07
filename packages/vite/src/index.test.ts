@@ -145,24 +145,24 @@ describe("vignette", () => {
       logLevel: "silent",
       root,
       server: { host: "127.0.0.1", port: 0 },
-      plugins: [vignette({ composition: "./show.js", runtimePath: "/stream" })],
+      plugins: [vignette({ composition: "./show.js", streamPath: "/live" })],
     });
     try {
       await server.listen();
       const { port } = z.object({ port: z.number() }).parse(server.httpServer?.address());
-      const url = `http://127.0.0.1:${String(port)}/stream`;
+      const url = `http://127.0.0.1:${String(port)}/live`;
 
       const first = await fetch(url);
       expect(first.headers.get("content-type")).toMatch(/^text\/event-stream/u);
       const reader = first.body?.getReader();
-      if (reader === undefined) throw new Error("The runtime stream has no body.");
+      if (reader === undefined) throw new Error("The composer stream has no body.");
       expect(await readSetupProjectId(reader)).toBe("first");
 
       writeComposition("second");
       // Changing the project ID retires the root, which closes the open stream.
       await expect(drain(reader)).resolves.toBeUndefined();
       await expect.poll(async () => readSetupProjectId(await openStream(url))).toBe("second");
-      expect((await fetch(url.replace("/stream", "/runtime"))).status).not.toBe(200);
+      expect((await fetch(url.replace("/live", "/stream"))).status).not.toBe(200);
     } finally {
       await server.close();
       rmSync(root, { recursive: true, force: true });
@@ -189,7 +189,7 @@ type StreamReader = ReadableStreamDefaultReader<Uint8Array>;
 async function openStream(url: string): Promise<StreamReader> {
   const response = await fetch(url);
   const reader = response.body?.getReader();
-  if (reader === undefined) throw new Error("The runtime stream has no body.");
+  if (reader === undefined) throw new Error("The composer stream has no body.");
   return reader;
 }
 

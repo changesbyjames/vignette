@@ -1,25 +1,20 @@
-import {
-  isStableId,
-  type ProjectId,
-  type SceneId,
-  type SourceId,
-} from "@strangecyan/vignette-core";
+import { isStableId } from "@strangecyan/vignette-core";
 
 interface ManagedRegistryName {
   readonly kind: "registry";
-  readonly projectId: ProjectId;
+  readonly projectId: string;
 }
 
 interface ManagedSceneName {
   readonly kind: "scene";
-  readonly projectId: ProjectId;
-  readonly sceneId: SceneId;
+  readonly projectId: string;
+  readonly sceneId: string;
 }
 
 interface ManagedSourceName {
   readonly kind: "source";
-  readonly projectId: ProjectId;
-  readonly sourceId: SourceId;
+  readonly projectId: string;
+  readonly sourceId: string;
 }
 
 const PREFIX = "vignette";
@@ -29,17 +24,17 @@ const SEPARATOR = "::";
 export type ManagedObsName = ManagedRegistryName | ManagedSceneName | ManagedSourceName;
 
 /** Returns the managed OBS registry-scene name for a project. */
-export function registrySceneName(project: ProjectId): string {
+export function registrySceneName(project: string): string {
   return [PREFIX, project, "registry"].join(SEPARATOR);
 }
 
 /** Returns the managed OBS scene name for a Vignette scene. */
-export function managedSceneName(project: ProjectId, scene: SceneId): string {
+export function managedSceneName(project: string, scene: string): string {
   return [PREFIX, project, "scene", scene].join(SEPARATOR);
 }
 
 /** Returns the managed OBS input name for a Vignette source. */
-export function managedSourceName(project: ProjectId, source: SourceId): string {
+export function managedSourceName(project: string, source: string): string {
   return [PREFIX, project, "source", source].join(SEPARATOR);
 }
 
@@ -56,14 +51,14 @@ export function parseManagedName(name: string): ManagedObsName | undefined {
 }
 
 /** Tests whether an OBS resource name belongs to one managed project. */
-export function belongsToProject(name: string, project: ProjectId): boolean {
+export function belongsToProject(name: string, project: string): boolean {
   return parseManagedName(name)?.projectId === project;
 }
 
 /** Resource names need one stable resource ID in addition to their validated project ID. */
 function parseResourceName(
   parts: readonly string[],
-  parsedProject: ProjectId,
+  parsedProject: string,
 ): ManagedObsName | undefined {
   if (parts.length !== 4 || parts[3] === undefined || !isStableId(parts[3])) return undefined;
   if (parts[2] === "scene") {

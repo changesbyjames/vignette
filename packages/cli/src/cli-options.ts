@@ -3,7 +3,7 @@ import type { PreviewOptions } from "./types.js";
 
 export const HELP = `Usage:
   vignette preview --snapshot <url|file> [options]
-  vignette obs --project <id> --obs-url <url> --url <runtime-url> [options]
+  vignette obs --project <id> --obs-url <url> --url <stream-url> [options]
 
 Commands:
   preview  Capture compiled scenes as PNG files
@@ -26,14 +26,14 @@ Options:
   --help              Show this help`;
 
 export const OBS_HELP = `Usage:
-  vignette obs --project <id> --obs-url <url> --url <runtime-url> [options]
+  vignette obs --project <id> --obs-url <url> --url <stream-url> [options]
 
 Options:
   --project <id>       Managed Vignette project ID; must match the composition's
                        id, or the runtime refuses to manage OBS
   --obs-url <url>      OBS WebSocket URL, e.g. ws://localhost:4455
   --password <value>   OBS WebSocket password (optional)
-  --url <runtime-url>  Vignette runtime SSE URL; also the base for root-relative
+  --url <stream-url>   Vignette composer stream (SSE) URL; also the base for root-relative
                        asset and browser-source URLs
   --browser-source-base-url <url>
                        Base OBS uses for root-relative browser-source URLs when OBS
