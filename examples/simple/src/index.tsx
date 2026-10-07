@@ -1,10 +1,4 @@
-import {
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
-  type CompiledSnapshot,
-} from "@strangecyan/vignette-core";
+import type { CompiledSnapshot } from "@strangecyan/vignette-core";
 import {
   Broadcast,
   ColorSource,
@@ -15,7 +9,7 @@ import {
 } from "@strangecyan/vignette";
 
 const root = createComposerRoot({
-  projectId: projectId("simple-example"),
+  projectId: "simple-example",
   canvas: { width: 1280, height: 720, frameRate: 30 },
   onError: console.error,
 });
@@ -29,18 +23,10 @@ const unsubscribe = root.subscribe(publishSnapshot);
 await root.render(
   <Broadcast>
     <Sources>
-      <ColorSource
-        id={sourceId("background")}
-        color="#2563eb"
-        size={{ width: 1280, height: 720 }}
-      />
+      <ColorSource id="background" color="#2563eb" size={{ width: 1280, height: 720 }} />
     </Sources>
-    <Scene id={sceneId("main")} label="Main scene">
-      <Layer
-        id={layerId("background")}
-        sourceId={sourceId("background")}
-        style={{ width: "100%", height: "100%" }}
-      />
+    <Scene id="main" label="Main scene">
+      <Layer id="background" sourceId="background" style={{ width: "100%", height: "100%" }} />
     </Scene>
   </Broadcast>,
 );

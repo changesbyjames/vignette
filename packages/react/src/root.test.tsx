@@ -1,11 +1,7 @@
-import {
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
-  type ColorSource as ColorSourceDefinition,
-  type CompiledSnapshot,
-  type LayoutEngine,
+import type {
+  ColorSource as ColorSourceDefinition,
+  CompiledSnapshot,
+  LayoutEngine,
 } from "@strangecyan/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -24,7 +20,7 @@ describe("createComposerRoot", () => {
       })),
     );
     const root = createComposerRoot({
-      projectId: projectId("injected-layout"),
+      projectId: "injected-layout",
       canvas: { width: 640, height: 360 },
       layoutEngine: { layout },
     });
@@ -103,8 +99,8 @@ describe("createComposerRoot", () => {
     await expect(
       root.render(
         <Broadcast>
-          <Scene id={sceneId("main")}>
-            <Layer id={layerId("missing-layer")} sourceId={sourceId("missing")} />
+          <Scene id="main">
+            <Layer id="missing-layer" sourceId="missing" />
           </Scene>
         </Broadcast>,
       ),
@@ -117,7 +113,7 @@ describe("createComposerRoot", () => {
 
 function makeRoot() {
   return createComposerRoot({
-    projectId: projectId("show"),
+    projectId: "show",
     canvas: { width: 1280, height: 720 },
   });
 }
@@ -126,12 +122,12 @@ function show(color: string) {
   return (
     <Broadcast>
       <Sources>
-        <ColorSource id={sourceId("background")} color={color} />
+        <ColorSource id="background" color={color} />
       </Sources>
-      <Scene id={sceneId("main")}>
+      <Scene id="main">
         <Layer
-          id={layerId("background-layer")}
-          sourceId={sourceId("background")}
+          id="background-layer"
+          sourceId="background"
           style={{ width: "100%", height: "100%" }}
         />
       </Scene>

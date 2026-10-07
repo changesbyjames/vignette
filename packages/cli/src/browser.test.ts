@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 
-import {
-  sourceId,
-  layerId,
-  type MediaFileSource,
-  type CompiledItem,
-} from "@strangecyan/vignette-core";
+import type { MediaFileSource, CompiledItem } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { createPlaceholderRenderer } from "./browser.js";
@@ -16,13 +11,13 @@ describe("createPlaceholderRenderer", () => {
     const view = renderer.create(document);
     const source: MediaFileSource = {
       kind: "source:media-file",
-      id: sourceId("intro"),
+      id: "intro",
       label: "Opening clip",
       asset: { kind: "asset", name: "intro.mp4" },
       muted: true,
     };
     const item: CompiledItem = {
-      id: layerId("intro"),
+      id: "intro",
       content: { kind: "source", sourceId: source.id },
       visible: true,
       opacity: 1,

@@ -1,5 +1,5 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import { layerId, sourceId, type Size } from "@strangecyan/vignette-core";
+import type { Size } from "@strangecyan/vignette-core";
 import { BrowserView, type BrowserViewProps } from "@strangecyan/vignette";
 import { createElement, useContext, type ReactElement } from "react";
 
@@ -35,8 +35,8 @@ export function View<Params extends object>(props: ViewProps<Params>): ReactElem
   const serialized = serializeFrameParams(parsed);
   const identity = props.id ?? `frame.${metadata.routeKey}.${hashFrameValue(serialized)}`;
   return createElement(BrowserView, {
-    id: layerId(`${identity}.layer`),
-    sourceId: sourceId(`${identity}.source`),
+    id: `${identity}.layer`,
+    sourceId: `${identity}.source`,
     url: `${scene.origin}${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
     viewport: props.viewport ?? DEFAULT_VIEWPORT,
     ...omitUndefined({ label: props.label }),

@@ -1,8 +1,4 @@
-import {
-  DEFAULT_BROWSER_SOURCE_CSS,
-  sourceId,
-  type BrowserSource,
-} from "@strangecyan/vignette-core";
+import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { browserCodec } from "./browser.js";
@@ -11,7 +7,7 @@ describe("browserCodec", () => {
   it("passes the shared default CSS to the native OBS browser source", () => {
     const source: BrowserSource = {
       kind: "source:browser",
-      id: sourceId("browser"),
+      id: "browser",
       url: "https://example.com/",
       viewport: { width: 1280, height: 720 },
     };
@@ -29,7 +25,7 @@ describe("browserCodec", () => {
   it("uses a target-realized viewport when the planner supplies one", () => {
     const source: BrowserSource = {
       kind: "source:browser",
-      id: sourceId("browser"),
+      id: "browser",
       url: "https://example.com/",
       viewport: { width: 1280, height: 720 },
     };

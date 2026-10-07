@@ -1,4 +1,3 @@
-import { layerId, projectId, sceneId, sourceId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { executeObsPlan } from "./executor.js";
@@ -13,8 +12,8 @@ import type {
 describe("executeObsPlan", () => {
   it("uses the scene item receipt in later phases", async () => {
     const transport = new RecordingTransport();
-    const scene = sceneId("main");
-    const layer = layerId("video-layer");
+    const scene = "main";
+    const layer = "video-layer";
     const plan: ObsPlan = {
       revision: 3,
       observationEpoch: 1,
@@ -27,7 +26,7 @@ describe("executeObsPlan", () => {
           destructive: false,
           layerId: layer,
           scene: { kind: "scene", sceneId: scene },
-          content: { kind: "input", sourceId: sourceId("video") },
+          content: { kind: "input", sourceId: "video" },
         },
         {
           kind: "set-enabled",
@@ -42,7 +41,7 @@ describe("executeObsPlan", () => {
     };
 
     await executeObsPlan(transport, plan, {
-      projectId: projectId("show"),
+      projectId: "show",
       isCurrentRevision: () => true,
     });
 

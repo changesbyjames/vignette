@@ -8,7 +8,7 @@ import type {
 } from "./authoring.js";
 import { diagnostic, type Diagnostic, type ValidationResult } from "./diagnostics.js";
 import { isFiniteNumber, isPositiveSize, type Insets, type Size } from "./geometry.js";
-import { isStableId } from "./ids.js";
+import { isStableId, STABLE_ID_RULE } from "./ids.js";
 import { resolveSourceModules, type SourceModuleMap } from "./source-module.js";
 import type { AnySourceDefinition } from "./sources.js";
 
@@ -512,13 +512,6 @@ function validateId(
   diagnostics: Diagnostic[],
 ) {
   if (!isStableId(value)) {
-    diagnostics.push(
-      diagnostic(
-        code,
-        "error",
-        path,
-        "ID must start with an alphanumeric character and contain only letters, numbers, '.', '_' or '-'.",
-      ),
-    );
+    diagnostics.push(diagnostic(code, "error", path, STABLE_ID_RULE));
   }
 }

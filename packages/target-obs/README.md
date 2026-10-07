@@ -13,11 +13,11 @@ pnpm add @strangecyan/vignette-target-obs @strangecyan/vignette-core
 ## Run against OBS
 
 ```ts
-import { consumeRuntimeMessages, projectId } from "@strangecyan/vignette-core";
+import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
 import { OBSRuntime, sseRuntimeSource } from "@strangecyan/vignette-target-obs";
 
 const runtime = new OBSRuntime({
-  projectId: projectId("demo"),
+  projectId: "demo",
   url: "ws://127.0.0.1:4455",
   password: process.env.OBS_PASSWORD,
   onError: console.error,

@@ -2,8 +2,6 @@
 
 import {
   DEFAULT_BROWSER_SOURCE_CSS,
-  layerId,
-  sourceId,
   type BrowserSource,
   type CompiledItem,
 } from "@strangecyan/vignette-core";
@@ -13,13 +11,13 @@ import { browserRenderer } from "./browser.js";
 
 const browser: BrowserSource = {
   kind: "source:browser",
-  id: sourceId("browser"),
+  id: "browser",
   url: "about:blank",
   viewport: { width: 1280, height: 720 },
 };
 
 const item: CompiledItem = {
-  id: layerId("browser-layer"),
+  id: "browser-layer",
   content: { kind: "source", sourceId: browser.id },
   frame: { x: 0, y: 0, width: 1280, height: 720 },
   visible: true,

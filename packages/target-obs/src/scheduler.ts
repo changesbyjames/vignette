@@ -1,4 +1,4 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
+import { isStableId, omitUndefined, STABLE_ID_RULE } from "@strangecyan/vignette-core";
 import type {
   AssetResolver,
   Capability,
@@ -115,6 +115,10 @@ export class ObsConvergenceScheduler implements RenderTarget {
   private retryTimer: (() => void) | undefined;
 
   constructor(options: ObsConvergenceSchedulerOptions) {
+    // The project ID scopes every managed OBS name, so a malformed one could escape the namespace.
+    if (!isStableId(options.projectId)) {
+      throw new TypeError(`OBS project ID '${options.projectId}' is invalid: ${STABLE_ID_RULE}`);
+    }
     this.options = options;
     this.codecs = resolveObsCodecs(options.extensions);
     this.runtime = options.runtime ?? SYSTEM_RUNTIME;

@@ -1,8 +1,4 @@
-import {
-  encodeRuntimeMessageSse,
-  projectId,
-  type RuntimeMessage,
-} from "@strangecyan/vignette-core";
+import { encodeRuntimeMessageSse, type RuntimeMessage } from "@strangecyan/vignette-core";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -33,7 +29,7 @@ describe("Node SSE runtime source", () => {
         kind: "update",
         snapshot: {
           revision: 4,
-          projectId: projectId("sse-test"),
+          projectId: "sse-test",
           canvas: { width: 1280, height: 720 },
           sources: [],
           scenes: [],

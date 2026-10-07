@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
-import { layerId, sourceId, type CompiledItem } from "@strangecyan/vignette-core";
+import type { CompiledItem } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { moqDomRenderer } from "./dom.js";
 import type { MoqSource } from "./index.js";
 
 const item: CompiledItem = {
-  id: layerId("live-layer"),
-  content: { kind: "source", sourceId: sourceId("live") },
+  id: "live-layer",
+  content: { kind: "source", sourceId: "live" },
   frame: { x: 0, y: 0, width: 1280, height: 720 },
   visible: true,
   opacity: 1,
@@ -19,7 +19,7 @@ describe("moqDomRenderer", () => {
   it("maps the neutral source to @moq/watch attributes", () => {
     const source: MoqSource = {
       kind: "source:moq",
-      id: sourceId("live"),
+      id: "live",
       url: "https://cdn.moq.dev/demo",
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },
@@ -49,7 +49,7 @@ describe("moqDomRenderer", () => {
   it("defaults latency, keeps audio, and pauses offscreen video by default", () => {
     const source: MoqSource = {
       kind: "source:moq",
-      id: sourceId("live"),
+      id: "live",
       url: "https://cdn.moq.dev/demo",
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },
@@ -66,7 +66,7 @@ describe("moqDomRenderer", () => {
   it("only retains hidden sources that opt out of disableWhenHidden", () => {
     const base = {
       kind: "source:moq",
-      id: sourceId("live"),
+      id: "live",
       url: "https://cdn.moq.dev/demo",
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },

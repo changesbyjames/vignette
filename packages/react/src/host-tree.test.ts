@@ -1,4 +1,3 @@
-import { layerId, projectId, sceneId, sourceId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -69,15 +68,15 @@ describe("host tree mutations", () => {
     const broadcast = createHostNode("broadcast", { children: "ignored", key: "react-key" });
     const sources = createHostNode("sources", {});
     const color = createHostNode("source", {
-      definition: { kind: "source:color", id: sourceId("background"), color: "#123456" },
+      definition: { kind: "source:color", id: "background", color: "#123456" },
       children: "ignored",
       ref: "ignored",
       label: undefined,
     });
-    const scene = createHostNode("scene", { id: sceneId("main") });
+    const scene = createHostNode("scene", { id: "main" });
     const layer = createHostNode("layer", {
-      id: layerId("background-layer"),
-      sourceId: sourceId("background"),
+      id: "background-layer",
+      sourceId: "background",
       style: { width: "100%", height: "100%" },
     });
     appendHostChild(container, broadcast);
@@ -89,27 +88,27 @@ describe("host tree mutations", () => {
     expect(broadcast.props).toEqual({});
     expect(color.props).not.toHaveProperty("children");
     updateHostNode(color, {
-      definition: { kind: "source:color", id: sourceId("background"), color: "#abcdef" },
+      definition: { kind: "source:color", id: "background", color: "#abcdef" },
       key: "ignored",
     });
 
     expect(hostTreeToBroadcast(container)).toEqual({
       kind: "broadcast",
-      projectId: projectId("show"),
+      projectId: "show",
       canvas: { width: 1920, height: 1080 },
       children: [
         {
           kind: "sources",
-          children: [{ kind: "source:color", id: sourceId("background"), color: "#abcdef" }],
+          children: [{ kind: "source:color", id: "background", color: "#abcdef" }],
         },
         {
           kind: "scene",
-          id: sceneId("main"),
+          id: "main",
           children: [
             {
               kind: "layer",
-              id: layerId("background-layer"),
-              sourceId: sourceId("background"),
+              id: "background-layer",
+              sourceId: "background",
               style: { width: "100%", height: "100%" },
             },
           ],
@@ -121,10 +120,10 @@ describe("host tree mutations", () => {
   it("lowers an embedded browser view to a neutral source and layer", () => {
     const container = makeContainer();
     const broadcast = createHostNode("broadcast", {});
-    const scene = createHostNode("scene", { id: sceneId("main") });
+    const scene = createHostNode("scene", { id: "main" });
     const view = createHostNode("browser-view", {
-      id: layerId("scoreboard-layer"),
-      sourceId: sourceId("scoreboard-source"),
+      id: "scoreboard-layer",
+      sourceId: "scoreboard-source",
       url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
       viewport: { width: 1280, height: 720 },
       style: { width: 640, height: 360 },
@@ -136,7 +135,7 @@ describe("host tree mutations", () => {
 
     expect(hostTreeToBroadcast(container)).toEqual({
       kind: "broadcast",
-      projectId: projectId("show"),
+      projectId: "show",
       canvas: { width: 1920, height: 1080 },
       children: [
         {
@@ -144,7 +143,7 @@ describe("host tree mutations", () => {
           children: [
             {
               kind: "source:browser",
-              id: sourceId("scoreboard-source"),
+              id: "scoreboard-source",
               url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
               viewport: { width: 1280, height: 720 },
             },
@@ -152,12 +151,12 @@ describe("host tree mutations", () => {
         },
         {
           kind: "scene",
-          id: sceneId("main"),
+          id: "main",
           children: [
             {
               kind: "layer",
-              id: layerId("scoreboard-layer"),
-              sourceId: sourceId("scoreboard-source"),
+              id: "scoreboard-layer",
+              sourceId: "scoreboard-source",
               style: { width: 640, height: 360 },
               fit: "contain",
             },
@@ -171,7 +170,7 @@ describe("host tree mutations", () => {
     const container = makeContainer();
     const broadcast = createHostNode("broadcast", {});
     const sources = createHostNode("sources", {});
-    const invalid = createHostNode("source", { definition: { id: sourceId("live") } });
+    const invalid = createHostNode("source", { definition: { id: "live" } });
     appendHostChild(container, broadcast);
     appendHostChild(broadcast, sources);
     appendHostChild(sources, invalid);
@@ -182,7 +181,7 @@ describe("host tree mutations", () => {
 
 function makeContainer(): HostContainer {
   return {
-    projectId: projectId("show"),
+    projectId: "show",
     canvas: { width: 1920, height: 1080 },
     children: [],
     commitRevision: 0,

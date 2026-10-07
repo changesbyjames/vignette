@@ -1,9 +1,5 @@
 import {
   asset,
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
   type AssetResolver,
   type BrowserSource,
   type ColorSource,
@@ -24,8 +20,17 @@ import { FakeObsTransport } from "./fake-obs-transport.js";
 import { ManualClock } from "./manual-clock.js";
 
 describe("OBS convergence scheduler", () => {
+  it("refuses a project ID that could escape the managed OBS namespace", () => {
+    expect(() =>
+      createObsTargetWithTransport(
+        { projectId: "show::other", assetResolver: rejectingAssetResolver },
+        new FakeObsTransport(),
+      ),
+    ).toThrow(/OBS project ID 'show::other' is invalid/u);
+  });
+
   it("bounds pending work to the latest revision and reconverges after reconnect", async () => {
-    const project = projectId("scheduler-test");
+    const project = "scheduler-test";
     const transport = new FakeObsTransport();
     enqueueEmptyObservation(transport);
     enqueueMutationReceipts(transport);
@@ -77,7 +82,7 @@ describe("OBS convergence scheduler", () => {
   });
 
   it("rejects a bad preflight revision and recovers on a later valid revision", async () => {
-    const project = projectId("scheduler-test");
+    const project = "scheduler-test";
     const transport = new FakeObsTransport();
     enqueueEmptyObservation(transport);
     enqueueEmptyObservation(transport);
@@ -92,7 +97,7 @@ describe("OBS convergence scheduler", () => {
       transport,
     );
     const fixtureSource1 = {
-      id: sourceId("background"),
+      id: "background",
       kind: "source:image",
       asset: asset("missing.png"),
       size: { width: 1920, height: 1080 },
@@ -101,7 +106,7 @@ describe("OBS convergence scheduler", () => {
       ...snapshot(1),
       sources: [
         {
-          id: sourceId("background"),
+          id: "background",
           definition: fixtureSource1,
           intrinsicSize: { width: 1920, height: 1080 },
           asset: asset("missing.png"),
@@ -121,7 +126,7 @@ describe("OBS convergence scheduler", () => {
   });
 
   it("pauses a partial plan across a scene collection change and reboots its epoch", async () => {
-    const project = projectId("scheduler-test");
+    const project = "scheduler-test";
     const transport = new FakeObsTransport();
     enqueueEmptyObservation(transport);
     let releaseFirstScene: (value: ObsJsonObject) => void = () => {
@@ -160,7 +165,7 @@ describe("OBS convergence scheduler", () => {
   });
 
   it("retries NotReady without reconnecting and stops reconnecting on session invalidation", async () => {
-    const project = projectId("scheduler-test");
+    const project = "scheduler-test";
     const transport = new FakeObsTransport();
     enqueueEmptyObservation(transport);
     enqueueEmptyObservation(transport);
@@ -206,7 +211,7 @@ describe("OBS convergence scheduler", () => {
   });
 
   it("refreshes persisted browser inputs once per websocket session", async () => {
-    const project = projectId("scheduler-test");
+    const project = "scheduler-test";
     const transport = new FakeObsTransport();
     enqueueConvergedBrowserObservation(transport, project);
     enqueueConvergedBrowserObservation(transport, project);
@@ -238,7 +243,7 @@ describe("OBS convergence scheduler", () => {
       {
         requestType: "PressInputPropertiesButton",
         requestData: {
-          inputName: managedSourceName(project, sourceId("browser")),
+          inputName: managedSourceName(project, "browser"),
           propertyName: "refreshnocache",
         },
       },
@@ -260,7 +265,7 @@ const rejectingAssetResolver: AssetResolver = {
 };
 
 function snapshot(revision: number): CompiledSnapshot {
-  const source = sourceId("background");
+  const source = "background";
   const fixtureSource2 = {
     id: source,
     kind: "source:color",
@@ -269,7 +274,7 @@ function snapshot(revision: number): CompiledSnapshot {
   } satisfies ColorSource;
   return {
     revision,
-    projectId: projectId("scheduler-test"),
+    projectId: "scheduler-test",
     canvas: { width: 1920, height: 1080 },
     warnings: [],
     sources: [
@@ -280,10 +285,10 @@ function snapshot(revision: number): CompiledSnapshot {
     ],
     scenes: [
       {
-        id: sceneId("main"),
+        id: "main",
         items: [
           {
-            id: layerId("background-layer"),
+            id: "background-layer",
             content: { kind: "source", sourceId: source },
             frame: { x: 0, y: 0, width: 1920, height: 1080 },
             visible: true,
@@ -297,7 +302,7 @@ function snapshot(revision: number): CompiledSnapshot {
 }
 
 function browserSnapshot(revision: number): CompiledSnapshot {
-  const source = sourceId("browser");
+  const source = "browser";
   const fixtureSource3 = {
     id: source,
     kind: "source:browser",
@@ -306,7 +311,7 @@ function browserSnapshot(revision: number): CompiledSnapshot {
   } satisfies BrowserSource;
   return {
     revision,
-    projectId: projectId("scheduler-test"),
+    projectId: "scheduler-test",
     canvas: { width: 1920, height: 1080 },
     warnings: [],
     sources: [
@@ -317,10 +322,10 @@ function browserSnapshot(revision: number): CompiledSnapshot {
     ],
     scenes: [
       {
-        id: sceneId("main"),
+        id: "main",
         items: [
           {
-            id: layerId("browser-layer"),
+            id: "browser-layer",
             content: { kind: "source", sourceId: source },
             frame: { x: 0, y: 0, width: 1280, height: 720 },
             visible: true,
@@ -348,10 +353,7 @@ function enqueueMutationReceipts(transport: FakeObsTransport): void {
     .enqueue("CreateSceneItem", { sceneItemId: 2 });
 }
 
-function enqueueRegistryOnlyObservation(
-  transport: FakeObsTransport,
-  project: ReturnType<typeof projectId>,
-): void {
+function enqueueRegistryOnlyObservation(transport: FakeObsTransport, project: string): void {
   transport
     .enqueue("GetVersion", versionResponse())
     .enqueue("GetInputKindList", { inputKinds: ["color_source_v3"] })
@@ -368,11 +370,8 @@ function enqueueRegistryOnlyObservation(
     .enqueue("GetSceneItemList", { sceneItems: [] });
 }
 
-function enqueueConvergedObservation(
-  transport: FakeObsTransport,
-  project: ReturnType<typeof projectId>,
-): void {
-  const sourceName = managedSourceName(project, sourceId("background"));
+function enqueueConvergedObservation(transport: FakeObsTransport, project: string): void {
+  const sourceName = managedSourceName(project, "background");
   const transform = desiredTransform();
   transport
     .enqueue("GetVersion", versionResponse())
@@ -385,7 +384,7 @@ function enqueueConvergedObservation(
           sceneIndex: 0,
         },
         {
-          sceneName: managedSceneName(project, sceneId("main")),
+          sceneName: managedSceneName(project, "main"),
           sceneUuid: "scene-main",
           sceneIndex: 1,
         },
@@ -432,11 +431,8 @@ function enqueueConvergedObservation(
     );
 }
 
-function enqueueConvergedBrowserObservation(
-  transport: FakeObsTransport,
-  project: ReturnType<typeof projectId>,
-): void {
-  const sourceName = managedSourceName(project, sourceId("browser"));
+function enqueueConvergedBrowserObservation(transport: FakeObsTransport, project: string): void {
+  const sourceName = managedSourceName(project, "browser");
   transport
     .enqueue("GetVersion", versionResponse())
     .enqueue("GetInputKindList", { inputKinds: ["browser_source"] })
@@ -448,7 +444,7 @@ function enqueueConvergedBrowserObservation(
           sceneIndex: 0,
         },
         {
-          sceneName: managedSceneName(project, sceneId("main")),
+          sceneName: managedSceneName(project, "main"),
           sceneUuid: "scene-main",
           sceneIndex: 1,
         },

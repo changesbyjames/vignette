@@ -1,11 +1,5 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import {
-  projectId,
-  sceneId,
-  sourceId,
-  type LayoutEngine,
-  type RuntimeMessage,
-} from "@strangecyan/vignette-core";
+import type { LayoutEngine, RuntimeMessage } from "@strangecyan/vignette-core";
 import { useSyncExternalStore } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -56,7 +50,7 @@ describe("ComposerRoot.settled", () => {
       assets: [{ name: "logo.png", url: "/logo.png", integrity: "sha256-test" }],
     });
     await root.render(<StoreShow store={createStore("#111111")} />);
-    const event = { id: "select-main", kind: "scene:select", sceneId: sceneId("main") } as const;
+    const event = { id: "select-main", kind: "scene:select", sceneId: "main" } as const;
     root.publishEvent(event);
 
     const controller = new AbortController();
@@ -83,9 +77,9 @@ function StoreShow(props: StoreShowProps) {
   return (
     <Broadcast>
       <Sources>
-        <ColorSource id={sourceId("background")} color={color} />
+        <ColorSource id="background" color={color} />
       </Sources>
-      <Scene id={sceneId("main")} />
+      <Scene id="main" />
     </Broadcast>
   );
 }
@@ -109,7 +103,7 @@ function createStore(initial: string) {
 function makeRoot(assets?: MakeRootAssets) {
   const layoutEngine: LayoutEngine = { layout: () => [] };
   return createComposerRoot({
-    projectId: projectId("settled"),
+    projectId: "settled",
     canvas: { width: 1280, height: 720 },
     layoutEngine,
     ...omitUndefined({ assets: assets }),

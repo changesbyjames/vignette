@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { projectId, sceneId } from "./ids.js";
 import type { RuntimeMessage } from "./runtime.js";
 import { decodeRuntimeSseEvent, encodeRuntimeMessageSse, toSseEvent } from "./sse-codec.js";
 
@@ -11,14 +10,14 @@ describe("runtime SSE codec", () => {
       kind: "update",
       snapshot: {
         revision: 3,
-        projectId: projectId("codec"),
+        projectId: "codec",
         canvas: { width: 1920, height: 1080 },
         sources: [],
         scenes: [],
         warnings: [],
       },
     },
-    { kind: "event", event: { id: "select-main", kind: "scene:select", sceneId: sceneId("main") } },
+    { kind: "event", event: { id: "select-main", kind: "scene:select", sceneId: "main" } },
   ];
 
   for (const message of messages) {
@@ -30,6 +29,12 @@ describe("runtime SSE codec", () => {
       expect(decodeRuntimeSseEvent(fields.event, parseSseData(framed))).toEqual(message);
     });
   }
+
+  it("rejects malformed wire IDs with a schema error", () => {
+    const data = JSON.stringify({ id: "select", kind: "scene:select", sceneId: "bad::id" });
+
+    expect(() => decodeRuntimeSseEvent("event", data)).toThrow(/ID must start/u);
+  });
 });
 
 function parseSseData(frame: string): string {

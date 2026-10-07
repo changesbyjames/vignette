@@ -1,4 +1,4 @@
-import { sourceId, type MediaFileSource } from "@strangecyan/vignette-core";
+import type { MediaFileSource } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { mediaCodec } from "./media.js";
@@ -7,7 +7,7 @@ describe("mediaCodec", () => {
   it("restarts local media playback whenever the input becomes active", () => {
     const source: MediaFileSource = {
       kind: "source:media-file",
-      id: sourceId("stinger"),
+      id: "stinger",
       asset: { kind: "asset", name: "stinger.webm" },
       loop: false,
       restartOnActivate: true,
@@ -33,7 +33,7 @@ describe("mediaCodec", () => {
   it("preserves the OBS default when restartOnActivate is omitted", () => {
     const source: MediaFileSource = {
       kind: "source:media-file",
-      id: sourceId("clip"),
+      id: "clip",
       asset: { kind: "asset", name: "clip.mp4" },
     };
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectId, sceneId, type BrowserSource } from "@strangecyan/vignette-core";
+import type { BrowserSource } from "@strangecyan/vignette-core";
 import { Broadcast, Scene, createComposerRoot } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
@@ -43,14 +43,14 @@ describe("frame View", () => {
       view: ({ name }) => <div>Hello {name}!</div>,
     });
     const root = createComposerRoot({
-      projectId: projectId("frame-test"),
+      projectId: "frame-test",
       canvas: { width: 1920, height: 1080 },
     });
 
     await root.render(
       <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
         <Broadcast>
-          <Scene id={sceneId("main")}>
+          <Scene id="main">
             <View
               source={greeting}
               params={{ name: "James" }}
@@ -88,7 +88,7 @@ describe("frame View", () => {
       view: ({ name }) => <div>{name}</div>,
     });
     const root = createComposerRoot({
-      projectId: projectId("frame-test"),
+      projectId: "frame-test",
       canvas: { width: 1920, height: 1080 },
     });
 
@@ -96,7 +96,7 @@ describe("frame View", () => {
       root.render(
         <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
           <Broadcast>
-            <Scene id={sceneId("main")}>
+            <Scene id="main">
               {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
               <View source={greeting} params={{}} />
             </Scene>
@@ -115,13 +115,13 @@ describe("frame View", () => {
     })({ params: PassthroughSchema, view: () => <div /> });
     const scene = createSceneStore({ origin: "http://localhost:4173" });
     const root = createComposerRoot({
-      projectId: projectId("origin-test"),
+      projectId: "origin-test",
       canvas: { width: 1920, height: 1080 },
     });
     await root.render(
       <SceneProvider scene={scene}>
         <Broadcast>
-          <Scene id={sceneId("main")}>
+          <Scene id="main">
             <View source={greeting} params={{}} style={{ width: 640, height: 360 }} />
           </Scene>
         </Broadcast>

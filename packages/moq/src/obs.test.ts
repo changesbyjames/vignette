@@ -1,4 +1,3 @@
-import { sourceId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import type { MoqSource } from "./index.js";
@@ -8,7 +7,7 @@ describe("moqObsCodec", () => {
   it("compiles the neutral source to moq_source settings", () => {
     const source: MoqSource = {
       kind: "source:moq",
-      id: sourceId("live"),
+      id: "live",
       url: "https://cdn.moq.dev/demo",
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },
@@ -36,7 +35,7 @@ describe("moqObsCodec", () => {
   it("reports unsupported targets and applies defaults", () => {
     const source: MoqSource = {
       kind: "source:moq",
-      id: sourceId("live"),
+      id: "live",
       url: "https://cdn.moq.dev/demo",
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },

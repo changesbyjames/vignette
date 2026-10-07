@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { projectId, sceneId } from "./ids.js";
 import { consumeRuntimeMessages, type RuntimeMessage, type SnapshotRuntime } from "./runtime.js";
 
 describe("consumeRuntimeMessages", () => {
@@ -34,7 +33,7 @@ async function* messages(): AsyncIterable<RuntimeMessage> {
     kind: "update",
     snapshot: {
       revision: 1,
-      projectId: projectId("show"),
+      projectId: "show",
       canvas: { width: 1920, height: 1080 },
       sources: [],
       scenes: [],
@@ -43,6 +42,6 @@ async function* messages(): AsyncIterable<RuntimeMessage> {
   };
   yield {
     kind: "event",
-    event: { id: "event-1", kind: "scene:select", sceneId: sceneId("main") },
+    event: { id: "event-1", kind: "scene:select", sceneId: "main" },
   };
 }

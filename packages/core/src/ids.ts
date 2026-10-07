@@ -1,159 +1,24 @@
-interface ProjectIdBrand {
-  readonly [projectIdBrand]: "ProjectId";
-}
-
-interface SceneIdBrand {
-  readonly [sceneIdBrand]: "SceneId";
-}
-
-interface SourceIdBrand {
-  readonly [sourceIdBrand]: "SourceId";
-}
-
-interface LayerIdBrand {
-  readonly [layerIdBrand]: "LayerId";
-}
-
-interface ValidStableId<T extends StableId> {
-  readonly ok: true;
-  readonly value: T;
-}
-
-interface InvalidStableIdResult {
-  readonly ok: false;
-  readonly error: InvalidStableId;
-}
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 
-declare const projectIdBrand: unique symbol;
-declare const sceneIdBrand: unique symbol;
-declare const sourceIdBrand: unique symbol;
-declare const layerIdBrand: unique symbol;
+/** Explicit identifier for a managed Vignette project. Authors pass plain strings. */
+export type ProjectId = string;
+/** Explicit identifier for a scene. Authors pass plain strings. */
+export type SceneId = string;
+/** Explicit identifier for a reusable source. Authors pass plain strings. */
+export type SourceId = string;
+/** Explicit identifier for a layer placement. Authors pass plain strings. */
+export type LayerId = string;
 
-/** Explicit identifier for a managed Vignette project. */
-export type ProjectId = string & ProjectIdBrand;
-/** Explicit identifier for a scene. */
-export type SceneId = string & SceneIdBrand;
-/** Explicit identifier for a reusable source. */
-export type SourceId = string & SourceIdBrand;
-/** Explicit identifier for a layer placement. */
-export type LayerId = string & LayerIdBrand;
+/** Human-readable rule enforced by {@link isStableId}, shared by diagnostics and wire decoding. */
+export const STABLE_ID_RULE =
+  "ID must start with an alphanumeric character and contain only letters, numbers, '.', '_' or '-'.";
 
-/** Any branded identifier used by the authoring graph. */
-export type StableId = ProjectId | SceneId | SourceId | LayerId;
-/** Resource category represented by a stable identifier. */
-export type StableIdKind = "project" | "scene" | "source" | "layer";
-
-/** Details returned when a string cannot be converted to a stable identifier. */
-export interface InvalidStableId {
-  readonly kind: StableIdKind;
-  readonly value: string;
-  readonly reason: string;
-}
-
-/** Successful branded ID parsing or a deterministic validation error. */
-export type StableIdResult<T extends StableId> = ValidStableId<T> | InvalidStableIdResult;
-
-/** Tests whether a string follows the stable ID syntax. */
+/**
+ * Tests whether a string follows the stable ID syntax.
+ *
+ * Authoring validation reports violations as `INVALID_*_ID` diagnostics, so callers never need to
+ * check IDs before rendering.
+ */
 export function isStableId(value: string): boolean {
   return ID_PATTERN.test(value);
-}
-
-/** Validates and brands a project identifier without throwing. */
-export function parseProjectId(value: string): StableIdResult<ProjectId> {
-  return parseId(
-    "project",
-    value,
-    (id) =>
-      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as ProjectId,
-  );
-}
-
-/** Validates and brands a scene identifier without throwing. */
-export function parseSceneId(value: string): StableIdResult<SceneId> {
-  return parseId(
-    "scene",
-    value,
-    (id) =>
-      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as SceneId,
-  );
-}
-
-/** Validates and brands a source identifier without throwing. */
-export function parseSourceId(value: string): StableIdResult<SourceId> {
-  return parseId(
-    "source",
-    value,
-    (id) =>
-      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as SourceId,
-  );
-}
-
-/** Validates and brands a layer identifier without throwing. */
-export function parseLayerId(value: string): StableIdResult<LayerId> {
-  return parseId(
-    "layer",
-    value,
-    (id) =>
-      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as LayerId,
-  );
-}
-
-/** Validates and returns a project identifier, throwing for invalid input. */
-export function projectId(value: string): ProjectId {
-  return unwrapId(parseProjectId(value));
-}
-
-/** Validates and returns a scene identifier, throwing for invalid input. */
-export function sceneId(value: string): SceneId {
-  return unwrapId(parseSceneId(value));
-}
-
-/** Validates and returns a source identifier, throwing for invalid input. */
-export function sourceId(value: string): SourceId {
-  return unwrapId(parseSourceId(value));
-}
-
-/** Validates and returns a layer identifier, throwing for invalid input. */
-export function layerId(value: string): LayerId {
-  return unwrapId(parseLayerId(value));
-}
-
-function parseId<T extends StableId>(
-  kind: StableIdKind,
-  value: string,
-  brand: (valid: string) => T,
-): StableIdResult<T> {
-  if (value.length === 0) {
-    return invalid(kind, value, "ID must not be empty.");
-  }
-
-  if (value !== value.trim()) {
-    return invalid(kind, value, "ID must not contain leading or trailing whitespace.");
-  }
-
-  if (!ID_PATTERN.test(value)) {
-    return invalid(
-      kind,
-      value,
-      "ID must start with an alphanumeric character and contain only letters, numbers, '.', '_' or '-'.",
-    );
-  }
-
-  return { ok: true, value: brand(value) };
-}
-
-function invalid<T extends StableId>(
-  kind: StableIdKind,
-  value: string,
-  reason: string,
-): StableIdResult<T> {
-  return { ok: false, error: { kind, value, reason } };
-}
-
-function unwrapId<T extends StableId>(result: StableIdResult<T>): T {
-  if (result.ok) return result.value;
-  throw new TypeError(
-    `${result.error.kind} ID '${result.error.value}' is invalid: ${result.error.reason}`,
-  );
 }

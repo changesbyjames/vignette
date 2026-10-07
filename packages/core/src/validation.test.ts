@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { asset } from "./assets.js";
 import { broadcast, imageSource, layer, scene, sceneLayer, sources } from "./builders.js";
 import type { AnySourceDefinition } from "./sources.js";
-import { sourceId } from "./ids.js";
 import { validateBroadcast } from "./validation.js";
 
 describe("validateBroadcast", () => {
@@ -48,8 +47,27 @@ describe("validateBroadcast", () => {
     );
   });
 
+  it("reports malformed plain-string IDs as diagnostics instead of throwing", () => {
+    const graph = broadcast({
+      projectId: "weekly show",
+      children: [
+        sources(imageSource({ id: "", asset: asset("logo.png") })),
+        scene({ id: " programme", children: [layer({ id: "-logo", sourceId: "" })] }),
+      ],
+    });
+
+    expect(validateBroadcast(graph).errors.map(({ code, path }) => ({ code, path }))).toEqual(
+      expect.arrayContaining([
+        { code: "INVALID_PROJECT_ID", path: "broadcast.projectId" },
+        { code: "INVALID_SCENE_ID", path: expect.stringMatching(/\.id$/u) },
+        { code: "INVALID_SOURCE_ID", path: expect.stringMatching(/\.id$/u) },
+        { code: "INVALID_LAYER_ID", path: expect.stringMatching(/\.id$/u) },
+      ]),
+    );
+  });
+
   it("rejects source kinds without a registered module", () => {
-    const unknown: AnySourceDefinition = { kind: "source:unknown", id: sourceId("mystery") };
+    const unknown: AnySourceDefinition = { kind: "source:unknown", id: "mystery" };
     const graph = broadcast({
       projectId: "weekly-show",
       children: [

@@ -1,7 +1,7 @@
 # @strangecyan/vignette-core
 
-Target-neutral contracts and compiler for Vignette. This package defines the authoring graph,
-branded IDs, source modules, Yoga layout, immutable compiled snapshots, assets, diagnostics, and
+Target-neutral contracts and compiler for Vignette. This package defines the authoring graph, stable
+ID validation, source modules, Yoga layout, immutable compiled snapshots, assets, diagnostics, and
 runtime message protocol. It does not import React or a target implementation.
 
 ## Install
@@ -13,25 +13,19 @@ pnpm add @strangecyan/vignette-core
 ## Compile without React
 
 ```ts
-import {
-  compileBroadcast,
-  projectId,
-  sceneId,
-  sourceId,
-  layerId,
-} from "@strangecyan/vignette-core";
+import { compileBroadcast } from "@strangecyan/vignette-core";
 import { broadcast, colorSource, layer, scene, sources } from "@strangecyan/vignette-core/builders";
 import { yogaLayoutEngine } from "@strangecyan/vignette-core/layout-yoga";
 
 const result = compileBroadcast(
   broadcast({
-    projectId: projectId("demo"),
+    projectId: "demo",
     canvas: { width: 1920, height: 1080, frameRate: 60 },
     children: [
-      sources(colorSource({ id: sourceId("background"), color: "#101820" })),
+      sources(colorSource({ id: "background", color: "#101820" })),
       scene({
-        id: sceneId("main"),
-        children: [layer({ id: layerId("background"), sourceId: sourceId("background") })],
+        id: "main",
+        children: [layer({ id: "background", sourceId: "background" })],
       }),
     ],
   }),

@@ -1,8 +1,5 @@
 import {
   isStableId,
-  projectId,
-  sceneId,
-  sourceId,
   type ProjectId,
   type SceneId,
   type SourceId,
@@ -50,7 +47,7 @@ export function managedSourceName(project: ProjectId, source: SourceId): string 
 export function parseManagedName(name: string): ManagedObsName | undefined {
   const parts = name.split(SEPARATOR);
   if (parts[0] !== PREFIX || parts[1] === undefined || !isStableId(parts[1])) return undefined;
-  const parsedProject = projectId(parts[1]);
+  const parsedProject = parts[1];
 
   if (parts.length === 3 && parts[2] === "registry") {
     return { kind: "registry", projectId: parsedProject };
@@ -70,10 +67,10 @@ function parseResourceName(
 ): ManagedObsName | undefined {
   if (parts.length !== 4 || parts[3] === undefined || !isStableId(parts[3])) return undefined;
   if (parts[2] === "scene") {
-    return { kind: "scene", projectId: parsedProject, sceneId: sceneId(parts[3]) };
+    return { kind: "scene", projectId: parsedProject, sceneId: parts[3] };
   }
   if (parts[2] === "source") {
-    return { kind: "source", projectId: parsedProject, sourceId: sourceId(parts[3]) };
+    return { kind: "source", projectId: parsedProject, sourceId: parts[3] };
   }
   return undefined;
 }

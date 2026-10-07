@@ -1,5 +1,5 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import { consumeRuntimeMessages, projectId } from "@strangecyan/vignette-core";
+import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
 import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
 import { OBSRuntime, sseRuntimeSource } from "@strangecyan/vignette-target-obs";
 
@@ -11,7 +11,7 @@ export async function runObs(
   onError: (error: Error) => void,
 ): Promise<void> {
   const runtime = new OBSRuntime({
-    projectId: projectId(options.project),
+    projectId: options.project,
     url: options.obsUrl,
     extensions: [moqObsCodec],
     onError,

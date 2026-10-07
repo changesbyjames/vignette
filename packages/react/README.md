@@ -13,7 +13,6 @@ pnpm add @strangecyan/vignette @strangecyan/vignette-core react
 ## Compose a scene
 
 ```tsx
-import { layerId, projectId, sceneId, sourceId } from "@strangecyan/vignette-core";
 import {
   Broadcast,
   ColorSource,
@@ -24,7 +23,7 @@ import {
 } from "@strangecyan/vignette";
 
 const root = createComposerRoot({
-  projectId: projectId("demo"),
+  projectId: "demo",
   canvas: { width: 1920, height: 1080, frameRate: 60 },
   onError: console.error,
 });
@@ -32,10 +31,10 @@ const root = createComposerRoot({
 await root.render(
   <Broadcast>
     <Sources>
-      <ColorSource id={sourceId("background")} color="#101820" />
+      <ColorSource id="background" color="#101820" />
     </Sources>
-    <Scene id={sceneId("main")}>
-      <Layer id={layerId("background")} sourceId={sourceId("background")} />
+    <Scene id="main">
+      <Layer id="background" sourceId="background" />
     </Scene>
   </Broadcast>,
 );

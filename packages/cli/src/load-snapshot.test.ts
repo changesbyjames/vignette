@@ -1,9 +1,4 @@
-import {
-  encodeRuntimeMessageSse,
-  projectId,
-  sceneId,
-  type CompiledSnapshot,
-} from "@strangecyan/vignette-core";
+import { encodeRuntimeMessageSse, type CompiledSnapshot } from "@strangecyan/vignette-core";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -71,12 +66,12 @@ describe("loadSnapshot", () => {
 
 const snapshotFixture: CompiledSnapshot = {
   revision: 7,
-  projectId: projectId("preview-test"),
+  projectId: "preview-test",
   canvas: { width: 320, height: 180 },
   sources: [],
   scenes: [
     {
-      id: sceneId("main"),
+      id: "main",
       items: [],
     },
   ],
