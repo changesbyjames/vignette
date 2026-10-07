@@ -100,7 +100,14 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
   const { snapshot, source, item } = isolateFrameSnapshot(exampleSnapshot, project);
   const width = Math.round(item.frame.width);
   const height = Math.round(item.frame.height);
-  const runtime = new OBSRuntime({ id: "frame-parity-obs", url, password, projectId: project });
+  const runtime = new OBSRuntime({
+    id: "frame-parity-obs",
+    url,
+    password,
+    projectId: project,
+    // The snapshot's frame URL is root-relative; OBS loads it from the Playwright web server.
+    baseUrl: new URL("/", baseURL).href,
+  });
   const previousProgramScene = await currentProgramScene(url, password);
 
   try {

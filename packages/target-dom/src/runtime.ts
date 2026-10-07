@@ -17,6 +17,12 @@ export interface DOMRuntimeOptions extends DomAssetStoreOptions {
   readonly id?: string;
   readonly container: HTMLElement;
   readonly sceneId: string;
+  /**
+   * Base for root-relative snapshot and manifest URLs, such as `/__vignette/frame/...` and
+   * `/assets/...`. May be relative to the container document. Defaults to the document's
+   * `baseURI`; `useCompositor` defaults it to the transport's URL.
+   */
+  readonly baseUrl?: string;
   /** Source renderers contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly DomSourceRenderer[];
   readonly onError?: (error: Error) => void;
@@ -30,12 +36,15 @@ export class DOMRuntime implements SnapshotRuntime {
   private hasSetup = false;
 
   constructor(options: DOMRuntimeOptions) {
-    this.assets = new DomAssetStore(options);
+    const document = options.container.ownerDocument;
+    const baseUrl = new URL(options.baseUrl ?? document.baseURI, document.baseURI).href;
+    this.assets = new DomAssetStore(baseUrl, options);
     this.target = new DomTarget(
       omitUndefined({
         id: options.id,
         container: options.container,
         sceneId: options.sceneId,
+        baseUrl,
         assetResolver: this.assets,
         extensions: options.extensions,
         onError: options.onError,

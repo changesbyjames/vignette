@@ -45,7 +45,10 @@ wait for or collect DOM/OBS settlement.
 ## Assets
 
 Snapshots refer to assets only by logical name. Before updates, the backend sends a versioned
-manifest containing each name and HTTP(S) URL, with optional SHA-256 integrity.
+manifest containing each name and URL, with optional SHA-256 integrity. Manifest and browser-source
+URLs are absolute HTTP(S) or root-relative (`/assets/...`); each runtime resolves root-relative URLs
+against its own base URL, so the composer never needs its public origin. See
+[URL resolution](compatibility-contract.md#url-resolution).
 
 - `DOMRuntime` downloads assets and maps their names to browser-owned blob URLs.
 - `OBSRuntime` downloads assets into a private temporary directory on the OBS machine and maps names
@@ -69,9 +72,9 @@ Neither runtime inspects React fibers or authoring nodes.
 
 `@strangecyan/vignette-frame` can lower a typed `<View>` into a normal browser source plus layer.
 Its Vite adapter owns module metadata, parameter validation, server-rendered HTML, and browser
-hydration. Core, snapshots, and runtimes see only the resulting absolute URL, viewport, IDs, and
-geometry. This keeps DOM React content composable without making React DOM or a bundler part of the
-common scene protocol. See [`react-frames.md`](react-frames.md).
+hydration. Core, snapshots, and runtimes see only the resulting root-relative URL, viewport, IDs,
+and geometry. This keeps DOM React content composable without making React DOM or a bundler part of
+the common scene protocol. See [`react-frames.md`](react-frames.md).
 
 ## Package ownership
 

@@ -1,5 +1,9 @@
 import {
+  isRootRelativeUrl,
+  requireBaseUrl,
+  resolveResourceUrl,
   validateAssetName,
+  validateResourceUrl,
   type AssetManifest,
   type AssetRef,
   type AssetResolver,
@@ -19,29 +23,38 @@ export interface AssetDownloadResponse {
 export type AssetFetcher = (url: string) => Promise<AssetDownloadResponse>;
 
 export interface ObsAssetStoreOptions {
+  /**
+   * Absolute HTTP(S) base for root-relative manifest URLs, as reachable from this process (the
+   * asset downloader). Absolute manifest URLs are fetched unchanged.
+   */
+  readonly baseUrl?: string;
   readonly fetch?: AssetFetcher;
   readonly temporaryDirectory?: string;
 }
 
 export class ObsAssetStore implements AssetResolver {
+  private readonly baseUrl: string | undefined;
   private readonly fetch: AssetFetcher;
   private readonly temporaryDirectory: string;
   private root: string | undefined;
   private files = new Map<string, string>();
 
+  /** Validate an optional base URL eagerly and default the fetcher and temporary directory. */
   constructor(options: ObsAssetStoreOptions = {}) {
+    this.baseUrl =
+      options.baseUrl === undefined ? undefined : requireBaseUrl(options.baseUrl, "baseUrl");
     this.fetch = options.fetch ?? ((url) => fetch(url));
     this.temporaryDirectory = options.temporaryDirectory ?? tmpdir();
   }
 
   async setup(manifest: AssetManifest): Promise<void> {
-    validateManifest(manifest);
+    validateManifest(manifest, this.baseUrl);
     const root = await mkdtemp(join(this.temporaryDirectory, "vignette-assets-"));
     const files = new Map<string, string>();
     try {
       const downloads = await Promise.all(
         manifest.assets.map(async (entry) => {
-          const response = await this.fetch(entry.url);
+          const response = await this.fetch(resolveResourceUrl(entry.url, this.baseUrl));
           if (!response.ok) {
             throw new Error(
               `Asset '${entry.name}' download failed with HTTP ${String(response.status)}.`,
@@ -85,7 +98,7 @@ export class ObsAssetStore implements AssetResolver {
 }
 
 /** Reject invalid or repeated asset names and verify each URL can be materialized for OBS. */
-function validateManifest(manifest: AssetManifest): void {
+function validateManifest(manifest: AssetManifest, baseUrl: string | undefined): void {
   const names = new Set<string>();
   for (const entry of manifest.assets) {
     // Reject invalid or repeated asset names and verify each URL can be materialized for OBS.
@@ -96,9 +109,12 @@ function validateManifest(manifest: AssetManifest): void {
       throw new Error(`Asset manifest contains duplicate name '${entry.name}'.`);
     }
     names.add(entry.name);
-    const url = new URL(entry.url);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error(`Asset '${entry.name}' URL must use HTTP(S).`);
+    const urlError = validateResourceUrl(entry.url);
+    if (urlError !== undefined) throw new Error(`Asset '${entry.name}' ${urlError}`);
+    if (baseUrl === undefined && isRootRelativeUrl(entry.url)) {
+      throw new Error(
+        `Asset '${entry.name}' has root-relative URL '${entry.url}', but the OBS runtime has no baseUrl.`,
+      );
     }
   }
 }

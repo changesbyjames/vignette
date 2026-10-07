@@ -26,7 +26,7 @@ export function sseRuntimeSource(
   url: string,
   options: SseRuntimeSourceOptions = {},
 ): RuntimeMessageSource {
-  return (signal) => consume(url, options, signal);
+  return Object.assign((signal: AbortSignal) => consume(url, options, signal), { url });
 }
 
 /** Reconnect after stream failure unless the caller aborted, reporting errors before waiting for the retry delay. */

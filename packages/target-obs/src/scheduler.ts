@@ -46,6 +46,8 @@ export interface ObsConvergenceSchedulerOptions {
   readonly password?: string;
   readonly projectId: ProjectId;
   readonly assetResolver: AssetResolver;
+  /** Absolute base OBS uses for root-relative URLs it loads itself, such as browser sources. */
+  readonly browserSourceBaseUrl?: string;
   readonly retry?: ObsRetryOptions;
   /** Source codecs contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly ObsSourceCodec[];
@@ -272,6 +274,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
       observed,
       resolvedAssets,
       codecs: this.codecs,
+      ...omitUndefined({ browserSourceBaseUrl: this.options.browserSourceBaseUrl }),
     });
     if (!result.ok) {
       throw new ObsPreflightError(result.diagnostics.map((item) => item.message).join(" "));

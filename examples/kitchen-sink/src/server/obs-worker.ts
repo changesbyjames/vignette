@@ -11,7 +11,8 @@ const reportError = (error: Error): void => {
 };
 const runtime = createKitchenSinkObsRuntime({
   url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-  ...omitUndefined({ assetOrigin: process.env.VIGNETTE_ASSET_ORIGIN }),
+  baseUrl: runtimeUrl,
+  ...omitUndefined({ browserSourceBaseUrl: process.env.VIGNETTE_BROWSER_SOURCE_BASE_URL }),
   ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
   onError: reportError,
 });

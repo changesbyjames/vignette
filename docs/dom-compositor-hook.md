@@ -67,8 +67,12 @@ const [ref] = useCompositor({
 });
 ```
 
-The hook forwards `id`, `fetch`, object-URL functions, and `onError` to `DOMRuntime`, making tests
-and non-browser transports injectable without introducing global configuration.
+Root-relative frame and asset URLs in snapshots resolve against `baseUrl`, which defaults to the
+transport's `url` (set by `sseRuntimeSource`) and otherwise to the document's `baseURI`. Pass
+`baseUrl` explicitly when a custom transport reads from another host.
+
+The hook forwards `id`, `baseUrl`, `fetch`, object-URL functions, and `onError` to `DOMRuntime`,
+making tests and non-browser transports injectable without introducing global configuration.
 
 ## Direct external-store usage
 

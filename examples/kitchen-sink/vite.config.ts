@@ -9,8 +9,7 @@ const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export const viteConfig = defineConfig({
   plugins: [vignette(), vignetteComposer()],
   server: { host: "127.0.0.1", port: 4173, strictPort: true },
-  // The composer wraps the SSR-loaded scene in providers imported through Node. The frame package
-  // must resolve to that same module instance or React context identity breaks.
+  // Load the frame package through Node so SSR-loaded scenes and frame routes share one instance.
   ssr: { external: ["@strangecyan/vignette-frame"] },
   build: {
     outDir: "dist/client",

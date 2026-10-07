@@ -8,7 +8,7 @@ import { DomAssetStore } from "./asset-store.js";
 describe("DomAssetStore", () => {
   it("downloads named assets and exposes browser-owned blob URLs", async () => {
     const revoked: string[] = [];
-    const store = new DomAssetStore({
+    const store = new DomAssetStore("http://composer.example/runtime", {
       fetch: vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"])))),
       createObjectURL: () => "blob:vignette/background",
       revokeObjectURL: (url) => revoked.push(url),
@@ -25,5 +25,21 @@ describe("DomAssetStore", () => {
     });
     store.dispose();
     expect(revoked).toEqual(["blob:vignette/background"]);
+  });
+
+  it("downloads root-relative manifest URLs from the configured base origin", async () => {
+    const fetch = vi.fn(() => Promise.resolve(new Response(new Blob(["image-bytes"]))));
+    const store = new DomAssetStore("http://composer.example:4173/api/runtime", {
+      fetch,
+      createObjectURL: () => "blob:vignette/logo",
+      revokeObjectURL: () => undefined,
+    });
+
+    await store.setup({ version: 1, assets: [{ name: "logo.png", url: "/assets/logo-1a2b.png" }] });
+
+    expect(fetch).toHaveBeenCalledWith("http://composer.example:4173/assets/logo-1a2b.png");
+    await expect(
+      store.setup({ version: 1, assets: [{ name: "logo.png", url: "//cdn.example/logo.png" }] }),
+    ).rejects.toThrow(/protocol-relative/u);
   });
 });

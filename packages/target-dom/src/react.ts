@@ -14,7 +14,10 @@ import { DOMRuntime, type DOMRuntimeOptions } from "./runtime.js";
 /** DOM runtime options plus the scene and runtime-message transport to consume. */
 export interface UseCompositorOptions extends Omit<DOMRuntimeOptions, "container" | "sceneId"> {
   readonly sceneId: string;
-  /** The transport delivering runtime messages, e.g. `sseRuntimeSource("/runtime")`. */
+  /**
+   * The transport delivering runtime messages, e.g. `sseRuntimeSource("/runtime")`. When
+   * `baseUrl` is omitted, root-relative snapshot URLs resolve against the transport's `url`.
+   */
   readonly transport: RuntimeMessageSource;
 }
 
@@ -52,6 +55,7 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
       new CompositorController({
         sceneId: options.sceneId,
         ...omitUndefined({ id: options.id }),
+        ...omitUndefined({ baseUrl: options.baseUrl ?? options.transport.url }),
         ...omitUndefined({ extensions: options.extensions }),
         transport: options.transport,
         onError: (error) => {
@@ -65,7 +69,7 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
           (optionsRef.current.revokeObjectURL ?? URL.revokeObjectURL.bind(URL))(url);
         },
       }),
-    [options.sceneId, options.id, options.extensions, options.transport],
+    [options.sceneId, options.id, options.baseUrl, options.extensions, options.transport],
   );
   const snapshot = useSyncExternalStore(
     controller.subscribe,

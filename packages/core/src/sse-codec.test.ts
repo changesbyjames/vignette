@@ -5,7 +5,10 @@ import { decodeRuntimeSseEvent, encodeRuntimeMessageSse, toSseEvent } from "./ss
 
 describe("runtime SSE codec", () => {
   const messages: readonly RuntimeMessage[] = [
-    { kind: "setup", manifest: { version: 1, assets: [] } },
+    {
+      kind: "setup",
+      manifest: { version: 1, assets: [{ name: "logo.png", url: "/assets/logo-abc123.png" }] },
+    },
     {
       kind: "update",
       snapshot: {
@@ -34,6 +37,13 @@ describe("runtime SSE codec", () => {
     const data = JSON.stringify({ id: "select", kind: "scene:select", sceneId: "bad::id" });
 
     expect(() => decodeRuntimeSseEvent("event", data)).toThrow(/ID must start/u);
+  });
+
+  it("rejects protocol-relative and bare relative manifest URLs", () => {
+    for (const url of ["//cdn.example/logo.png", "assets/logo.png"]) {
+      const data = JSON.stringify({ version: 1, assets: [{ name: "logo.png", url }] });
+      expect(() => decodeRuntimeSseEvent("setup", data)).toThrow(/root-relative path/u);
+    }
   });
 });
 

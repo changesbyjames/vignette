@@ -5,6 +5,8 @@ export interface LoadedSnapshot {
   readonly snapshot: CompiledSnapshot;
   readonly assetUrls: Readonly<Record<string, string>>;
   readonly assetBaseUrl?: string;
+  /** Base for root-relative snapshot URLs: `--base-url`, else the snapshot URL. */
+  readonly baseUrl?: string;
   readonly localAssetRoot?: string;
 }
 
@@ -17,6 +19,7 @@ export interface PreviewOptions {
   readonly allScenes: boolean;
   readonly timeoutMs: number;
   readonly json: boolean;
+  readonly baseUrl?: string;
 }
 
 /** Metadata describing one rendered scene preview. */
@@ -32,6 +35,7 @@ export interface BrowserPreviewInput {
   readonly sceneId: string;
   readonly assetUrls: Readonly<Record<string, string>>;
   readonly assetBaseUrl?: string;
+  readonly baseUrl?: string;
 }
 
 export interface BrowserPreviewResult {

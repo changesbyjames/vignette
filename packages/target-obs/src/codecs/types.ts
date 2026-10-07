@@ -17,6 +17,11 @@ interface ObsUnsupportedCodecResult {
 export interface ObsCodecContext {
   readonly availableInputKinds: ReadonlySet<string>;
   readonly resolvedAsset?: string;
+  /**
+   * Absolute base OBS uses for root-relative URLs it loads itself (e.g. browser sources), or
+   * undefined when none is configured.
+   */
+  readonly baseUrl?: string;
   readonly browserViewport?: Size;
 }
 

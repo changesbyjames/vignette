@@ -1,4 +1,4 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
+import { isAbsoluteHttpUrl, omitUndefined } from "@strangecyan/vignette-core";
 import type { PreviewOptions } from "./types.js";
 
 export const HELP = `Usage:
@@ -19,6 +19,8 @@ Options:
   --name <name>       Output filename label
   --out <path>        PNG path, or output directory with --all-scenes
   --all-scenes        Capture every scene
+  --base-url <url>    Base for root-relative snapshot URLs (defaults to the snapshot URL;
+                      required for files whose snapshot contains root-relative URLs)
   --timeout <ms>      Fetch and browser timeout (default: 10000)
   --json              Print machine-readable result JSON
   --help              Show this help`;
@@ -30,7 +32,11 @@ Options:
   --project <id>       Managed Vignette project ID
   --obs-url <url>      OBS WebSocket URL, e.g. ws://localhost:4455
   --password <value>   OBS WebSocket password (optional)
-  --url <runtime-url>  Vignette runtime SSE URL
+  --url <runtime-url>  Vignette runtime SSE URL; also the base for root-relative
+                       asset and browser-source URLs
+  --browser-source-base-url <url>
+                       Base OBS uses for root-relative browser-source URLs when OBS
+                       reaches the composer at a different host than this process
   --help               Show this help`;
 
 export interface ObsCommandOptions {
@@ -38,6 +44,7 @@ export interface ObsCommandOptions {
   readonly obsUrl: string;
   readonly password?: string;
   readonly url: string;
+  readonly browserSourceBaseUrl?: string;
 }
 
 interface CommandSpec {
@@ -57,7 +64,7 @@ export function parsePreviewOptions(arguments_: readonly string[]): PreviewOptio
   const parsed = parseCommand(arguments_, {
     command: "preview",
     help: PREVIEW_HELP,
-    valueFlags: new Set(["--snapshot", "--scene", "--name", "--out", "--timeout"]),
+    valueFlags: new Set(["--snapshot", "--scene", "--name", "--out", "--timeout", "--base-url"]),
     switches: new Set(["--all-scenes", "--json"]),
   });
   const snapshot = requiredFlag(parsed, "--snapshot", PREVIEW_HELP);
@@ -77,6 +84,7 @@ export function parsePreviewOptions(arguments_: readonly string[]): PreviewOptio
     json: parsed.switches.has("--json"),
     name: parsed.values.get("--name"),
     out: parsed.values.get("--out"),
+    baseUrl: optionalHttpUrl(parsed, "--base-url"),
   });
 }
 
@@ -84,15 +92,33 @@ export function parseObsOptions(arguments_: readonly string[]): ObsCommandOption
   const parsed = parseCommand(arguments_, {
     command: "obs",
     help: OBS_HELP,
-    valueFlags: new Set(["--project", "--obs-url", "--password", "--url"]),
+    valueFlags: new Set([
+      "--project",
+      "--obs-url",
+      "--password",
+      "--url",
+      "--browser-source-base-url",
+    ]),
     switches: new Set<string>(),
   });
   return omitUndefined({
     project: requiredFlag(parsed, "--project", OBS_HELP),
     obsUrl: requiredFlag(parsed, "--obs-url", OBS_HELP),
-    url: requiredFlag(parsed, "--url", OBS_HELP),
+    url: requiredHttpUrl(parsed, "--url", OBS_HELP),
     password: parsed.values.get("--password"),
+    browserSourceBaseUrl: optionalHttpUrl(parsed, "--browser-source-base-url"),
   });
+}
+
+function requiredHttpUrl(parsed: ParsedCommand, flag: string, help: string): string {
+  requiredFlag(parsed, flag, help);
+  return optionalHttpUrl(parsed, flag) ?? requiredFlag(parsed, flag, help);
+}
+
+function optionalHttpUrl(parsed: ParsedCommand, flag: string): string | undefined {
+  const value = parsed.values.get(flag);
+  if (value === undefined || isAbsoluteHttpUrl(value)) return value;
+  throw new Error(`${flag} must be an absolute HTTP(S) URL; received '${value}'.`);
 }
 
 /** Consume each value immediately so a missing argument cannot be mistaken for the next flag. */

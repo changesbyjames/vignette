@@ -46,6 +46,9 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `reference` — pinned upstream documentation used to design and maintain the runtime.
 - `plans` — staged implementation handoffs and completion state.
 
+Snapshots carry root-relative frame and asset URLs (`/__vignette/frame/...`, `/assets/...`), so the
+composer never needs its public origin; each target resolves them against its own base URL.
+
 ## Development
 
 Requires Node 22.18 or newer and Corepack.

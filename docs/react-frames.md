@@ -6,7 +6,7 @@ snapshots remain unaware of schemas, React DOM, SSR, and hydration.
 ## Authoring
 
 ```tsx
-import { createSceneStore, frame, SceneProvider, View } from "@strangecyan/vignette-frame";
+import { frame, View } from "@strangecyan/vignette-frame";
 import { z } from "zod";
 
 export const greeting = frame({
@@ -14,16 +14,13 @@ export const greeting = frame({
   view: ({ name }) => <div>Hello {name}!</div>,
 });
 
-const scene = createSceneStore({ origin: "https://example.com" });
-
-<SceneProvider scene={scene}>
-  <View source={greeting} params={{ name: "James" }} viewport={{ width: 1280, height: 720 }} />
-</SceneProvider>;
+<View source={greeting} params={{ name: "James" }} viewport={{ width: 1280, height: 720 }} />;
 ```
 
-`SceneProvider` subscribes with `useSyncExternalStore`; `scene.set({ origin })` reactively updates
-frame URLs without another root `render()` call. Params are synchronously validated and must be
-JSON-safe. They appear in the URL, so never include secrets or sensitive data.
+`<View>` emits a root-relative browser-source URL (`/__vignette/frame/<routeKey>?props=...`), so the
+composer never needs its public origin. Each target resolves the URL against its own base URL (see
+[URL resolution](compatibility-contract.md#url-resolution)). Params are synchronously validated and
+must be JSON-safe. They appear in the URL, so never include secrets or sensitive data.
 
 ## Build Integration
 

@@ -28,6 +28,34 @@ describe("loadSnapshot", () => {
     expect(loaded.localAssetRoot).toBe(directory);
   });
 
+  it("requires a base URL for root-relative URLs in a local snapshot", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vignette-preview-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "snapshot.json");
+    const frameUrl = "/__vignette/frame/label?props=%7B%7D";
+    await writeFile(
+      path,
+      JSON.stringify({
+        ...snapshotFixture,
+        sources: [
+          {
+            id: "label",
+            definition: {
+              id: "label",
+              kind: "source:browser",
+              url: frameUrl,
+              viewport: { width: 320, height: 180 },
+            },
+          },
+        ],
+      }),
+    );
+
+    await expect(loadSnapshot(path, 1_000)).rejects.toThrow(/pass --base-url/u);
+    const loaded = await loadSnapshot(path, 1_000, "http://127.0.0.1:4173/");
+    expect(loaded.baseUrl).toBe("http://127.0.0.1:4173/");
+  });
+
   it("takes setup and the first update from a runtime SSE stream", async () => {
     const server = createServer((_request, response) => {
       response.setHeader("content-type", "text/event-stream");
@@ -53,6 +81,7 @@ describe("loadSnapshot", () => {
       expect(loaded.assetUrls["logo.png"]).toBe(
         `http://127.0.0.1:${String(address.port)}/assets/logo.png`,
       );
+      expect(loaded.baseUrl).toBe(`http://127.0.0.1:${String(address.port)}/runtime`);
     } finally {
       await new Promise<void>((resolvePromise, reject) => {
         server.close((error) => {

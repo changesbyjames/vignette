@@ -38,6 +38,21 @@ describe("parsePreviewOptions", () => {
     ).toThrow("--scene and --all-scenes cannot be combined");
   });
 
+  it("accepts an absolute base URL for root-relative snapshot URLs", () => {
+    expect(
+      parsePreviewOptions([
+        "preview",
+        "--snapshot",
+        "snapshot.json",
+        "--base-url",
+        "http://127.0.0.1:4173/",
+      ]),
+    ).toMatchObject({ baseUrl: "http://127.0.0.1:4173/" });
+    expect(() =>
+      parsePreviewOptions(["preview", "--snapshot", "snapshot.json", "--base-url", "/runtime"]),
+    ).toThrow("--base-url must be an absolute HTTP(S) URL");
+  });
+
   it("requires a positive timeout", () => {
     expect(() =>
       parsePreviewOptions(["preview", "--snapshot", "snapshot.json", "--timeout", "0"]),
@@ -82,6 +97,25 @@ describe("parseObsOptions", () => {
       project: "demo",
       obsUrl: "ws://localhost:4455",
       url: "http://localhost:5173/api/runtime",
+    });
+  });
+
+  it("parses a separate browser-source base URL", () => {
+    expect(
+      parseObsOptions([
+        "obs",
+        "--project",
+        "demo",
+        "--obs-url",
+        "ws://localhost:4455",
+        "--url",
+        "http://vignette-host:4173/runtime",
+        "--browser-source-base-url",
+        "http://127.0.0.1:4173/",
+      ]),
+    ).toMatchObject({
+      url: "http://vignette-host:4173/runtime",
+      browserSourceBaseUrl: "http://127.0.0.1:4173/",
     });
   });
 

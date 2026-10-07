@@ -26,3 +26,9 @@ The browser preview renders the MoQ source through `@moq/watch`. OBS output requ
 
 To connect a disposable local OBS instance while developing, set `VIGNETTE_ENABLE_EMBEDDED=1` and
 optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`.
+
+The composer never needs its public origin: frame URLs in snapshots are root-relative and each
+target resolves them. The browser resolves them against `/runtime`; the embedded OBS runtime uses
+the server's local address; the standalone worker uses `VIGNETTE_RUNTIME_URL`, plus
+`VIGNETTE_BROWSER_SOURCE_BASE_URL` when OBS reaches the host at a different address (see
+`compose.yaml` and [`docs/deployment.md`](../../docs/deployment.md)).

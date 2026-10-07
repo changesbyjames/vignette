@@ -13,6 +13,7 @@ export {
   imageRenderer,
   mediaRenderer,
   resolveDomRenderers,
+  type DomRendererContext,
   type DomRendererMap,
   type DomSourceRenderer,
   type DomSourceView,

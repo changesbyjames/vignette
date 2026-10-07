@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type {
   AssetManifest,
   CompiledSnapshot,
@@ -15,12 +16,20 @@ import { ObsWebSocketTransport } from "./obs-websocket-transport.js";
 import type { ObsConvergenceScheduler, ObsRetryOptions, ObsSchedulerRuntime } from "./scheduler.js";
 import type { ObsTransport } from "./transport.js";
 
-/** Asset, connection, retry, extension, and test seams for an OBS runtime. */
+/**
+ * Asset, connection, retry, extension, and test seams for an OBS runtime.
+ *
+ * Root-relative snapshot URLs resolve against `baseUrl` (how this process reaches the composer,
+ * used for asset downloads) and `browserSourceBaseUrl` (how OBS itself reaches the composer,
+ * used for browser sources; defaults to `baseUrl`).
+ */
 export interface OBSRuntimeOptions extends ObsAssetStoreOptions {
   readonly id?: string;
   readonly url?: string;
   readonly password?: string;
   readonly projectId: ProjectId;
+  /** Base for root-relative URLs OBS loads itself (browser sources). Defaults to `baseUrl`. */
+  readonly browserSourceBaseUrl?: string;
   readonly retry?: ObsRetryOptions;
   /** Source codecs contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly ObsSourceCodec[];
@@ -38,7 +47,11 @@ export class OBSRuntime implements SnapshotRuntime {
   constructor(options: OBSRuntimeOptions) {
     this.assets = new ObsAssetStore(options);
     this.scheduler = createObsScheduler(
-      { ...options, assetResolver: this.assets },
+      {
+        ...options,
+        assetResolver: this.assets,
+        ...omitUndefined({ browserSourceBaseUrl: options.browserSourceBaseUrl ?? options.baseUrl }),
+      },
       options.transport ?? new ObsWebSocketTransport(),
       options.schedulerRuntime,
     );

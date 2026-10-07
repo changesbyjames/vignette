@@ -11,11 +11,4 @@ export {
   type FrameOptions,
   type FrameParamsSchema,
 } from "./definition.js";
-export {
-  createSceneStore,
-  SceneProvider,
-  type SceneProviderProps,
-  type SceneState,
-  type SceneStore,
-} from "./scene.js";
 export { View, type ViewProps } from "./view.js";

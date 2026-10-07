@@ -26,6 +26,11 @@ export interface DomTargetOptions {
   readonly container: HTMLElement;
   readonly sceneId: string;
   readonly assetResolver: AssetResolver;
+  /**
+   * Base for root-relative URLs in snapshots (e.g. `/__vignette/frame/...`). May be relative to
+   * the container document. Defaults to the container document's `baseURI`.
+   */
+  readonly baseUrl?: string;
   /** Source renderers contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly DomSourceRenderer[];
   readonly onError?: (error: Error) => void;
@@ -100,7 +105,10 @@ export class DomTarget implements RenderTarget {
       capabilities: [...this.renderers.keys(), ...DOM_TRANSFORM_CAPABILITIES].sort(),
     };
     this.stage = new DomStage(options.container);
-    this.patcher = new DomScenePatcher(this.stage.stage, this.renderers);
+    const document = options.container.ownerDocument;
+    this.patcher = new DomScenePatcher(this.stage.stage, this.renderers, {
+      baseUrl: new URL(options.baseUrl ?? document.baseURI, document.baseURI).href,
+    });
     this.assets = new DomAssetRegistry(options.assetResolver, this.id);
     this.status = { targetId: this.id, phase: "disconnected" };
   }

@@ -17,7 +17,7 @@ import type {
 
 /** Render the selected scenes from a compiled snapshot to PNG files. */
 export async function createPreviews(options: PreviewOptions): Promise<readonly PreviewResult[]> {
-  const loaded = await loadSnapshot(options.snapshot, options.timeoutMs);
+  const loaded = await loadSnapshot(options.snapshot, options.timeoutMs, options.baseUrl);
   const scenes = selectScenes(loaded.snapshot.scenes, options.scene, options.allScenes);
   const paths = outputPaths(options, loaded, scenes);
   const server = await startPreviewServer(loaded.localAssetRoot);
@@ -50,7 +50,8 @@ export async function createPreviews(options: PreviewOptions): Promise<readonly 
       const input: BrowserPreviewInput = {
         snapshot: loaded.snapshot,
         sceneId: scene.id,
-        assetUrls: browserAssetUrls(loaded, server.origin),
+        assetUrls: loaded.assetUrls,
+        ...omitUndefined({ baseUrl: loaded.baseUrl }),
         ...omitUndefined({
           assetBaseUrl:
             loaded.localAssetRoot === undefined && loaded.assetBaseUrl === undefined
@@ -85,28 +86,6 @@ export async function createPreviews(options: PreviewOptions): Promise<readonly 
     await browser?.close();
     await server.close();
   }
-}
-
-function browserAssetUrls(
-  loaded: LoadedSnapshot,
-  previewOrigin: string,
-): Readonly<Record<string, string>> {
-  const assetRoot = loaded.localAssetRoot;
-  if (assetRoot === undefined) return loaded.assetUrls;
-  return Object.fromEntries(
-    Object.entries(loaded.assetUrls).map(
-      /** Rewrite local file assets only after proving their paths remain inside the configured asset root. */
-      ([name, url]) => {
-        if (!url.startsWith("file:")) return [name, url];
-        const location = relative(assetRoot, fileURLToPath(url));
-        if (location === ".." || location.startsWith(`..${sep}`) || isAbsolute(location)) {
-          throw new Error(`Local manifest asset '${name}' is outside the snapshot directory.`);
-        }
-        const route = location.split(sep).map(encodeURIComponent).join("/");
-        return [name, new URL(`assets/${route}`, previewOrigin).href];
-      },
-    ),
-  );
 }
 
 interface PreviewServer {

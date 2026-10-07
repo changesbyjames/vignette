@@ -40,4 +40,25 @@ describe("browserCodec", () => {
       settings: { width: 560, height: 315 },
     });
   });
+
+  it("resolves root-relative URLs against the browser source base URL", () => {
+    const source: BrowserSource = {
+      kind: "source:browser",
+      id: "frame",
+      url: "/__vignette/frame/label?props=%7B%7D",
+      viewport: { width: 1280, height: 720 },
+    };
+    const availableInputKinds = new Set(["browser_source"]);
+
+    expect(
+      browserCodec.compile(source, { availableInputKinds, baseUrl: "http://127.0.0.1:4173/" }),
+    ).toMatchObject({
+      supported: true,
+      settings: { url: "http://127.0.0.1:4173/__vignette/frame/label?props=%7B%7D" },
+    });
+    expect(browserCodec.compile(source, { availableInputKinds })).toMatchObject({
+      supported: false,
+      reason: expect.stringMatching(/no browser source base URL/u),
+    });
+  });
 });

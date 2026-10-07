@@ -1,5 +1,6 @@
 import {
   omitUndefined,
+  requireBaseUrl,
   type AssetResolver,
   type ProjectId,
   type RenderTarget,
@@ -21,6 +22,11 @@ export interface CreateObsTargetOptions {
   readonly password?: string;
   readonly projectId: ProjectId;
   readonly assetResolver: AssetResolver;
+  /**
+   * Absolute HTTP(S) base OBS uses for root-relative URLs it loads itself (browser sources).
+   * Without it, a snapshot with a root-relative browser source URL fails preflight.
+   */
+  readonly browserSourceBaseUrl?: string;
   readonly retry?: ObsRetryOptions;
   readonly extensions?: readonly ObsSourceCodec[];
   readonly onError?: (error: Error) => void;
@@ -52,6 +58,10 @@ export function createObsScheduler(
       password: options.password,
       projectId: options.projectId,
       assetResolver: options.assetResolver,
+      browserSourceBaseUrl:
+        options.browserSourceBaseUrl === undefined
+          ? undefined
+          : requireBaseUrl(options.browserSourceBaseUrl, "browserSourceBaseUrl"),
       retry: options.retry,
       extensions: options.extensions,
       onError: options.onError,

@@ -17,6 +17,7 @@ export type * from "./layout/layout-engine.js";
 export * from "./layout/rounding.js";
 export * from "./message-hub.js";
 export * from "./objects.js";
+export * from "./resource-url.js";
 export * from "./runtime.js";
 export type * from "./snapshot.js";
 export * from "./source-module.js";

@@ -51,7 +51,14 @@ export interface SnapshotRuntime {
  * A transport that delivers runtime messages to a consumer. Implementations own connection
  * details (SSE, websockets, in-memory buses); runtimes stay transport-agnostic.
  */
-export type RuntimeMessageSource = (signal: AbortSignal) => AsyncIterable<RuntimeMessage>;
+export interface RuntimeMessageSource {
+  (signal: AbortSignal): AsyncIterable<RuntimeMessage>;
+  /**
+   * The URL this transport reads from, when it has one (possibly relative to the consumer's
+   * document). Runtimes may use it as the default base for root-relative snapshot URLs.
+   */
+  readonly url?: string;
+}
 
 /** Sequentially applies a runtime message stream until it ends or fails. */
 export async function consumeRuntimeMessages(

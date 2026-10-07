@@ -1,10 +1,9 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
 import type { Size } from "@strangecyan/vignette-core";
 import { BrowserView, type BrowserViewProps } from "@strangecyan/vignette";
-import { createElement, useContext, type ReactElement } from "react";
+import { createElement, type ReactElement } from "react";
 
 import type { FrameDefinition } from "./definition.js";
-import { SceneContext } from "./scene.js";
 import { hashFrameValue, serializeFrameParams } from "./serialization.js";
 
 export const FRAME_ROUTE_PREFIX = "/__vignette/frame";
@@ -21,10 +20,12 @@ export interface ViewProps<Params extends object> extends Omit<
   readonly viewport?: Size;
 }
 
-/** Declares and places a typed, parameterized React DOM frame. */
+/**
+ * Declares and places a typed, parameterized React DOM frame. The browser source URL is
+ * root-relative (`/__vignette/frame/<routeKey>?props=...`); each target resolves it against its
+ * own base URL, so the composer never needs to know its public origin.
+ */
 export function View<Params extends object>(props: ViewProps<Params>): ReactElement {
-  const scene = useContext(SceneContext);
-  if (scene === undefined) throw new Error("<View> must be rendered inside a <SceneProvider>.");
   const metadata = props.source.metadata;
   if (metadata === undefined) {
     throw new Error(
@@ -37,7 +38,7 @@ export function View<Params extends object>(props: ViewProps<Params>): ReactElem
   return createElement(BrowserView, {
     id: `${identity}.layer`,
     sourceId: `${identity}.source`,
-    url: `${scene.origin}${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
+    url: `${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
     viewport: props.viewport ?? DEFAULT_VIEWPORT,
     ...omitUndefined({ label: props.label }),
     ...omitUndefined({ shutdownWhenHidden: props.shutdownWhenHidden }),

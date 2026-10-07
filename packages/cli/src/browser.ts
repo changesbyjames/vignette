@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { SourceDefinitionWireSchema, type SourceDefinitionWire } from "@strangecyan/vignette-core";
+import {
+  omitUndefined,
+  SourceDefinitionWireSchema,
+  type SourceDefinitionWire,
+} from "@strangecyan/vignette-core";
 import type { AnySourceDefinition, CompiledSnapshot } from "@strangecyan/vignette-core";
 import {
   DomTarget,
@@ -40,6 +44,7 @@ async function renderPreview(input: BrowserPreviewInput): Promise<BrowserPreview
     id: "preview",
     container,
     sceneId: input.sceneId,
+    ...omitUndefined({ baseUrl: input.baseUrl }),
     extensions: placeholderKinds.map(createPlaceholderRenderer),
     assetResolver: {
       resolve(asset) {

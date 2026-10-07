@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { isStableId, STABLE_ID_RULE } from "./ids.js";
 import { omitUndefined } from "./objects.js";
+import { validateResourceUrl } from "./resource-url.js";
 import type { CompiledSnapshot } from "./snapshot.js";
 import type { AssetManifest, RuntimeEvent } from "./runtime.js";
 
@@ -132,7 +133,13 @@ export type CompiledSnapshotWire = z.output<typeof CompiledSnapshotWireSchema>;
 export const ManifestEntryWireSchema = z
   .object({
     name: z.string(),
-    url: z.string(),
+    /** Absolute HTTP(S) or root-relative; targets resolve root-relative URLs against their base. */
+    url: z
+      .string()
+      .refine(
+        (url) => validateResourceUrl(url) === undefined,
+        "Asset URL must be an absolute HTTP(S) URL or a root-relative path starting with a single '/'.",
+      ),
     integrity: z.templateLiteral(["sha256-", z.string()]).optional(),
   })
   .transform(omitUndefined);

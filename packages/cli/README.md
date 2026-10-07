@@ -22,9 +22,11 @@ pnpm exec vignette obs \
   --url https://localhost:5173/api/runtime
 ```
 
-`--password` is optional for OBS instances without WebSocket authentication. The command runs until
-it receives `SIGINT` or `SIGTERM`. It intentionally provides only the standard happy-path runtime:
-there is no health endpoint or readiness checking.
+Root-relative asset and browser-source URLs in snapshots resolve against `--url`. Add
+`--browser-source-base-url <url>` when OBS reaches the composer at a different address than this
+command. `--password` is optional for OBS instances without WebSocket authentication. The command
+runs until it receives `SIGINT` or `SIGTERM`. It intentionally provides only the standard happy-path
+runtime: there is no health endpoint or readiness checking.
 
 ## Capture a PNG
 
@@ -37,7 +39,8 @@ pnpm exec vignette preview \
 
 `--snapshot` accepts a JSON file, a JSON URL, or a Vignette runtime SSE URL. JSON may contain the
 snapshot directly or an object with `{ "snapshot": ..., "manifest": ... }`. The first scene is used
-unless `--scene <id|label>` or `--all-scenes` is supplied.
+unless `--scene <id|label>` or `--all-scenes` is supplied. Root-relative URLs resolve against the
+snapshot URL; a snapshot file that contains them requires `--base-url <url>`.
 
 By default PNGs are written under `vignette-preview/`. Use `--out <file>` for one scene or
 `--out <directory> --all-scenes` for multiple scenes. `--json` prints result metadata for agents and

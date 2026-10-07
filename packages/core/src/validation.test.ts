@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { asset } from "./assets.js";
-import { broadcast, imageSource, layer, scene, sceneLayer, sources } from "./builders.js";
+import {
+  broadcast,
+  browserSource,
+  imageSource,
+  layer,
+  scene,
+  sceneLayer,
+  sources,
+} from "./builders.js";
 import type { AnySourceDefinition } from "./sources.js";
+import { resolveResourceUrl } from "./resource-url.js";
 import { validateBroadcast } from "./validation.js";
 
 describe("validateBroadcast", () => {
@@ -79,5 +88,36 @@ describe("validateBroadcast", () => {
     const result = validateBroadcast(graph);
     expect(result.valid).toBe(false);
     expect(result.errors.map(({ code }) => code)).toEqual(["UNKNOWN_SOURCE_KIND"]);
+  });
+
+  it("accepts absolute HTTP(S) and root-relative browser URLs only", () => {
+    const urlDiagnostics = (url: string) =>
+      validateBroadcast(
+        broadcast({
+          projectId: "weekly-show",
+          children: [
+            sources(browserSource({ id: "page", url, viewport: { width: 640, height: 360 } })),
+            scene({ id: "programme", children: [layer({ id: "page", sourceId: "page" })] }),
+          ],
+        }),
+      ).errors.map(({ code }) => code);
+
+    expect(urlDiagnostics("https://example.com/overlay")).toEqual([]);
+    expect(urlDiagnostics("/__vignette/frame/label?props=%7B%7D")).toEqual([]);
+    for (const url of ["//evil.example/x", "/\\evil.example/x", "overlay.html", "file:///x"]) {
+      expect(urlDiagnostics(url)).toEqual(["INVALID_BROWSER_URL"]);
+    }
+  });
+});
+
+describe("resolveResourceUrl", () => {
+  it("keeps absolute URLs and resolves root-relative URLs against the base origin", () => {
+    expect(resolveResourceUrl("https://cdn.example/a.png", "http://host:4173/runtime")).toBe(
+      "https://cdn.example/a.png",
+    );
+    expect(resolveResourceUrl("/assets/a.png?v=1", "http://host:4173/api/runtime")).toBe(
+      "http://host:4173/assets/a.png?v=1",
+    );
+    expect(() => resolveResourceUrl("/assets/a.png", undefined)).toThrow(/no base URL/u);
   });
 });

@@ -8,10 +8,11 @@ import {
 
 /**
  * A runtime message transport backed by an `EventSource` reading the wire format produced by
- * `encodeRuntimeMessageSse`.
+ * `encodeRuntimeMessageSse`. The source exposes `url`, which `useCompositor` uses as the default
+ * base for root-relative snapshot URLs.
  */
 export function sseRuntimeSource(url: string): RuntimeMessageSource {
-  return (signal) => consume(url, signal);
+  return Object.assign((signal: AbortSignal) => consume(url, signal), { url });
 }
 
 async function* consume(url: string, signal: AbortSignal): AsyncIterable<RuntimeMessage> {

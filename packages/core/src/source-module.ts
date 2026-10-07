@@ -1,6 +1,7 @@
 import { validateAssetName, type AssetRef } from "./assets.js";
 import { diagnostic, type Diagnostic } from "./diagnostics.js";
 import { isFiniteNumber, isPositiveSize, type Size } from "./geometry.js";
+import { validateResourceUrl } from "./resource-url.js";
 import type { AnySourceDefinition, SourceKinds } from "./sources.js";
 
 /**
@@ -54,6 +55,16 @@ export function invalidHttpUrl(url: string, path: string): Diagnostic | undefine
   );
 }
 
+/**
+ * Diagnostic helper for module authors: `url` must be an absolute HTTP(S) URL or a root-relative
+ * path (e.g. `/__vignette/frame/...`) that each target resolves against its own base URL.
+ */
+export function invalidResourceUrl(url: string, path: string): Diagnostic | undefined {
+  const message = validateResourceUrl(url);
+  if (message === undefined) return undefined;
+  return diagnostic("INVALID_BROWSER_URL", "error", path, `Browser source ${message}`);
+}
+
 function invalidAsset(asset: AssetRef, path: string): Diagnostic | undefined {
   const message = validateAssetName(asset.name);
   if (message === undefined) return undefined;
@@ -105,7 +116,7 @@ export const browserSourceModule: SourceModule<SourceKinds["source:browser"]> = 
   intrinsicSize: (source) => source.viewport,
   validate: (source, path) =>
     compactDiagnostics(
-      invalidHttpUrl(source.url, `${path}.url`),
+      invalidResourceUrl(source.url, `${path}.url`),
       invalidSourceSize(source.viewport, `${path}.viewport`),
     ),
 };

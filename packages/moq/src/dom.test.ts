@@ -28,7 +28,7 @@ describe("moqDomRenderer", () => {
       quality: "auto",
       disableWhenHidden: false,
     };
-    const view = moqDomRenderer.create(document);
+    const view = moqDomRenderer.create(document, { baseUrl: "http://127.0.0.1/" });
     view.update(source, item);
 
     const watch = view.element;
@@ -54,7 +54,7 @@ describe("moqDomRenderer", () => {
       broadcast: "bbb.hang",
       size: { width: 1280, height: 720 },
     };
-    const view = moqDomRenderer.create(document);
+    const view = moqDomRenderer.create(document, { baseUrl: "http://127.0.0.1/" });
     view.update(source, item);
 
     const watch = view.element;

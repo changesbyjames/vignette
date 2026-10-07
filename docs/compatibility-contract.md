@@ -21,7 +21,7 @@ feature in V1.
 
 - Static image from a logical project asset.
 - Local media file from a logical project asset.
-- Browser source with an absolute HTTP(S) URL and declared viewport.
+- Browser source with an absolute HTTP(S) or root-relative URL and declared viewport.
 - Solid color source.
 - Nested scenes as explicit compositing/reuse boundaries.
 
@@ -36,6 +36,28 @@ Optional `@strangecyan/vignette-frame` views compile to this same browser-source
 adapter serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each
 load that URL in their own browser instance, so markup and behavior are shared but hook state and
 timing are not synchronized.
+
+## URL resolution
+
+Snapshots and asset manifests carry server resources as either an absolute `http:`/`https:` URL or a
+root-relative path beginning with exactly one `/` (for example `/__vignette/frame/<routeKey>?...` or
+`/assets/logo-1a2b3c4d.png`). Protocol-relative (`//host/...`), bare relative (`logo.png`), and
+other schemes are rejected: browser sources with `INVALID_BROWSER_URL`, manifest entries when the
+wire message is decoded. Absolute URLs are used unchanged by every target; the composer never needs
+to know its public origin.
+
+Each target resolves root-relative URLs against its own base URL:
+
+- DOM: `DOMRuntime`/`DomTarget` option `baseUrl` (may be relative to the document). `useCompositor`
+  defaults it to the transport's URL, e.g. `sseRuntimeSource("/runtime")`; otherwise the document's
+  `baseURI` is used.
+- OBS: `OBSRuntime` option `baseUrl` (how the runtime process reaches the composer; used for asset
+  downloads) and `browserSourceBaseUrl` (how OBS reaches the composer; used for browser-source
+  settings, defaulting to `baseUrl`). A root-relative browser source with no base fails preflight
+  with an `OBS_UNSUPPORTED_SOURCE` diagnostic and the target enters the `error` phase; a
+  root-relative manifest URL with no base fails `setup`.
+- CLI: `vignette obs --url` is the default base; `--browser-source-base-url` overrides it for OBS.
+  `vignette preview` resolves against the snapshot URL, or `--base-url` for snapshot files.
 
 The declared browser viewport is the intrinsic coordinate space used by common fit and crop
 calculation. Each target renders the page at the layer's realized pixel size. In OBS, the planner

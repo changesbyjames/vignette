@@ -27,6 +27,11 @@ export function Program() {
 The hook owns the SSE subscription and `DOMRuntime`, supports server rendering, and disposes both
 when its container detaches. Importing `./react` requires React.
 
+Snapshots and manifests may carry root-relative URLs such as `/__vignette/frame/...` and
+`/assets/...`. They resolve against the `baseUrl` option, which defaults to the transport URL
+(`/runtime` above, relative to the page) and otherwise to `document.baseURI`. Absolute URLs are used
+unchanged.
+
 For non-React clients, construct `DOMRuntime` with a container, call `setup(manifest)` before
 `update(snapshot)`, forward one-shot events with `event()`, and call `dispose()` at shutdown. Add
 custom source renderers through `extensions`; built-in image, media, browser, and color renderers

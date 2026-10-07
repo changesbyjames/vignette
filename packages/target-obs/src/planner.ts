@@ -55,6 +55,8 @@ export interface ObsPlannerInput {
   readonly observed: ObservedObsState;
   readonly resolvedAssets: ReadonlyMap<SourceId, string>;
   readonly codecs: ObsCodecMap;
+  /** Absolute base OBS uses for root-relative URLs it loads itself, such as browser sources. */
+  readonly browserSourceBaseUrl?: string;
 }
 
 interface PlannedSource {
@@ -650,6 +652,7 @@ function prepareSource(
   const compiled = codec.compile(definition, {
     availableInputKinds,
     ...omitUndefined({ resolvedAsset: resolvedAsset }),
+    ...omitUndefined({ baseUrl: input.browserSourceBaseUrl }),
     ...omitUndefined({
       browserViewport: browserGeometry === undefined ? undefined : browserGeometry.viewport,
     }),

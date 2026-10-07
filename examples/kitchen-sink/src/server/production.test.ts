@@ -30,7 +30,6 @@ describe("production kitchen-sink server", () => {
       env: {
         ...process.env,
         PORT: String(port),
-        VIGNETTE_ORIGIN: origin,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -51,13 +50,14 @@ describe("production kitchen-sink server", () => {
 
       const update = messages.find((message) => message.kind === "update");
       const frameUrl = findFrameUrl(update?.snapshot);
-      expect(frameUrl).toBeDefined();
-      const frameResponse = await fetch(frameUrl ?? "");
+      // Snapshots carry root-relative frame URLs; consumers resolve them against their own base.
+      expect(frameUrl).toMatch(/^\/__vignette\/frame\//u);
+      const frameResponse = await fetch(new URL(frameUrl ?? "", origin));
       expect(frameResponse.status).toBe(200);
       const frameHtml = await frameResponse.text();
       expect(frameHtml).toContain("<!doctype html>");
 
-      const routeKey = new URL(frameUrl ?? "").pathname.split("/").at(-1);
+      const routeKey = new URL(frameUrl ?? "", origin).pathname.split("/").at(-1);
       const hydrationPath = /src="([^"]+\/hydrate\.js)"/u.exec(frameHtml)?.[1];
       expect(routeKey).toBeDefined();
       expect(hydrationPath).toBeDefined();

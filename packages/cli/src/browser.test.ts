@@ -8,7 +8,7 @@ import { createPlaceholderRenderer } from "./browser.js";
 describe("createPlaceholderRenderer", () => {
   it("shows source identity, settings, and computed size", () => {
     const renderer = createPlaceholderRenderer("source:media-file");
-    const view = renderer.create(document);
+    const view = renderer.create(document, { baseUrl: "http://127.0.0.1/" });
     const source: MediaFileSource = {
       kind: "source:media-file",
       id: "intro",

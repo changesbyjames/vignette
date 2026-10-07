@@ -13,7 +13,7 @@ pnpm add @strangecyan/vignette-frame @strangecyan/vignette-vite react react-dom 
 ## Define and place a frame
 
 ```tsx
-import { createSceneStore, frame, SceneProvider, View } from "@strangecyan/vignette-frame";
+import { frame, View } from "@strangecyan/vignette-frame";
 import { z } from "zod";
 
 export const LowerThird = frame({
@@ -22,11 +22,7 @@ export const LowerThird = frame({
 });
 
 export function Overlay() {
-  return (
-    <SceneProvider scene={createSceneStore({ origin: "https://example.com" })}>
-      <View source={LowerThird} params={{ name: "Ada" }} />
-    </SceneProvider>
-  );
+  return <View source={LowerThird} params={{ name: "Ada" }} />;
 }
 ```
 
@@ -97,5 +93,6 @@ Hosts that cannot run the transform can provide supported metadata directly with
 `frame({ metadata, params, view })`.
 
 Frame parameters must be serializable and are parsed on both placement and request. Keep frame
-modules browser-safe. The configured public origin must be reachable by every browser and OBS host
-that renders the source.
+modules browser-safe. `<View>` emits a root-relative URL (`/__vignette/frame/...`); each target
+resolves it against its own base URL, which must reach the frame host from wherever the source is
+rendered (the DOM page or OBS).

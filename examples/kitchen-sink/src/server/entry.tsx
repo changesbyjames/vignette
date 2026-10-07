@@ -2,7 +2,6 @@ import { omitUndefined } from "@strangecyan/vignette-core";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { consumeRuntimeMessages, toSseEvent } from "@strangecyan/vignette-core";
-import { createSceneStore, SceneProvider } from "@strangecyan/vignette-frame";
 import { createFrameRequestHandler } from "@strangecyan/vignette-frame/server";
 import { createComposerRoot } from "@strangecyan/vignette";
 import { streamSSE } from "hono/streaming";
@@ -23,12 +22,13 @@ import {
 
 const port = readPort(process.env.PORT);
 const hostname = process.env.HOST ?? "127.0.0.1";
-const origin = readOrigin(process.env.VIGNETTE_ORIGIN ?? `http://${hostname}:${String(port)}`);
+// The composer never needs its public origin; only the embedded OBS runtime, which runs on this
+// machine, needs a local address to reach frames and assets.
+const localUrl = `http://${hostname === "0.0.0.0" || hostname === "::" ? "127.0.0.1" : hostname}:${String(port)}/`;
 const clientDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../client");
 const reportError = (error: Error) => {
   console.error(error.stack ?? error.message);
 };
-const scene = createSceneStore({ origin });
 const root = createComposerRoot({
   projectId: KITCHEN_SINK_PROJECT_ID,
   canvas: KITCHEN_SINK_CANVAS,
@@ -36,11 +36,7 @@ const root = createComposerRoot({
   assets,
   onError: reportError,
 });
-await root.render(
-  <SceneProvider scene={scene}>
-    <Show />
-  </SceneProvider>,
-);
+await root.render(<Show />);
 
 const handleFrame = createFrameRequestHandler(frames);
 const app = new Hono();
@@ -64,6 +60,7 @@ let runtimeConsumer: Promise<void> | undefined = undefined;
 if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
   runtime = createKitchenSinkObsRuntime({
     url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
+    baseUrl: localUrl,
     ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
     onError: reportError,
   });
@@ -73,7 +70,7 @@ if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
     },
   );
 }
-console.log(`Vignette kitchen sink listening at ${origin}`);
+console.log(`Vignette kitchen sink listening at ${localUrl}`);
 
 let shutdownPromise: Promise<void> | undefined = undefined;
 const shutdown = () => {
@@ -105,18 +102,4 @@ function readPort(raw: string | undefined): number {
     throw new Error(`PORT must be an integer from 1 to 65535; received '${raw ?? ""}'.`);
   }
   return value;
-}
-
-/** Validate an HTTP origin with no extra path or query before constructing public runtime URLs. */
-function readOrigin(raw: string): string {
-  const value = new URL(raw);
-  if (
-    (value.protocol !== "http:" && value.protocol !== "https:") ||
-    value.pathname !== "/" ||
-    value.search !== "" ||
-    value.hash !== ""
-  ) {
-    throw new Error("VIGNETTE_ORIGIN must be an HTTP(S) origin without a path, query, or hash.");
-  }
-  return value.origin;
 }

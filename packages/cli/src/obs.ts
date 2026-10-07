@@ -13,9 +13,11 @@ export async function runObs(
   const runtime = new OBSRuntime({
     projectId: options.project,
     url: options.obsUrl,
+    baseUrl: options.url,
     extensions: [moqObsCodec],
     onError,
     ...omitUndefined({ password: options.password }),
+    ...omitUndefined({ browserSourceBaseUrl: options.browserSourceBaseUrl }),
   });
   try {
     await consumeRuntimeMessages(runtime, sseRuntimeSource(options.url, { onError })(signal));

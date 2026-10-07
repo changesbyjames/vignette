@@ -4,13 +4,15 @@ import {
   decodeRuntimeSseEvent,
   CompiledSnapshotWireSchema,
   AssetManifestWireSchema,
+  isRootRelativeUrl,
+  resolveResourceUrl,
   type AssetManifest,
   type CompiledSnapshot,
   type RuntimeSseEvent,
 } from "@strangecyan/vignette-core";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import type { LoadedSnapshot } from "./types.js";
 
@@ -29,21 +31,35 @@ interface SnapshotEnvelope {
   readonly manifest?: AssetManifest;
 }
 
-/** Load a compiled snapshot and its asset locations from JSON, a URL, or a runtime SSE stream. */
-export async function loadSnapshot(input: string, timeoutMs: number): Promise<LoadedSnapshot> {
-  if (isHttpUrl(input)) return loadRemoteSnapshot(input, timeoutMs);
+/**
+ * Load a compiled snapshot and its asset locations from JSON, a URL, or a runtime SSE stream.
+ * Root-relative URLs resolve against `baseUrl`, else the snapshot URL; a file snapshot containing
+ * root-relative URLs requires `baseUrl`.
+ */
+export async function loadSnapshot(
+  input: string,
+  timeoutMs: number,
+  baseUrl?: string,
+): Promise<LoadedSnapshot> {
+  if (isHttpUrl(input)) return loadRemoteSnapshot(input, timeoutMs, baseUrl);
 
   const path = input.startsWith("file:") ? fileURLToPath(input) : resolve(input);
   const value: unknown = JSON.parse(await readFile(path, "utf8"));
   const envelope = readSnapshotEnvelope(value);
   return {
-    snapshot: envelope.snapshot,
-    assetUrls: manifestUrls(envelope.manifest, pathToFileURL(path).href),
+    snapshot: requireResolvableUrls(envelope.snapshot, baseUrl),
+    assetUrls: manifestUrls(envelope.manifest, baseUrl),
     localAssetRoot: dirname(path),
+    ...omitUndefined({ baseUrl }),
   };
 }
 
-async function loadRemoteSnapshot(input: string, timeoutMs: number): Promise<LoadedSnapshot> {
+/** Fetch JSON or the first SSE update, resolving root-relative URLs against the override or response URL. */
+async function loadRemoteSnapshot(
+  input: string,
+  timeoutMs: number,
+  baseUrlOverride: string | undefined,
+): Promise<LoadedSnapshot> {
   const response = await fetch(input, {
     headers: { accept: "application/json, text/event-stream" },
     signal: AbortSignal.timeout(timeoutMs),
@@ -55,20 +71,16 @@ async function loadRemoteSnapshot(input: string, timeoutMs: number): Promise<Loa
   }
 
   const sourceUrl = response.url;
-  if (response.headers.get("content-type")?.includes("text/event-stream") === true) {
-    const envelope = await readSseSnapshot(response);
-    return {
-      snapshot: envelope.snapshot,
-      assetUrls: manifestUrls(envelope.manifest, sourceUrl),
-      assetBaseUrl: new URL(".", sourceUrl).href,
-    };
-  }
-
-  const envelope = readSnapshotEnvelope(await response.json());
+  const baseUrl = baseUrlOverride ?? sourceUrl;
+  const envelope =
+    response.headers.get("content-type")?.includes("text/event-stream") === true
+      ? await readSseSnapshot(response)
+      : readSnapshotEnvelope(await response.json());
   return {
     snapshot: envelope.snapshot,
-    assetUrls: manifestUrls(envelope.manifest, sourceUrl),
+    assetUrls: manifestUrls(envelope.manifest, baseUrl),
     assetBaseUrl: new URL(".", sourceUrl).href,
+    baseUrl,
   };
 }
 
@@ -160,12 +172,38 @@ function validateSnapshot(
 
 function manifestUrls(
   manifest: AssetManifest | undefined,
-  sourceUrl: string,
+  baseUrl: string | undefined,
 ): Readonly<Record<string, string>> {
   if (manifest === undefined) return {};
   return Object.fromEntries(
-    manifest.assets.map((entry) => [entry.name, new URL(entry.url, sourceUrl).href]),
+    manifest.assets.map((entry) => [entry.name, resolveSnapshotUrl(entry.url, baseUrl)]),
   );
+}
+
+/** Built-in browser sources are the only snapshot fields the preview loads by URL. */
+function requireResolvableUrls(
+  snapshot: CompiledSnapshot,
+  baseUrl: string | undefined,
+): CompiledSnapshot {
+  for (const { definition } of snapshot.sources) {
+    if (definition.kind !== "source:browser") continue;
+    const parsed: SourceUrl | undefined = SourceUrlSchema.safeParse(definition).data;
+    const url = parsed?.url;
+    if (url !== undefined) resolveSnapshotUrl(url, baseUrl);
+  }
+  return snapshot;
+}
+
+const SourceUrlSchema = z.object({ url: z.string() });
+type SourceUrl = z.output<typeof SourceUrlSchema>;
+
+function resolveSnapshotUrl(url: string, baseUrl: string | undefined): string {
+  if (baseUrl === undefined && isRootRelativeUrl(url)) {
+    throw new Error(
+      `Snapshot contains root-relative URL '${url}'; pass --base-url <url> to resolve it.`,
+    );
+  }
+  return resolveResourceUrl(url, baseUrl);
 }
 
 function isHttpUrl(value: string): boolean {
