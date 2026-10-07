@@ -16,6 +16,7 @@ import {
   Scene,
   Sources,
   createComposerRoot,
+  defineComposition,
 } from "@strangecyan/vignette";
 import { managedSceneName, managedSourceName, OBSRuntime } from "@strangecyan/vignette-target-obs";
 import { OBSWebSocket } from "obs-websocket-js";
@@ -51,19 +52,27 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
   await assertDisposableCollection(url, password, expectedCollection);
 
   const hub = new RuntimeMessageHub();
-  hub.publish({ kind: "setup", manifest: { version: 1, assets: [] } });
+  hub.publish({
+    kind: "setup",
+    projectId: project,
+    manifest: { version: 1, assets: [] },
+    extensions: [],
+  });
   const runtime = new OBSRuntime({ id: "integration-obs", url, password, projectId: project });
   const consuming = consumeRuntimeMessages(runtime, hub.subscribe());
-  const root = createComposerRoot({
-    projectId: project,
-    canvas: { width: 1920, height: 1080, frameRate: 60 },
-  });
+  const root = createComposerRoot(
+    defineComposition({
+      id: project,
+      canvas: { width: 1920, height: 1080, frameRate: 60 },
+      component: () => show("#112233"),
+    }),
+  );
   const unsubscribe = root.subscribe((snapshot) => {
     hub.publish({ kind: "update", snapshot });
   });
 
   try {
-    const first = await root.render(show("#112233"));
+    const first = await root.render();
     await waitForRuntime(runtime, first.compiledRevision, "initial convergence");
     expect(await sceneExists(url, password, sceneName)).toBe(true);
 
@@ -111,7 +120,11 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
   const previousProgramScene = await currentProgramScene(url, password);
 
   try {
-    await runtime.setup({ version: 1, assets: [] });
+    await runtime.setup({
+      projectId: project,
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
     runtime.update(snapshot);
     await waitForRuntime(runtime, snapshot.revision, "frame parity convergence");
 

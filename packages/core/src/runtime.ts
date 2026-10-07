@@ -1,9 +1,9 @@
-import type { SceneId } from "./ids.js";
+import type { ProjectId, SceneId } from "./ids.js";
 import type { CompiledSnapshot } from "./snapshot.js";
+import type { SourceModuleEntrypoints } from "./source-module.js";
 
-interface RuntimeSetupMessage {
+interface RuntimeSetupMessage extends RuntimeSetup {
   readonly kind: "setup";
-  readonly manifest: AssetManifest;
 }
 
 interface RuntimeUpdateMessage {
@@ -29,6 +29,25 @@ export interface AssetManifest {
   readonly assets: readonly AssetManifestEntry[];
 }
 
+/**
+ * One extension source kind registered by a composition, advertised so targets can verify they
+ * implement it before any snapshot arrives.
+ */
+export interface ExtensionSourceKind {
+  readonly kind: `source:${string}`;
+  /** Target entrypoints that implement the kind, used to make diagnostics actionable. */
+  readonly entrypoints?: SourceModuleEntrypoints;
+}
+
+/** Composition identity and requirements announced to a runtime before any snapshot. */
+export interface RuntimeSetup {
+  /** The composition's project ID; snapshots in the same stream carry the same ID. */
+  readonly projectId: ProjectId;
+  readonly manifest: AssetManifest;
+  /** Extension source kinds the composer registered; built-in kinds are never listed. */
+  readonly extensions: readonly ExtensionSourceKind[];
+}
+
 /** One-shot command delivered separately from stable desired state. */
 export interface RuntimeEvent {
   readonly id: string;
@@ -41,7 +60,7 @@ export type RuntimeMessage = RuntimeSetupMessage | RuntimeUpdateMessage | Runtim
 
 /** Consumer contract shared by DOM, OBS, and test runtimes. */
 export interface SnapshotRuntime {
-  setup(manifest: AssetManifest): Promise<void>;
+  setup(setup: RuntimeSetup): Promise<void>;
   update(snapshot: CompiledSnapshot): void;
   event(event: RuntimeEvent): void | Promise<void>;
   dispose(): Promise<void>;
@@ -68,7 +87,11 @@ export async function consumeRuntimeMessages(
   for await (const message of messages) {
     switch (message.kind) {
       case "setup":
-        await runtime.setup(message.manifest);
+        await runtime.setup({
+          projectId: message.projectId,
+          manifest: message.manifest,
+          extensions: message.extensions,
+        });
         break;
       case "update":
         runtime.update(message.snapshot);
@@ -78,4 +101,34 @@ export async function consumeRuntimeMessages(
         break;
     }
   }
+}
+
+/** What each target registers to implement an extension source kind. */
+const TARGET_EXTENSION_LABELS = {
+  dom: "a DOM renderer",
+  obs: "an OBS codec",
+} as const;
+
+/**
+ * Describes the advertised extension source kinds a target cannot render, or returns undefined
+ * when every kind is available. Built-in kinds are never advertised, so `available` only needs to
+ * contain the target's registered kinds.
+ */
+export function describeMissingExtensions(
+  extensions: readonly ExtensionSourceKind[],
+  available: ReadonlySet<string>,
+  target: keyof SourceModuleEntrypoints,
+): string | undefined {
+  const missing = extensions.filter((extension) => !available.has(extension.kind));
+  if (missing.length === 0) return undefined;
+  return missing
+    .map((extension) => {
+      const entrypoint = extension.entrypoints?.[target];
+      const remedy =
+        entrypoint === undefined
+          ? `register ${TARGET_EXTENSION_LABELS[target]} for it`
+          : `register ${entrypoint}`;
+      return `Stream requires source kind '${extension.kind}'; ${remedy}.`;
+    })
+    .join(" ");
 }

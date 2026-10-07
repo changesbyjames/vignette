@@ -1,8 +1,8 @@
 import type { RuntimeMessage } from "./runtime.js";
 import {
-  AssetManifestWireSchema,
   CompiledSnapshotWireSchema,
   RuntimeEventWireSchema,
+  RuntimeSetupWireSchema,
 } from "./wire-schemas.js";
 
 /**
@@ -26,7 +26,14 @@ export interface RuntimeSseEventRecord {
 export function toSseEvent(message: RuntimeMessage): RuntimeSseEventRecord {
   const [id, payload] =
     message.kind === "setup"
-      ? ["setup", message.manifest]
+      ? [
+          "setup",
+          {
+            projectId: message.projectId,
+            manifest: message.manifest,
+            extensions: message.extensions,
+          },
+        ]
       : message.kind === "update"
         ? [String(message.snapshot.revision), message.snapshot]
         : [message.event.id, message.event];
@@ -43,7 +50,7 @@ export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
 export function decodeRuntimeSseEvent(event: RuntimeSseEvent, data: string): RuntimeMessage {
   switch (event) {
     case "setup":
-      return { kind: "setup", manifest: AssetManifestWireSchema.parse(JSON.parse(data)) };
+      return { kind: "setup", ...RuntimeSetupWireSchema.parse(JSON.parse(data)) };
     case "update":
       return { kind: "update", snapshot: CompiledSnapshotWireSchema.parse(JSON.parse(data)) };
     case "event":

@@ -29,7 +29,8 @@ export const OBS_HELP = `Usage:
   vignette obs --project <id> --obs-url <url> --url <runtime-url> [options]
 
 Options:
-  --project <id>       Managed Vignette project ID
+  --project <id>       Managed Vignette project ID; must match the composition's
+                       id, or the runtime refuses to manage OBS
   --obs-url <url>      OBS WebSocket URL, e.g. ws://localhost:4455
   --password <value>   OBS WebSocket password (optional)
   --url <runtime-url>  Vignette runtime SSE URL; also the base for root-relative
@@ -37,6 +38,9 @@ Options:
   --browser-source-base-url <url>
                        Base OBS uses for root-relative browser-source URLs when OBS
                        reaches the composer at a different host than this process
+  --extension <module> Load OBS source codecs exported by a module, e.g.
+                       @strangecyan/vignette-moq/obs (repeatable; resolved from
+                       the current directory)
   --help               Show this help`;
 
 export interface ObsCommandOptions {
@@ -45,17 +49,21 @@ export interface ObsCommandOptions {
   readonly password?: string;
   readonly url: string;
   readonly browserSourceBaseUrl?: string;
+  /** Module specifiers passed with `--extension`, in order. */
+  readonly extensions: readonly string[];
 }
 
 interface CommandSpec {
   readonly command: string;
   readonly help: string;
   readonly valueFlags: ReadonlySet<string>;
+  readonly repeatableFlags?: ReadonlySet<string>;
   readonly switches: ReadonlySet<string>;
 }
 
 interface ParsedCommand {
   readonly values: ReadonlyMap<string, string>;
+  readonly repeated: ReadonlyMap<string, readonly string[]>;
   readonly switches: ReadonlySet<string>;
 }
 
@@ -99,6 +107,7 @@ export function parseObsOptions(arguments_: readonly string[]): ObsCommandOption
       "--url",
       "--browser-source-base-url",
     ]),
+    repeatableFlags: new Set(["--extension"]),
     switches: new Set<string>(),
   });
   return omitUndefined({
@@ -107,6 +116,7 @@ export function parseObsOptions(arguments_: readonly string[]): ObsCommandOption
     url: requiredHttpUrl(parsed, "--url", OBS_HELP),
     password: parsed.values.get("--password"),
     browserSourceBaseUrl: optionalHttpUrl(parsed, "--browser-source-base-url"),
+    extensions: parsed.repeated.get("--extension") ?? [],
   });
 }
 
@@ -127,14 +137,18 @@ function parseCommand(arguments_: readonly string[], spec: CommandSpec): ParsedC
   if (remaining.shift() !== spec.command)
     throw new Error(`Expected the '${spec.command}' command.\n\n${spec.help}`);
   const values = new Map<string, string>();
+  const repeated = new Map<string, string[]>();
   const switches = new Set<string>();
   while (remaining.length > 0) {
+    // Value flags keep their last occurrence; repeatable flags accumulate in command-line order.
     const flag = remaining.shift() ?? "";
     if (spec.valueFlags.has(flag)) values.set(flag, takeValue(flag, remaining));
-    else if (spec.switches.has(flag)) switches.add(flag);
+    else if (spec.repeatableFlags?.has(flag) === true) {
+      repeated.set(flag, [...(repeated.get(flag) ?? []), takeValue(flag, remaining)]);
+    } else if (spec.switches.has(flag)) switches.add(flag);
     else throw new Error(`Unknown option '${flag}'.\n\n${spec.help}`);
   }
-  return { values, switches };
+  return { values, repeated, switches };
 }
 
 function requiredFlag(parsed: ParsedCommand, flag: string, help: string): string {

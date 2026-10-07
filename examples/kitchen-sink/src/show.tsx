@@ -1,8 +1,17 @@
 /** @jsxImportSource react */
 import type { LayoutStyle } from "@strangecyan/vignette-core";
 import { View } from "@strangecyan/vignette-frame";
+import { moqSourceModule } from "@strangecyan/vignette-moq";
 import { MoqSource } from "@strangecyan/vignette-moq/react";
-import { Box, Broadcast, ColorSource, Layer, Scene, Sources } from "@strangecyan/vignette";
+import {
+  Box,
+  Broadcast,
+  ColorSource,
+  defineComposition,
+  Layer,
+  Scene,
+  Sources,
+} from "@strangecyan/vignette";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { clockFrame } from "./clock.frame.js";
@@ -124,3 +133,11 @@ export function Show(): ReactElement {
     </Broadcast>
   );
 }
+
+/** The kitchen sink's identity, canvas, and extensions; every host renders this definition. */
+export const composition = defineComposition({
+  id: "kitchen-sink",
+  canvas: { width: 1920, height: 1080, frameRate: 60 },
+  extensions: [moqSourceModule],
+  component: Show,
+});

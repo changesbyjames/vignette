@@ -12,13 +12,8 @@ import { fileURLToPath } from "node:url";
 import { assets } from "virtual:vignette/assets";
 import { frames } from "virtual:vignette/frames";
 
-import { Show } from "../show.js";
+import { composition } from "../show.js";
 import { createKitchenSinkObsRuntime } from "./kitchen-sink-obs.js";
-import {
-  KITCHEN_SINK_CANVAS,
-  KITCHEN_SINK_EXTENSIONS,
-  KITCHEN_SINK_PROJECT_ID,
-} from "./kitchen-sink.js";
 
 const port = readPort(process.env.PORT);
 const hostname = process.env.HOST ?? "127.0.0.1";
@@ -29,14 +24,8 @@ const clientDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../cli
 const reportError = (error: Error) => {
   console.error(error.stack ?? error.message);
 };
-const root = createComposerRoot({
-  projectId: KITCHEN_SINK_PROJECT_ID,
-  canvas: KITCHEN_SINK_CANVAS,
-  extensions: KITCHEN_SINK_EXTENSIONS,
-  assets,
-  onError: reportError,
-});
-await root.render(<Show />);
+const root = createComposerRoot(composition, { assets, onError: reportError });
+await root.render();
 
 const handleFrame = createFrameRequestHandler(frames);
 const app = new Hono();
@@ -59,6 +48,7 @@ let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined = undefi
 let runtimeConsumer: Promise<void> | undefined = undefined;
 if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
   runtime = createKitchenSinkObsRuntime({
+    projectId: composition.id,
     url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
     baseUrl: localUrl,
     ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),

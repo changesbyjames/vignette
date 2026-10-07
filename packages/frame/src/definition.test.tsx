@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { BrowserSource } from "@strangecyan/vignette-core";
-import { Broadcast, Scene, createComposerRoot } from "@strangecyan/vignette";
+import { Broadcast, Scene, createComposerRoot, defineComposition } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 import { frame } from "./definition.js";
@@ -41,18 +41,25 @@ describe("frame View", () => {
       }),
       view: ({ name }) => <div>Hello {name}!</div>,
     });
-    const root = createComposerRoot({
-      projectId: "frame-test",
-      canvas: { width: 1920, height: 1080 },
-    });
-
-    await root.render(
-      <Broadcast>
-        <Scene id="main">
-          <View source={greeting} params={{ name: "James" }} style={{ width: 640, height: 360 }} />
-        </Scene>
-      </Broadcast>,
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
+          <Broadcast>
+            <Scene id="main">
+              <View
+                source={greeting}
+                params={{ name: "James" }}
+                style={{ width: 640, height: 360 }}
+              />
+            </Scene>
+          </Broadcast>
+        ),
+      }),
     );
+
+    await root.render();
 
     const snapshot = root.snapshot;
     const definition = snapshot?.sources[0]?.definition;
@@ -82,21 +89,22 @@ describe("frame View", () => {
       }),
       view: ({ name }) => <div>{name}</div>,
     });
-    const root = createComposerRoot({
-      projectId: "frame-test",
-      canvas: { width: 1920, height: 1080 },
-    });
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
+          <Broadcast>
+            <Scene id="main">
+              {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
+              <View source={greeting} params={{}} />
+            </Scene>
+          </Broadcast>
+        ),
+      }),
+    );
 
-    await expect(
-      root.render(
-        <Broadcast>
-          <Scene id="main">
-            {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
-            <View source={greeting} params={{}} />
-          </Scene>
-        </Broadcast>,
-      ),
-    ).rejects.toThrow(/name required/u);
+    await expect(root.render()).rejects.toThrow(/name required/u);
     await root.dispose();
   });
 });

@@ -29,9 +29,15 @@ timers inside the composed tree.
 
 Every runtime input is one of three closed message types:
 
-- `setup`: an asset manifest, sent before snapshots;
+- `setup`: the composition's project ID, its asset manifest, and the extension source kinds it
+  registered (with target entrypoint hints), sent before snapshots;
 - `update`: one complete compiled snapshot;
 - `event`: a uniquely identified one-shot command, separate from desired state.
+
+Runtimes validate setup before accepting snapshots. The OBS runtime refuses a stream whose project
+ID differs from the namespace it was configured to manage, and every runtime refuses a stream that
+advertises an extension source kind it has no renderer or codec for. Both are observable `error`
+phases with actionable messages, never exceptions thrown into the composer.
 
 SSE uses the same names as event types. A newly connected consumer receives the current setup and
 latest complete update. Transient commands are not part of snapshot replay. The example uses the

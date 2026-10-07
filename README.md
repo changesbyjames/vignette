@@ -77,12 +77,16 @@ To capture the first scene from a running composer or a saved snapshot:
 pnpm exec vignette preview --snapshot http://localhost:4173/runtime --name "test 01"
 ```
 
-To stream a runtime into OBS with the standard codecs:
+To stream a runtime into OBS, with the MoQ extension's codec loaded:
 
 ```sh
 pnpm exec vignette obs --project demo --obs-url ws://localhost:4455 \
-  --password secret --url http://localhost:5173/api/runtime
+  --password secret --url http://localhost:5173/api/runtime \
+  --extension @strangecyan/vignette-moq/obs
 ```
+
+`--project` must match the composition's `id` (from `defineComposition`); the stream's setup message
+carries it, and the OBS runtime refuses to manage anything on a mismatch.
 
 The first release intentionally supports a narrow common surface: image, local media, browser, and
 color sources; fixed-canvas Yoga layout; absolute transforms; fit/crop; visibility; and rotation.

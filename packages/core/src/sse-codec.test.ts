@@ -7,7 +7,12 @@ describe("runtime SSE codec", () => {
   const messages: readonly RuntimeMessage[] = [
     {
       kind: "setup",
+      projectId: "codec",
       manifest: { version: 1, assets: [{ name: "logo.png", url: "/assets/logo-abc123.png" }] },
+      extensions: [
+        { kind: "source:moq", entrypoints: { dom: "moq/dom", obs: "moq/obs" } },
+        { kind: "source:custom" },
+      ],
     },
     {
       kind: "update",
@@ -39,9 +44,19 @@ describe("runtime SSE codec", () => {
     expect(() => decodeRuntimeSseEvent("event", data)).toThrow(/ID must start/u);
   });
 
+  it("rejects a setup without project identity", () => {
+    const data = JSON.stringify({ manifest: { version: 1, assets: [] }, extensions: [] });
+
+    expect(() => decodeRuntimeSseEvent("setup", data)).toThrow(/projectId/u);
+  });
+
   it("rejects protocol-relative and bare relative manifest URLs", () => {
     for (const url of ["//cdn.example/logo.png", "assets/logo.png"]) {
-      const data = JSON.stringify({ version: 1, assets: [{ name: "logo.png", url }] });
+      const data = JSON.stringify({
+        projectId: "codec",
+        manifest: { version: 1, assets: [{ name: "logo.png", url }] },
+        extensions: [],
+      });
       expect(() => decodeRuntimeSseEvent("setup", data)).toThrow(/root-relative path/u);
     }
   });

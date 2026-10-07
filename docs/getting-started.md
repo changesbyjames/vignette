@@ -15,10 +15,12 @@ This prints a compiled snapshot without starting any services. For the complete 
 corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 ```
 
-Open `http://127.0.0.1:4173`. The Vite backend owns a persistent custom React root. A timer inside
-the composed React component updates `useState`, producing a new complete snapshot every second. The
-backend streams setup and update messages over `/runtime`; the browser contains only a `DOMRuntime`
-consumer.
+Open `http://127.0.0.1:4173`. `src/show.tsx` exports the composition definition — project ID,
+canvas, extensions, and top-level component — as `composition`; every host calls
+`createComposerRoot(composition)` and `root.render()`. The Vite backend owns a persistent custom
+React root. A timer inside the composed React component updates `useState`, producing a new complete
+snapshot every second. The backend streams setup and update messages over `/runtime`; the browser
+contains only a `DOMRuntime` consumer.
 
 The browser shell mounts that consumer with one hook:
 
@@ -37,7 +39,7 @@ behavior, and direct `DOMRuntime` external-store usage.
 The same backend contains the in-memory OBS example:
 
 ```ts
-const runtime = new OBSRuntime({ projectId, url, password });
+const runtime = new OBSRuntime({ projectId: composition.id, url, password });
 await consumeRuntimeMessages(runtime, messageBus.subscribe());
 ```
 
@@ -58,7 +60,7 @@ decoder.
 Both runtime implementations follow the same ordering:
 
 ```ts
-await runtime.setup(assetManifest);
+await runtime.setup({ projectId, manifest, extensions });
 runtime.update(completeSnapshot);
 await runtime.event(command);
 await runtime.dispose();

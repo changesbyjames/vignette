@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { consumeRuntimeMessages, type RuntimeMessage, type SnapshotRuntime } from "./runtime.js";
+import {
+  consumeRuntimeMessages,
+  describeMissingExtensions,
+  type RuntimeMessage,
+  type SnapshotRuntime,
+} from "./runtime.js";
 
 describe("consumeRuntimeMessages", () => {
   it("applies setup, complete updates, and commands in stream order", async () => {
@@ -26,9 +31,27 @@ describe("consumeRuntimeMessages", () => {
   });
 });
 
+describe("describeMissingExtensions", () => {
+  it("names the hinted entrypoint for each kind the target lacks", () => {
+    const extensions = [
+      { kind: "source:moq", entrypoints: { obs: "@strangecyan/vignette-moq/obs" } },
+      { kind: "source:custom" },
+      { kind: "source:present" },
+    ] as const;
+
+    expect(describeMissingExtensions(extensions, new Set(["source:present"]), "obs")).toBe(
+      "Stream requires source kind 'source:moq'; register @strangecyan/vignette-moq/obs. " +
+        "Stream requires source kind 'source:custom'; register an OBS codec for it.",
+    );
+    expect(
+      describeMissingExtensions(extensions, new Set(extensions.map(({ kind }) => kind)), "dom"),
+    ).toBeUndefined();
+  });
+});
+
 async function* messages(): AsyncIterable<RuntimeMessage> {
   await Promise.resolve();
-  yield { kind: "setup", manifest: { version: 1, assets: [] } };
+  yield { kind: "setup", projectId: "show", manifest: { version: 1, assets: [] }, extensions: [] };
   yield {
     kind: "update",
     snapshot: {

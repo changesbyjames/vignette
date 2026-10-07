@@ -2,21 +2,20 @@ import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   compileBroadcast,
   deepFreeze,
+  extensionSourceKinds,
   resolveSourceModules,
   RuntimeMessageHub,
   type AssetManifest,
-  type BroadcastCanvas,
   type CompiledSnapshot,
   type Diagnostic,
   type LayoutEngine,
-  type ProjectId,
   type RuntimeEvent,
   type RuntimeMessage,
-  type SourceModule,
   type SourceModuleMap,
 } from "@strangecyan/vignette-core";
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 
+import type { CompositionDefinition } from "./composition.js";
 import { hostTreeToBroadcast } from "./host-tree.js";
 import type { HostContainer } from "./host-types.js";
 import { reconciler } from "./reconciler.js";
@@ -31,13 +30,9 @@ interface LoadDefaultLayoutEngineModule {
   yogaLayoutEngine: LayoutEngine;
 }
 
-/** Identity, canvas, extensions, and error handling for a composer root. */
+/** Host-owned runtime settings for a composer root; identity comes from the composition. */
 export interface ComposerRootOptions {
-  readonly projectId: ProjectId;
-  readonly canvas: BroadcastCanvas;
   readonly strictMode?: boolean;
-  /** Source modules contributed by extension packages (built-ins are always registered). */
-  readonly extensions?: readonly SourceModule[];
   /** Layout implementation. Defaults to the yoga-layout binding when omitted. */
   readonly layoutEngine?: LayoutEngine;
   /** Assets required by this composition. Fixed for the root's lifetime. */
@@ -54,7 +49,11 @@ export interface CommitReceipt {
 
 /** Persistent Node-side React root that publishes compiled snapshots. */
 export interface ComposerRoot {
-  render(element: ReactNode): Promise<CommitReceipt>;
+  /**
+   * Renders the composition's component, or `element` when supplied (for hosts that wrap the
+   * component in providers, or tests that render ad hoc trees).
+   */
+  render(element?: ReactNode): Promise<CommitReceipt>;
   readonly snapshot: CompiledSnapshot | undefined;
   settled(): Promise<CompiledSnapshot>;
   messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage>;
@@ -73,12 +72,16 @@ interface CompileWaiter {
   readonly reject: (error: Error) => void;
 }
 
-/** Creates a persistent React composer for one Vignette project. */
-export function createComposerRoot(options: ComposerRootOptions): ComposerRoot {
-  return new ComposerRootImpl(options);
+/** Creates a persistent React composer for one composition. */
+export function createComposerRoot(
+  composition: CompositionDefinition,
+  options: ComposerRootOptions = {},
+): ComposerRoot {
+  return new ComposerRootImpl(composition, options);
 }
 
 class ComposerRootImpl implements ComposerRoot {
+  private readonly composition: CompositionDefinition;
   private readonly options: ComposerRootOptions;
   private readonly modules: SourceModuleMap;
   private readonly container: HostContainer;
@@ -95,17 +98,25 @@ class ComposerRootImpl implements ComposerRoot {
   private disposed = false;
   private compileFailure: ComposerRootImplCompileFailure | undefined;
 
-  constructor(options: ComposerRootOptions) {
+  constructor(composition: CompositionDefinition, options: ComposerRootOptions) {
+    this.composition = composition;
     this.options = options;
-    const manifest = deepFreeze<AssetManifest>({
+    const manifest: AssetManifest = {
       version: options.assets?.version ?? 1,
       assets: (options.assets?.assets ?? []).map((asset) => ({ ...asset })),
-    });
-    this.messageHub.publish({ kind: "setup", manifest });
-    this.modules = resolveSourceModules(options.extensions);
+    };
+    this.messageHub.publish(
+      deepFreeze({
+        kind: "setup",
+        projectId: composition.id,
+        manifest,
+        extensions: extensionSourceKinds(composition.extensions),
+      }),
+    );
+    this.modules = resolveSourceModules(composition.extensions);
     this.container = {
-      projectId: options.projectId,
-      canvas: options.canvas,
+      projectId: composition.id,
+      canvas: composition.canvas,
       children: [],
       commitRevision: 0,
       commitActive: false,
@@ -134,7 +145,7 @@ class ComposerRootImpl implements ComposerRoot {
       ) as unknown;
   }
 
-  render(element: ReactNode): Promise<CommitReceipt> {
+  render(element: ReactNode = createElement(this.composition.component)): Promise<CommitReceipt> {
     this.assertActive();
     return new Promise<CommitReceipt>((resolve, reject) => {
       let renderFailed = false;
@@ -257,7 +268,7 @@ class ComposerRootImpl implements ComposerRoot {
     }
 
     if (this.container.children.length === 0) {
-      this.publish(emptySnapshot(this.options, revision), []);
+      this.publish(emptySnapshot(this.composition, revision), []);
       return;
     }
 
@@ -374,11 +385,11 @@ class CompileFailure extends Error {
   }
 }
 
-function emptySnapshot(options: ComposerRootOptions, revision: number): CompiledSnapshot {
+function emptySnapshot(composition: CompositionDefinition, revision: number): CompiledSnapshot {
   return {
     revision,
-    projectId: options.projectId,
-    canvas: { ...options.canvas },
+    projectId: composition.id,
+    canvas: { ...composition.canvas },
     sources: [],
     scenes: [],
     warnings: [],

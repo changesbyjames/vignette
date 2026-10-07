@@ -14,7 +14,9 @@ serves complete snapshots over SSE, and the browser applies them through `DOMRun
 
 Useful entry points:
 
-- `src/show.tsx` defines the sources, Yoga layout, layers, and frame views.
+- `src/show.tsx` defines the sources, Yoga layout, layers, and frame views, and exports the
+  `composition` definition (project ID `kitchen-sink`, canvas, MoQ extension) that every host
+  renders.
 - `src/label.frame.tsx` is a parameterized React DOM frame.
 - `src/clock.frame.tsx` demonstrates independent client hydration and state.
 - `src/backend/plugin.tsx` hosts the composer during Vite development.
@@ -22,7 +24,13 @@ Useful entry points:
 - `src/app.tsx` consumes the same runtime stream in the browser.
 
 The browser preview renders the MoQ source through `@moq/watch`. OBS output requires the
-`moq_source` plugin that implements the contract used by `@strangecyan/vignette-moq/obs`.
+`moq_source` plugin that implements the contract used by `@strangecyan/vignette-moq/obs`. To use the
+CLI instead of the bundled worker, pass the composition's ID and the MoQ codec:
+
+```sh
+pnpm exec vignette obs --project kitchen-sink --obs-url ws://127.0.0.1:4455 \
+  --url http://127.0.0.1:4173/runtime --extension @strangecyan/vignette-moq/obs
+```
 
 To connect a disposable local OBS instance while developing, set `VIGNETTE_ENABLE_EMBEDDED=1` and
 optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`.

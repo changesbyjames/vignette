@@ -264,6 +264,12 @@ export class ObsConvergenceScheduler implements RenderTarget {
   }
   /** Refresh no-op revisions, execute changed plans, and requeue work invalidated by newer state. */
   private async synchronizeSnapshot(snapshot: CompiledSnapshot): Promise<boolean> {
+    // Planning names resources from the snapshot's project, so a foreign one would escape the namespace.
+    if (snapshot.projectId !== this.options.projectId) {
+      throw new ObsPreflightError(
+        `Snapshot is for project '${snapshot.projectId}' but this OBS target manages project '${this.options.projectId}'.`,
+      );
+    }
     await this.ensureObserved();
     if (this.shouldStop()) return false;
     const observed = this.observed;

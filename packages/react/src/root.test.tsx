@@ -2,10 +2,13 @@ import type {
   ColorSource as ColorSourceDefinition,
   CompiledSnapshot,
   LayoutEngine,
+  RuntimeMessage,
+  SourceModule,
 } from "@strangecyan/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { defineComposition } from "./composition.js";
 import { Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
 import { createComposerRoot } from "./root.js";
 
@@ -19,13 +22,16 @@ describe("createComposerRoot", () => {
         children: [],
       })),
     );
-    const root = createComposerRoot({
-      projectId: "injected-layout",
-      canvas: { width: 640, height: 360 },
-      layoutEngine: { layout },
-    });
+    const root = createComposerRoot(
+      defineComposition({
+        id: "injected-layout",
+        canvas: { width: 640, height: 360 },
+        component: () => show("#112233"),
+      }),
+      { layoutEngine: { layout } },
+    );
 
-    await root.render(show("#112233"));
+    await root.render();
 
     expect(layout).toHaveBeenCalledOnce();
     expect(root.snapshot?.scenes[0]?.items[0]?.frame).toEqual({
@@ -34,6 +40,43 @@ describe("createComposerRoot", () => {
       width: 640,
       height: 360,
     });
+    await root.dispose();
+  });
+
+  it("renders the composition's component and advertises its identity and extensions", async () => {
+    const custom: SourceModule = {
+      kind: "source:custom",
+      entrypoints: { dom: "custom/dom", obs: "custom/obs" },
+      intrinsicSize: () => undefined,
+    };
+    const composition = defineComposition({
+      id: "defined-show",
+      canvas: { width: 1280, height: 720 },
+      extensions: [custom],
+      component: () => show("#445566"),
+    });
+    const root = createComposerRoot(composition);
+
+    const receipt = await root.render();
+
+    expect(Object.isFrozen(composition)).toBe(true);
+    expect(root.snapshot).toMatchObject({
+      revision: receipt.compiledRevision,
+      projectId: "defined-show",
+      sources: [{ definition: { color: "#445566" } }],
+    });
+    const controller = new AbortController();
+    const iterator = root.messages(controller.signal)[Symbol.asyncIterator]();
+    const setup: IteratorResult<RuntimeMessage> = await iterator.next();
+    expect(setup.value).toEqual({
+      kind: "setup",
+      projectId: "defined-show",
+      manifest: { version: 1, assets: [] },
+      extensions: [
+        { kind: "source:custom", entrypoints: { dom: "custom/dom", obs: "custom/obs" } },
+      ],
+    });
+    controller.abort();
     await root.dispose();
   });
 
@@ -112,10 +155,13 @@ describe("createComposerRoot", () => {
 });
 
 function makeRoot() {
-  return createComposerRoot({
-    projectId: "show",
-    canvas: { width: 1280, height: 720 },
-  });
+  return createComposerRoot(
+    defineComposition({
+      id: "show",
+      canvas: { width: 1280, height: 720 },
+      component: () => show("#000000"),
+    }),
+  );
 }
 
 function show(color: string) {

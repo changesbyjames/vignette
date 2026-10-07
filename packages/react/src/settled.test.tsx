@@ -3,6 +3,7 @@ import type { LayoutEngine, RuntimeMessage } from "@strangecyan/vignette-core";
 import { useSyncExternalStore } from "react";
 import { describe, expect, it } from "vitest";
 
+import { defineComposition } from "./composition.js";
 import { Broadcast, ColorSource, Scene, Sources } from "./primitives.js";
 import { createComposerRoot } from "./root.js";
 
@@ -102,12 +103,14 @@ function createStore(initial: string) {
 
 function makeRoot(assets?: MakeRootAssets) {
   const layoutEngine: LayoutEngine = { layout: () => [] };
-  return createComposerRoot({
-    projectId: "settled",
-    canvas: { width: 1280, height: 720 },
-    layoutEngine,
-    ...omitUndefined({ assets: assets }),
-  });
+  return createComposerRoot(
+    defineComposition({
+      id: "settled",
+      canvas: { width: 1280, height: 720 },
+      component: () => null,
+    }),
+    { layoutEngine, ...omitUndefined({ assets: assets }) },
+  );
 }
 
 async function next(iterator: AsyncIterator<RuntimeMessage>): Promise<RuntimeMessage> {

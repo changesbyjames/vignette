@@ -3,6 +3,7 @@
  *
  * @module
  */
+export * from "./composition.js";
 export * from "./primitives.js";
 export * from "./root.js";
 export * from "./source-element.js";

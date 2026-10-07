@@ -4,7 +4,7 @@ import { isStableId, STABLE_ID_RULE } from "./ids.js";
 import { omitUndefined } from "./objects.js";
 import { validateResourceUrl } from "./resource-url.js";
 import type { CompiledSnapshot } from "./snapshot.js";
-import type { AssetManifest, RuntimeEvent } from "./runtime.js";
+import type { AssetManifest, RuntimeEvent, RuntimeSetup } from "./runtime.js";
 
 /** Stable resource identifier; malformed IDs fail decoding instead of throwing. */
 export const StableIdWireSchema = z.string().refine(isStableId, STABLE_ID_RULE);
@@ -149,6 +149,29 @@ export const AssetManifestWireSchema = z.object({
   assets: z.array(ManifestEntryWireSchema),
 }) satisfies z.ZodType<AssetManifest>;
 export type AssetManifestWire = z.output<typeof AssetManifestWireSchema>;
+/** Target entrypoint hints for one advertised extension source kind. */
+export const SourceModuleEntrypointsWireSchema = z
+  .object({ dom: z.string().optional(), obs: z.string().optional() })
+  .transform(omitUndefined);
+/** Decoded target entrypoint hints. */
+export type SourceModuleEntrypointsWire = z.output<typeof SourceModuleEntrypointsWireSchema>;
+/** One extension source kind advertised by a composer's setup message. */
+export const ExtensionSourceKindWireSchema = z
+  .object({
+    kind: z.templateLiteral(["source:", z.string()]),
+    entrypoints: SourceModuleEntrypointsWireSchema.optional(),
+  })
+  .transform(omitUndefined);
+/** Decoded extension source kind. */
+export type ExtensionSourceKindWire = z.output<typeof ExtensionSourceKindWireSchema>;
+/** Setup payload: project identity, asset manifest, and the extension kinds the stream requires. */
+export const RuntimeSetupWireSchema = z.object({
+  projectId: StableIdWireSchema,
+  manifest: AssetManifestWireSchema,
+  extensions: z.array(ExtensionSourceKindWireSchema),
+}) satisfies z.ZodType<RuntimeSetup>;
+/** Decoded setup payload. */
+export type RuntimeSetupWire = z.output<typeof RuntimeSetupWireSchema>;
 export const RuntimeEventWireSchema = z.object({
   id: z.string(),
   kind: z.literal("scene:select"),

@@ -191,10 +191,11 @@ class CompositorController {
   ): Promise<void> {
     if (message.kind === "setup") {
       this.publish({ phase: "downloading-assets", revision: this.snapshot.revision });
-      await runtime.setup(message.manifest);
-      if (this.isCurrent(generation, runtime)) {
-        this.publish({ phase: "connecting", revision: this.snapshot.revision });
-      }
+      await runtime.setup(message);
+      if (!this.isCurrent(generation, runtime)) return;
+      const status = runtime.getSnapshot();
+      if (status.phase === "error") this.publishTarget(status);
+      else this.publish({ phase: "connecting", revision: this.snapshot.revision });
     } else if (message.kind === "update") {
       runtime.update(message.snapshot);
     } else {

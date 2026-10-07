@@ -34,6 +34,15 @@ await runtime.dispose();
 
 OBS WebSocket must be enabled. `setup()` downloads manifest assets before snapshots are accepted.
 
+Setup is also the safety gate. `projectId` is the namespace boundary: when a stream's setup names a
+different project ("Stream is for project 'x' but this OBS runtime manages project 'y'…"), or
+advertises an extension source kind with no registered codec ("Stream requires source kind
+'source:moq'; register @strangecyan/vignette-moq/obs."), the runtime reports the `error` phase
+through `getStatus()` and `onError`, ignores updates and events, and never contacts OBS. The whole
+target is blocked rather than individual sources, matching the planner, which already rejects a
+revision containing a source it cannot materialize. A later valid setup clears the error. The
+scheduler independently rejects any snapshot whose `projectId` differs from its own.
+
 Root-relative snapshot URLs (`/__vignette/frame/...`, `/assets/...`) resolve against `baseUrl`, the
 address this process uses to reach the composer. OBS loads browser sources itself; when it reaches
 the composer at a different address (for example, a worker in Docker and OBS on the host), set

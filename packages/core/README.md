@@ -39,9 +39,12 @@ Runtime-only consumers can import `./runtime` and `./sse` without loading the la
 
 Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use
 `RuntimeMessageHub`, `consumeRuntimeMessages`, and the SSE codecs to connect a composer to one or
-more independent targets. Extension packages define their own source type and contribute a generic
-`SourceModule`; pass those modules to the compiler or composer rather than using an open settings
-bag.
+more independent targets. The `setup` message carries the project ID, the asset manifest, and the
+extension source kinds the composer registered; targets refuse a setup they cannot satisfy
+(`describeMissingExtensions` formats the shared actionable message). Extension packages define their
+own source type and contribute a generic `SourceModule`, optionally naming the target entrypoints
+that implement it in `entrypoints`; pass those modules to the compiler or composer rather than using
+an open settings bag.
 
 The `./builders` entrypoint is optional. React projects normally author the same graph with
 `@strangecyan/vignette`.

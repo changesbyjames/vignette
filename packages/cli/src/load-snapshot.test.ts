@@ -62,10 +62,12 @@ describe("loadSnapshot", () => {
       response.write(
         encodeRuntimeMessageSse({
           kind: "setup",
+          projectId: "preview-test",
           manifest: {
             version: 1,
             assets: [{ name: "logo.png", url: "/assets/logo.png" }],
           },
+          extensions: [],
         }),
       );
       response.write(encodeRuntimeMessageSse({ kind: "update", snapshot: snapshotFixture }));

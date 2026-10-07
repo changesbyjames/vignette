@@ -12,6 +12,6 @@ export default defineConfig({ plugins: [vignette({ assets: "public/**/*" })] });
 
 Add `@strangecyan/vignette-vite/virtual` to `compilerOptions.types`, then import `frames` from
 `virtual:vignette/frames` and `assets` from `virtual:vignette/assets`. Manifest asset URLs are
-root-relative; pass the manifest to `createComposerRoot({ assets })` unchanged and each target
-resolves them against its own base URL. Frame client entries use deterministic URLs and must be
-served with `Cache-Control: no-store`.
+root-relative; pass the manifest to `createComposerRoot(composition, { assets })` unchanged and each
+target resolves them against its own base URL. Frame client entries use deterministic URLs and must
+be served with `Cache-Control: no-store`.

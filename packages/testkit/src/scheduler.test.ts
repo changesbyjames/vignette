@@ -8,13 +8,14 @@ import {
 } from "@strangecyan/vignette-core";
 import {
   createObsTargetWithTransport,
+  OBSRuntime,
   managedSceneName,
   managedSourceName,
   registrySceneName,
   REQUIRED_OBS_REQUESTS,
   type ObsJsonObject,
 } from "@strangecyan/vignette-target-obs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FakeObsTransport } from "./fake-obs-transport.js";
 import { ManualClock } from "./manual-clock.js";
@@ -27,6 +28,60 @@ describe("OBS convergence scheduler", () => {
         new FakeObsTransport(),
       ),
     ).toThrow(/OBS project ID 'show::other' is invalid/u);
+  });
+
+  it("rejects a snapshot for another project before contacting OBS", async () => {
+    const transport = new FakeObsTransport();
+    const target = createObsTargetWithTransport(
+      { projectId: "other-project", assetResolver: rejectingAssetResolver },
+      transport,
+    );
+
+    target.publish(snapshot(1));
+
+    await expect(target.whenSettled(1)).rejects.toThrow(
+      /Snapshot is for project 'scheduler-test' but this OBS target manages project 'other-project'/u,
+    );
+    expect(target.getStatus().phase).toBe("error");
+    expect(transport.connections).toHaveLength(0);
+    await target.dispose();
+  });
+
+  it("refuses a runtime stream for another project or with an unregistered extension", async () => {
+    const cases = [
+      {
+        setup: { projectId: "someone-else", manifest: { version: 1, assets: [] }, extensions: [] },
+        message:
+          "Stream is for project 'someone-else' but this OBS runtime manages project 'scheduler-test' (projectId / --project); refusing to manage OBS.",
+      },
+      {
+        setup: {
+          projectId: "scheduler-test",
+          manifest: { version: 1, assets: [] },
+          extensions: [
+            { kind: "source:moq", entrypoints: { obs: "@strangecyan/vignette-moq/obs" } },
+          ],
+        },
+        message:
+          "Stream requires source kind 'source:moq'; register @strangecyan/vignette-moq/obs.",
+      },
+    ] as const;
+
+    for (const { setup, message } of cases) {
+      const transport = new FakeObsTransport();
+      const onError = vi.fn<(error: Error) => void>();
+      const runtime = new OBSRuntime({ projectId: "scheduler-test", transport, onError });
+
+      await runtime.setup(setup);
+      runtime.update(snapshot(1));
+      await runtime.event({ id: "select", kind: "scene:select", sceneId: "main" });
+
+      expect(runtime.getStatus()).toEqual({ targetId: "obs", phase: "error", message });
+      expect(onError).toHaveBeenCalledWith(new Error(message));
+      await expect(runtime.whenSettled(1)).rejects.toThrow(message);
+      expect(transport.connections).toHaveLength(0);
+      await runtime.dispose();
+    }
   });
 
   it("bounds pending work to the latest revision and reconverges after reconnect", async () => {

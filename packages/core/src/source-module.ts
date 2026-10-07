@@ -1,8 +1,20 @@
 import { validateAssetName, type AssetRef } from "./assets.js";
 import { diagnostic, type Diagnostic } from "./diagnostics.js";
 import { isFiniteNumber, isPositiveSize, type Size } from "./geometry.js";
+import { omitUndefined } from "./objects.js";
 import { validateResourceUrl } from "./resource-url.js";
+import type { ExtensionSourceKind } from "./runtime.js";
 import type { AnySourceDefinition, SourceKinds } from "./sources.js";
+
+/**
+ * Module specifiers of the target entrypoints implementing an extension source kind, e.g.
+ * `{ dom: "@strangecyan/vignette-moq/dom", obs: "@strangecyan/vignette-moq/obs" }`. Targets name
+ * them in diagnostics when a stream requires a kind they have not registered.
+ */
+export interface SourceModuleEntrypoints {
+  readonly dom?: string;
+  readonly obs?: string;
+}
 
 /**
  * Target-neutral behaviour for one source kind. Built-in kinds ship with core; extension
@@ -10,6 +22,8 @@ import type { AnySourceDefinition, SourceKinds } from "./sources.js";
  */
 export interface SourceModule<Source extends AnySourceDefinition = AnySourceDefinition> {
   readonly kind: Source["kind"];
+  /** Where targets import their implementation of this kind; advertised in the runtime setup. */
+  readonly entrypoints?: SourceModuleEntrypoints;
   /** Intrinsic content size used by layout and content-fit calculations. */
   intrinsicSize(source: Source): Size | undefined;
   /** The asset this source needs resolved before a target can render it. */
@@ -26,6 +40,22 @@ export function resolveSourceModules(extensions: readonly SourceModule[] = []): 
   const modules = new Map<string, SourceModule>();
   for (const module of [...BUILTIN_SOURCE_MODULES, ...extensions]) modules.set(module.kind, module);
   return modules;
+}
+
+/** Extension kinds to advertise in a runtime setup, one per kind with the last module winning. */
+export function extensionSourceKinds(
+  extensions: readonly SourceModule[] = [],
+): readonly ExtensionSourceKind[] {
+  const kinds = new Map<string, ExtensionSourceKind>();
+  for (const module of extensions) {
+    kinds.set(module.kind, {
+      kind: module.kind,
+      ...omitUndefined({
+        entrypoints: module.entrypoints === undefined ? undefined : { ...module.entrypoints },
+      }),
+    });
+  }
+  return [...kinds.values()];
 }
 
 /** Diagnostic helper for module authors: `size` must be a finite positive size. */

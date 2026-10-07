@@ -9,5 +9,7 @@ corepack pnpm --filter @strangecyan/vignette-simple-example build
 corepack pnpm --filter @strangecyan/vignette-simple-example start
 ```
 
-Start with [`src/index.tsx`](src/index.tsx). Move to [`../kitchen-sink`](../kitchen-sink) when you
-need a browser preview, frames, SSE, or OBS.
+Start with [`src/show.tsx`](src/show.tsx), which exports the composition definition — its project
+ID, canvas, and top-level component — as `composition`. [`src/index.ts`](src/index.ts) is the host:
+`createComposerRoot(composition)` followed by `root.render()`. Move to
+[`../kitchen-sink`](../kitchen-sink) when you need a browser preview, frames, SSE, or OBS.

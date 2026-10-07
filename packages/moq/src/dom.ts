@@ -5,7 +5,7 @@
  */
 import type { DomSourceRenderer } from "@strangecyan/vignette-target-dom";
 
-import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
+import { DEFAULT_MOQ_LATENCY_MS, MOQ_SOURCE_KIND, type MoqSource } from "./index.js";
 
 interface MoqVideoTarget {
   readonly name?: string | undefined;
@@ -33,9 +33,9 @@ interface MoqWatchElement extends HTMLElement {
 
 let elementRegistration: Promise<void> | undefined = undefined;
 
-/** DOM facet: register with the DOM runtime (`extensions: [moqDomRenderer]`). */
+/** DOM facet: register with the DOM runtime or `useCompositor` (`extensions: [moqDomRenderer]`). */
 export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
-  kind: "source:moq",
+  kind: MOQ_SOURCE_KIND,
   async prepare(document) {
     if (document.defaultView?.customElements.get("moq-watch") !== undefined) return;
     elementRegistration ??= import("@moq/watch/element").then(() => undefined);

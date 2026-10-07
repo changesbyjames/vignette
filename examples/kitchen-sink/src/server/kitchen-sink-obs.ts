@@ -2,9 +2,9 @@ import { omitUndefined } from "@strangecyan/vignette-core";
 import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
 import { OBSRuntime } from "@strangecyan/vignette-target-obs";
 
-import { KITCHEN_SINK_PROJECT_ID } from "./kitchen-sink.js";
-
 export interface KitchenSinkObsRuntimeOptions {
+  /** The composition's `id`; the runtime refuses a stream for any other project. */
+  readonly projectId: string;
   readonly url?: string;
   readonly password?: string;
   /** How this process reaches the composer; resolves root-relative asset and frame URLs. */
@@ -16,7 +16,7 @@ export interface KitchenSinkObsRuntimeOptions {
 
 export function createKitchenSinkObsRuntime(options: KitchenSinkObsRuntimeOptions): OBSRuntime {
   return new OBSRuntime({
-    projectId: KITCHEN_SINK_PROJECT_ID,
+    projectId: options.projectId,
     url: options.url ?? "ws://127.0.0.1:4455",
     extensions: [moqObsCodec],
     baseUrl: options.baseUrl,

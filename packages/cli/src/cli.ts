@@ -10,6 +10,7 @@ import {
   PREVIEW_HELP,
 } from "./cli-options.js";
 import { runObs } from "./obs.js";
+import { loadObsExtensions } from "./obs-extensions.js";
 import { createPreviews } from "./preview.js";
 
 /** Dispatch the selected command after parsing its options, with help handling before any runtime work. */
@@ -51,17 +52,19 @@ async function preview(arguments_: readonly string[]): Promise<void> {
 
 async function obs(arguments_: readonly string[]): Promise<void> {
   const options = parseObsOptions(arguments_);
+  const extensions = await loadObsExtensions(options.extensions, process.cwd());
   const controller = new AbortController();
   const stop = (): void => {
     controller.abort();
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
+  const kinds = extensions.map((codec) => codec.kind).join(", ");
   process.stdout.write(
-    `Streaming ${options.url} to ${options.obsUrl} for project '${options.project}'.\n`,
+    `Streaming ${options.url} to ${options.obsUrl} for project '${options.project}'${kinds === "" ? "" : ` with extension source kinds ${kinds}`}.\n`,
   );
   try {
-    await runObs(options, controller.signal, (error) => {
+    await runObs(options, extensions, controller.signal, (error) => {
       process.stderr.write(`vignette obs: ${error.message}\n`);
     });
   } finally {

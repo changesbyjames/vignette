@@ -124,9 +124,6 @@ importers:
       '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@strangecyan/vignette-moq':
-        specifier: workspace:^
-        version: link:../moq
       '@strangecyan/vignette-target-dom':
         specifier: workspace:^
         version: link:../target-dom

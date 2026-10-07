@@ -3,7 +3,7 @@
 import { compileBroadcast } from "@strangecyan/vignette-core";
 import { broadcast, colorSource, layer, scene, sources } from "@strangecyan/vignette-core/builders";
 import { yogaLayoutEngine } from "@strangecyan/vignette-core/layout-yoga";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DOMRuntime } from "./runtime.js";
 
@@ -39,7 +39,11 @@ describe("DOMRuntime external store", () => {
     const phases: string[] = [];
     const unsubscribe = subscribe(() => phases.push(getSnapshot().phase));
 
-    await runtime.setup({ version: 1, assets: [] });
+    await runtime.setup({
+      projectId: "external-store",
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
     runtime.update(compiled.snapshot);
     await runtime.whenSettled(1);
 
@@ -50,5 +54,42 @@ describe("DOMRuntime external store", () => {
     await runtime.dispose();
     expect(phases.at(-1)).toBe("disposed");
     unsubscribe();
+  });
+
+  it("enters an actionable error state when the stream needs an unregistered extension", async () => {
+    const onError = vi.fn<(error: Error) => void>();
+    const runtime = new DOMRuntime({
+      container: document.createElement("div"),
+      sceneId: "main",
+      onError,
+    });
+    const phases: string[] = [];
+    const unsubscribe = runtime.subscribe(() => phases.push(runtime.getSnapshot().phase));
+
+    await runtime.setup({
+      projectId: "extension-check",
+      manifest: { version: 1, assets: [] },
+      extensions: [{ kind: "source:moq", entrypoints: { dom: "@strangecyan/vignette-moq/dom" } }],
+    });
+
+    const message =
+      "Stream requires source kind 'source:moq'; register @strangecyan/vignette-moq/dom.";
+    expect(runtime.getSnapshot()).toEqual({ targetId: "dom", phase: "error", message });
+    expect(onError).toHaveBeenCalledWith(new Error(message));
+    expect(phases).toEqual(["error"]);
+    expect(() => {
+      runtime.update({
+        revision: 1,
+        projectId: "extension-check",
+        canvas: { width: 1920, height: 1080 },
+        sources: [],
+        scenes: [],
+        warnings: [],
+      });
+    }).not.toThrow();
+    expect(runtime.getSnapshot().phase).toBe("error");
+
+    unsubscribe();
+    await runtime.dispose();
   });
 });

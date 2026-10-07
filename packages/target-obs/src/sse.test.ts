@@ -24,7 +24,12 @@ afterEach(async () => {
 describe("Node SSE runtime source", () => {
   it("decodes the same named-event wire format as the DOM source", async () => {
     const messages: RuntimeMessage[] = [
-      { kind: "setup", manifest: { version: 1, assets: [] } },
+      {
+        kind: "setup",
+        projectId: "sse-test",
+        manifest: { version: 1, assets: [] },
+        extensions: [],
+      },
       {
         kind: "update",
         snapshot: {

@@ -1,5 +1,7 @@
 /**
- * Core Media over QUIC source definition and composer extension.
+ * Core Media over QUIC source definition and composer extension. The same source kind is
+ * implemented by `@strangecyan/vignette-moq/react` (authoring), `/dom` (`moqDomRenderer`), and
+ * `/obs` (`moqObsCodec`).
  *
  * @module
  */
@@ -13,12 +15,15 @@ import {
   type SourceModule,
 } from "@strangecyan/vignette-core";
 
+/** Source kind shared by every MoQ entrypoint. */
+export const MOQ_SOURCE_KIND = "source:moq";
+
 /** Default end-to-end latency requested from a MoQ source. */
 export const DEFAULT_MOQ_LATENCY_MS = 100;
 
 /** One Media-over-QUIC broadcast rendered as a video source. */
 export interface MoqSource extends SourceBase {
-  readonly kind: "source:moq";
+  readonly kind: typeof MOQ_SOURCE_KIND;
   readonly url: string;
   readonly broadcast: string;
   readonly size: Size;
@@ -31,12 +36,17 @@ export interface MoqSource extends SourceBase {
 
 /** Creates a MoQ source definition. */
 export function moqSource(input: Omit<MoqSource, "kind">): MoqSource {
-  return { kind: "source:moq", ...input };
+  return { kind: MOQ_SOURCE_KIND, ...input };
 }
 
-/** Core facet: register with the composer root (`extensions: [moqSourceModule]`). */
+/**
+ * Composer facet: list it in `defineComposition({ extensions: [moqSourceModule] })`. The runtime
+ * setup advertises the kind with these entrypoints, so a target without them reports which one to
+ * register.
+ */
 export const moqSourceModule: SourceModule<MoqSource> = {
-  kind: "source:moq",
+  kind: MOQ_SOURCE_KIND,
+  entrypoints: { dom: "@strangecyan/vignette-moq/dom", obs: "@strangecyan/vignette-moq/obs" },
   intrinsicSize: (source) => source.size,
   /** Collect independent source-setting diagnostics rather than failing after the first invalid field. */
   validate(source, path) {

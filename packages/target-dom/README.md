@@ -32,8 +32,12 @@ Snapshots and manifests may carry root-relative URLs such as `/__vignette/frame/
 (`/runtime` above, relative to the page) and otherwise to `document.baseURI`. Absolute URLs are used
 unchanged.
 
-For non-React clients, construct `DOMRuntime` with a container, call `setup(manifest)` before
+For non-React clients, construct `DOMRuntime` with a container, call `setup(setup)` (project ID,
+manifest, and advertised extension kinds, as carried by the `setup` message) before
 `update(snapshot)`, forward one-shot events with `event()`, and call `dispose()` at shutdown. Add
 custom source renderers through `extensions`; built-in image, media, browser, and color renderers
-are always available. Runtime status and `whenSettled()` expose local convergence without coupling
-it to the composer.
+are always available. A setup advertising an extension kind without a registered renderer puts the
+runtime in the `error` phase with an actionable message (for example "Stream requires source kind
+'source:moq'; register @strangecyan/vignette-moq/dom.") and ignores updates until a satisfiable
+setup arrives. The DOM target has no managed namespace, so it does not check the project ID. Runtime
+status and `whenSettled()` expose local convergence without coupling it to the composer.
