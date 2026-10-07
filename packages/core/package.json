@@ -11,7 +11,9 @@
   "type": "module",
   "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "vendor",
+    "src/yoga-wasm.d.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -35,7 +37,16 @@
     },
     "./layout-yoga": {
       "types": "./dist/layout/layout-yoga.d.ts",
+      "workerd": "./dist/layout/layout-yoga-workerd.js",
       "default": "./dist/layout/layout-yoga.js"
+    },
+    "./layout-yoga-wasm": {
+      "types": "./dist/layout/layout-yoga-wasm.d.ts",
+      "default": "./dist/layout/layout-yoga-wasm.js"
+    },
+    "./yoga.wasm": {
+      "types": "./src/yoga-wasm.d.ts",
+      "default": "./vendor/yoga/yoga.wasm"
     }
   },
   "scripts": {
@@ -44,7 +55,8 @@
     "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/core",
-    "publish:check": "pnpm publish --dry-run --no-git-checks"
+    "publish:check": "pnpm publish --dry-run --no-git-checks",
+    "vendor:yoga": "node scripts/vendor-yoga.mjs"
   },
   "dependencies": {
     "yoga-layout": "3.2.1",

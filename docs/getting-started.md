@@ -17,10 +17,11 @@ corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 
 Open `http://127.0.0.1:4173`. `src/show.tsx` exports the composition definition — project ID,
 canvas, extensions, and top-level component — as `composition`; every host calls
-`createComposerRoot(composition)` and `root.render()`. The Vite backend owns a persistent custom
-React root. A timer inside the composed React component updates `useState`, producing a new complete
-snapshot every second. The backend streams setup and update messages over `/runtime`; the browser
-contains only a `DOMRuntime` consumer.
+`createComposerRoot(composition)` and `root.render()`. In development the Vignette Vite plugin is
+that host (`vignette({ composition: "./src/show.tsx" })`): it owns a persistent custom React root
+and re-renders it when the module or its imports change. A timer inside the composed React component
+updates `useState`, producing a new complete snapshot every second. The backend streams setup and
+update messages over `/runtime`; the browser contains only a `DOMRuntime` consumer.
 
 The browser shell mounts that consumer with one hook:
 
@@ -36,11 +37,11 @@ return <div ref={ref} data-phase={compositor.phase} />;
 See [`dom-compositor-hook.md`](dom-compositor-hook.md) for custom streams, status fields, SSR
 behavior, and direct `DOMRuntime` external-store usage.
 
-The same backend contains the in-memory OBS example:
+The kitchen sink's `onComposerRoot` hook attaches the in-memory OBS example to the dev composer:
 
 ```ts
 const runtime = new OBSRuntime({ projectId: composition.id, url, password });
-await consumeRuntimeMessages(runtime, messageBus.subscribe());
+await consumeRuntimeMessages(runtime, root.messages(signal));
 ```
 
 Enable it while running the kitchen sink with:
@@ -52,8 +53,8 @@ VIGNETTE_OBS_PASSWORD='runtime-only' \
 corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
 ```
 
-A standalone OBS process uses the same `OBSRuntime`; only `messageBus.subscribe()` changes to an SSE
-decoder.
+A standalone OBS process uses the same `OBSRuntime`; only `root.messages(signal)` changes to an SSE
+source such as `sseRuntimeSource(url)`.
 
 ## Runtime lifecycle
 

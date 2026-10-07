@@ -19,7 +19,8 @@ Useful entry points:
   renders.
 - `src/label.frame.tsx` is a parameterized React DOM frame.
 - `src/clock.frame.tsx` demonstrates independent client hydration and state.
-- `src/backend/plugin.tsx` hosts the composer during Vite development.
+- `vite.config.ts` hosts the composer during development through the Vignette plugin's `composition`
+  option; edits to `src/show.tsx` or its imports re-render it.
 - `src/server/entry.tsx` and `src/server/obs-worker.ts` are production host and OBS entries.
 - `src/app.tsx` consumes the same runtime stream in the browser.
 
@@ -33,7 +34,8 @@ pnpm exec vignette obs --project kitchen-sink --obs-url ws://127.0.0.1:4455 \
 ```
 
 To connect a disposable local OBS instance while developing, set `VIGNETTE_ENABLE_EMBEDDED=1` and
-optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`.
+optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`; the config's `onComposerRoot`
+hook feeds it from the dev composer.
 
 The composer never needs its public origin: frame URLs in snapshots are root-relative and each
 target resolves them. The browser resolves them against `/runtime`; the embedded OBS runtime uses

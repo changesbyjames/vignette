@@ -286,6 +286,9 @@ importers:
 
   packages/vite:
     dependencies:
+      '@strangecyan/vignette':
+        specifier: workspace:^
+        version: link:../react
       '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
@@ -302,6 +305,12 @@ importers:
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
       vite:
         specifier: 8.1.4
         version: 8.1.4(@types/node@26.1.1)

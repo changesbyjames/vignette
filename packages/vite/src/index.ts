@@ -10,7 +10,11 @@ import { createFrameRequestHandler, type FrameBundle } from "@strangecyan/vignet
 import { createNodeFrameRequestHandler } from "@strangecyan/vignette-frame/server/node";
 import { transformFrameDefinitions } from "@strangecyan/vignette-frame/transform";
 import { globSync } from "tinyglobby";
-import type { Plugin } from "vite";
+import type { Plugin, UserConfig } from "vite";
+
+import type { ComposerRootHook, DevComposer } from "./dev-composer.js";
+
+export type { ComposerRootContext, ComposerRootHook } from "./dev-composer.js";
 
 const FRAMES_ID = "virtual:vignette/frames";
 const ASSETS_ID = "virtual:vignette/assets";
@@ -19,12 +23,43 @@ const RESOLVED_ASSETS_ID = `\0${ASSETS_ID}`;
 // The browser loads this entry by URL rather than through the plugin's module graph.
 const HELPER_ENTRY = fileURLToPath(new URL("./frame-client.js", import.meta.url));
 
-/** Static frame and composition-asset discovery configured relative to the Vite root. */
+/** Frame and asset discovery, plus the optional dev composer, configured relative to the Vite root. */
 export interface VignettePluginOptions {
   /** Frame-module globs relative to the Vite root. */
   readonly frames?: string | readonly string[];
   /** Composition-asset globs relative to the Vite root. */
   readonly assets?: string | readonly string[];
+  /**
+   * Composition module (relative to the Vite root) whose `composition` export `vite dev` composes
+   * and streams at `runtimePath`. Edits to the module or its imports re-render the same root;
+   * changing `id`, `canvas`, `extensions`, or the asset manifest replaces the root and closes open
+   * streams so clients reconnect and receive the new setup. Omit to host the composer yourself.
+   */
+  readonly composition?: string;
+  /** Path of the dev composer's runtime SSE stream. Defaults to `/runtime`. */
+  readonly runtimePath?: string;
+  /** Attaches extra consumers, such as an embedded OBS runtime, to each dev composer root. */
+  readonly onComposerRoot?: ComposerRootHook;
+}
+
+/**
+ * Defaults contributed alongside the user's configuration. Vite concatenates these arrays with the
+ * user's own, so nothing the user configured is replaced.
+ */
+function configDefaults(command: "build" | "serve"): UserConfig {
+  const defaults: UserConfig = {
+    // yoga-layout initializes with top-level await, which the dependency optimizer cannot target.
+    optimizeDeps: { exclude: ["yoga-layout"] },
+    // Frames, hooks, and the reconciler require exactly one React instance.
+    resolve: { dedupe: ["react", "react-dom"] },
+  };
+  if (command === "serve") {
+    // During development this plugin renders frames and composes through Node-loaded copies of
+    // these packages; SSR-evaluated application modules must share those instances even when the
+    // packages are linked workspace sources that Vite would otherwise inline.
+    defaults.ssr = { external: ["@strangecyan/vignette", "@strangecyan/vignette-frame"] };
+  }
+  return defaults;
 }
 
 type InputEntries = Record<string, string>;
@@ -51,6 +86,7 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
   let command: "build" | "serve" = "serve";
   let frames: readonly FrameRegistration[] = [];
   let assets: readonly AssetRegistration[] = [];
+  let composer: DevComposer | undefined = undefined;
 
   const discover = () => {
     frames = discoverFrames(root, options.frames);
@@ -65,6 +101,7 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
       root = resolve(config.root ?? process.cwd());
       command = env.command;
       discover();
+      return configDefaults(env.command);
     },
     configResolved(config) {
       root = config.root;
@@ -124,7 +161,29 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
         this.emitFile({ type: "asset", fileName: asset.buildUrl.slice(1), source: asset.bytes });
       }
     },
-    configureServer(server) {
+    async configureServer(server) {
+      if (options.composition !== undefined) {
+        // Loaded lazily so configurations without a dev composer never import React.
+        const { createDevComposer } = await import("./dev-composer.js");
+        const devComposer = createDevComposer(server, {
+          module: resolve(root, options.composition),
+          runtimePath: options.runtimePath ?? "/runtime",
+          manifest: () => createAssetManifest(assets, "serve"),
+          onComposerRoot: options.onComposerRoot,
+        });
+        composer = devComposer;
+        server.middlewares.use((request, response, next) => {
+          devComposer.handle(request, response).then(
+            (handled) => {
+              if (!handled) next();
+            },
+            (cause: unknown) => {
+              next(cause);
+            },
+          );
+        });
+      }
+
       let handler: Promise<ReturnType<typeof createNodeFrameRequestHandler>> | undefined =
         undefined;
       const getHandler = () => {
@@ -147,14 +206,23 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
             },
           );
       });
-      server.watcher.on("add", () => {
+      const rediscover = () => {
         discover();
         handler = undefined;
-      });
-      server.watcher.on("unlink", () => {
-        discover();
-        handler = undefined;
-      });
+        composer?.assetsChanged();
+      };
+      server.watcher.on("add", rediscover);
+      server.watcher.on("unlink", rediscover);
+    },
+    hotUpdate(update) {
+      // The dev composer evaluates through the SSR environment, whose module graph sees the edit.
+      if (this.environment.name === "ssr") composer?.fileChanged(update.file);
+    },
+    async closeBundle() {
+      // Vite closes every environment's plugin container when the dev server closes.
+      const closing = composer;
+      composer = undefined;
+      await closing?.dispose();
     },
   };
 }

@@ -89,8 +89,8 @@ the common scene protocol. See [`react-frames.md`](react-frames.md).
 - `@strangecyan/vignette`: host-side React reconciler, primitives, and `createComposerRoot`.
 - `@strangecyan/vignette-frame`: optional typed browser views and platform-neutral SSR/hydration
   kernels.
-- `@strangecyan/vignette-vite`: static frame registry, deterministic client entries, and asset
-  manifests.
+- `@strangecyan/vignette-vite`: static frame registry, deterministic client entries, asset
+  manifests, and the optional dev-server composer.
 - `@strangecyan/vignette-target-dom`: browser asset cache and `DOMRuntime`.
 - `@strangecyan/vignette-target-obs`: temporary-file asset cache, `OBSRuntime`, planner, and
   transport.

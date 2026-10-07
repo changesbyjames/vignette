@@ -35,7 +35,26 @@ const result = compileBroadcast(
 
 `compileBroadcast` accepts any synchronous `LayoutEngine`. The `./layout-yoga` entrypoint exports
 the default binding plus `createYogaLayoutEngine(yoga)` for a Yoga instance initialized by the host.
-Runtime-only consumers can import `./runtime` and `./sse` without loading the layout compiler.
+
+### Cloudflare Workers
+
+yoga-layout compiles its embedded WebAssembly at runtime, which Workers forbid. Under the `workerd`
+export condition (used by Wrangler and `@cloudflare/vite-plugin`), `./layout-yoga` instead
+instantiates the same Yoga build from a precompiled `.wasm` module, so `yogaLayoutEngine` and
+`createComposerRoot`'s default layout engine work in a Worker without aliases or patches. Other
+hosts that require precompiled Wasm can build the engine explicitly:
+
+```ts
+import { createYogaWasmLayoutEngine } from "@strangecyan/vignette-core/layout-yoga-wasm";
+import yogaWasm from "@strangecyan/vignette-core/yoga.wasm";
+
+const layoutEngine = await createYogaWasmLayoutEngine(yogaWasm);
+```
+
+`./yoga.wasm` is the vendored binary from the pinned yoga-layout version, so layout is identical on
+every host. Maintainers regenerate it with `pnpm --filter @strangecyan/vignette-core vendor:yoga`
+after changing that version. Runtime-only consumers can import `./runtime` and `./sse` without
+loading the layout compiler.
 
 Use `asset()` and an `AssetManifest` for resources that targets must resolve. Use
 `RuntimeMessageHub`, `consumeRuntimeMessages`, and the SSE codecs to connect a composer to one or

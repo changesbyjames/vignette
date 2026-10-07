@@ -13,6 +13,8 @@ export default defineConfig({
     "test-results/**",
     "playwright-report/**",
     "packages/vite/test-fixtures/**",
+    // Generated from yoga-layout by packages/core/scripts/vendor-yoga.mjs.
+    "packages/core/vendor/**",
     // Keep the copied plugins identical to their upstream sources.
     "tools/**",
   ],

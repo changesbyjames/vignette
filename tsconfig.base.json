@@ -7,6 +7,9 @@
       "@strangecyan/vignette-core": ["./packages/core/src/index.ts"],
       "@strangecyan/vignette-core/builders": ["./packages/core/src/builders.ts"],
       "@strangecyan/vignette-core/layout-yoga": ["./packages/core/src/layout/layout-yoga.ts"],
+      "@strangecyan/vignette-core/layout-yoga-wasm": [
+        "./packages/core/src/layout/layout-yoga-wasm.ts"
+      ],
       "@strangecyan/vignette-core/runtime": ["./packages/core/src/runtime-api.ts"],
       "@strangecyan/vignette-core/sse": ["./packages/core/src/sse-codec.ts"],
       "@strangecyan/vignette-frame": ["./packages/frame/src/index.ts"],

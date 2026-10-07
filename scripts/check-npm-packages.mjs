@@ -7,14 +7,16 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const rootPackage = readJson("package.json");
 const repository = "git+https://github.com/changesbyjames/vignette.git";
+// Exports that publish declarations or binary assets rather than built JavaScript.
+const nonJavaScriptExports = new Set(["./virtual", "./yoga.wasm"]);
 const packages = [
-  packageConfig("packages/core", "@strangecyan/vignette-core", [
-    ".",
-    "./builders",
-    "./layout-yoga",
-    "./runtime",
-    "./sse",
-  ]),
+  packageConfig(
+    "packages/core",
+    "@strangecyan/vignette-core",
+    [".", "./builders", "./layout-yoga", "./layout-yoga-wasm", "./runtime", "./sse", "./yoga.wasm"],
+    [],
+    ["dist", "vendor", "src/yoga-wasm.d.ts"],
+  ),
   packageConfig(
     "packages/target-dom",
     "@strangecyan/vignette-target-dom",
@@ -47,7 +49,7 @@ const packages = [
     "packages/vite",
     "@strangecyan/vignette-vite",
     [".", "./frame-client", "./virtual"],
-    ["@strangecyan/vignette-core", "@strangecyan/vignette-frame"],
+    ["@strangecyan/vignette-core", "@strangecyan/vignette-frame", "@strangecyan/vignette"],
     ["dist", "src/virtual.d.ts"],
   ),
   packageConfig(
@@ -145,14 +147,21 @@ function packageConfig(directory, name, exports, dependencies = [], files = ["di
 function assertExports(actual, expected, name) {
   assert(
     z
-      .record(z.string(), z.object({ types: z.string(), default: z.string().optional() }))
+      .record(
+        z.string(),
+        z.object({
+          types: z.string(),
+          workerd: z.string().optional(),
+          default: z.string().optional(),
+        }),
+      )
       .safeParse(actual).success,
     `${name} must use conditional exports`,
   );
   assertSet(Object.keys(actual), expected, `${name} has unexpected npm exports`);
   for (const [subpath, conditions] of Object.entries(actual)) {
     assert(z.string().safeParse(conditions.types).success, `${name}${subpath} must export types`);
-    if (subpath !== "./virtual") {
+    if (!nonJavaScriptExports.has(subpath)) {
       assert(
         z.string().safeParse(conditions.default).success,
         `${name}${subpath} must export JavaScript`,
@@ -162,6 +171,10 @@ function assertExports(actual, expected, name) {
         `${name}${subpath} must export built JavaScript`,
       );
       assert(conditions.types.startsWith("./dist/"), `${name}${subpath} must export built types`);
+      assert(
+        conditions.workerd === undefined || conditions.workerd.startsWith("./dist/"),
+        `${name}${subpath} must export built JavaScript for workerd`,
+      );
     }
   }
 }
