@@ -47,7 +47,10 @@ describe("Node SSE runtime source", () => {
     });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const port = (server.address() as AddressInfo).port;
+    const port =
+      /* SAFETY: This server was bound to an ephemeral TCP port, so its address is an AddressInfo rather than a pipe name. */ (
+        server.address() as AddressInfo
+      ).port;
     const controller = new AbortController();
     const received: RuntimeMessage[] = [];
 

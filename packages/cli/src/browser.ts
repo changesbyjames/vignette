@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { SourceDefinitionWireSchema, type SourceDefinitionWire } from "@strangecyan/vignette-core";
 import type { AnySourceDefinition, CompiledSnapshot } from "@strangecyan/vignette-core";
 import {
   DomTarget,
@@ -7,12 +9,18 @@ import {
 
 import type { BrowserPreviewInput, BrowserPreviewResult } from "./types.js";
 
+interface CreatePlaceholderContentFrame {
+  width: number;
+  height: number;
+}
+
 const STATIC_SOURCE_KINDS = new Set(["source:image", "source:browser", "source:color"]);
-let activeTarget: DomTarget | undefined;
+let activeTarget: DomTarget | undefined = undefined;
 
 declare global {
   var __vignettePreviewRender:
-    ((input: BrowserPreviewInput) => Promise<BrowserPreviewResult>) | undefined;
+    | ((input: BrowserPreviewInput) => Promise<BrowserPreviewResult>)
+    | undefined;
 }
 
 globalThis.__vignettePreviewRender = renderPreview;
@@ -85,7 +93,7 @@ export function createPlaceholderRenderer(kind: `source:${string}`): DomSourceRe
 function createPlaceholderContent(
   document: Document,
   source: AnySourceDefinition,
-  frame: Readonly<{ width: number; height: number }>,
+  frame: Readonly<CreatePlaceholderContentFrame>,
 ): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const title = document.createElement("strong");
@@ -105,20 +113,18 @@ function createPlaceholderContent(
 }
 
 function formatSettings(source: AnySourceDefinition): string {
-  const settings = Object.entries(source)
+  const settings = Object.entries(SourceDefinitionWireSchema.parse(source))
     .filter(([key]) => key !== "id" && key !== "kind" && key !== "label")
     .map(([key, value]) => `${key}: ${formatValue(value)}`);
   return settings.join("\n");
 }
 
-function formatValue(value: unknown): string {
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (isRecord(value) && value.kind === "asset" && typeof value.name === "string") {
-    return value.name;
-  }
-  return JSON.stringify(value);
+function formatValue(value: SourceDefinitionWire[keyof SourceDefinitionWire]): string {
+  const scalar = z.union([z.string(), z.number(), z.boolean()]).safeParse(value);
+  if (scalar.success) return String(scalar.data);
+  const asset = z.object({ kind: z.literal("asset"), name: z.string() }).safeParse(value);
+  if (asset.success) return asset.data.name;
+  return JSON.stringify(value) ?? "undefined";
 }
 
 function withoutPlaceholderAssets(snapshot: CompiledSnapshot): CompiledSnapshot {
@@ -184,8 +190,4 @@ function requireContainer(): HTMLElement {
   const container = document.querySelector<HTMLElement>("#preview");
   if (container === null) throw new Error("Preview container is missing.");
   return container;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

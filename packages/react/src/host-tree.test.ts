@@ -72,7 +72,7 @@ describe("host tree mutations", () => {
       definition: { kind: "source:color", id: sourceId("background"), color: "#123456" },
       children: "ignored",
       ref: "ignored",
-      optional: undefined,
+      label: undefined,
     });
     const scene = createHostNode("scene", { id: sceneId("main") });
     const layer = createHostNode("layer", {

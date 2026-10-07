@@ -5,6 +5,7 @@ import {
   registrySceneName,
   type ObsContentRef,
   type ObsOperation,
+  type SetInputSettingsOperation,
   type ObsPlacementRef,
   type ObsPlan,
   type ObsSceneRef,
@@ -13,6 +14,11 @@ import {
   type ObservedObsSceneItem,
   type ObservedObsState,
 } from "@strangecyan/vignette-target-obs";
+
+interface ResolveContentResult {
+  readonly name: string;
+  readonly uuid: string;
+}
 
 /** Observed state, plan, namespace, and interruption point for fake execution. */
 export interface ApplyFakeObsPlanOptions {
@@ -80,6 +86,7 @@ export function applyFakeObsPlan(options: ApplyFakeObsPlanOptions): FakeObsApply
   };
 }
 
+/** Apply operations in plan order, recording created placement addresses for later property updates. */
 function applyOperation(
   operation: ObsOperation,
   projectId: ProjectId,
@@ -133,15 +140,9 @@ function applyOperation(
       createdPlacements.set(placementKey(operation.scene, operation.layerId), address);
       return;
     }
-    case "set-input-settings": {
-      const name = managedSourceName(projectId, operation.sourceId);
-      const index = inputs.findIndex((input) => input.inputName === name);
-      if (index < 0) throw new Error(`Fake OBS input '${name}' does not exist.`);
-      const input = inputs[index];
-      if (input === undefined) throw new Error(`Fake OBS input '${name}' disappeared.`);
-      inputs[index] = { ...input, inputSettings: operation.inputSettings };
+    case "set-input-settings":
+      setInputSettings(operation, projectId, inputs);
       return;
-    }
     case "set-transform":
       updateItem(items, resolvePlacement(operation.placement, createdPlacements), (item) => ({
         ...item,
@@ -166,24 +167,8 @@ function applyOperation(
         sceneItemEnabled: operation.enabled,
       }));
       return;
-    case "remove-placement":
-      removeWhere(
-        items,
-        (item) =>
-          item.sceneUuid === operation.sceneUuid && item.sceneItemId === operation.sceneItemId,
-      );
-      return;
-    case "remove-scene":
-      removeWhere(scenes, (scene) => scene.sceneUuid === operation.sceneUuid);
-      removeWhere(
-        items,
-        (item) => item.sceneUuid === operation.sceneUuid || item.sourceUuid === operation.sceneUuid,
-      );
-      return;
-    case "remove-input":
-      removeWhere(inputs, (input) => input.inputUuid === operation.inputUuid);
-      removeWhere(items, (item) => item.sourceUuid === operation.inputUuid);
-      return;
+    default:
+      removeResource(operation, scenes, inputs, items);
   }
 }
 
@@ -204,7 +189,7 @@ function resolveContent(
   projectId: ProjectId,
   scenes: readonly ObservedObsScene[],
   inputs: readonly ObservedObsInput[],
-): { readonly name: string; readonly uuid: string } {
+): ResolveContentResult {
   if (ref.kind === "scene") {
     const scene = requireSceneByName(scenes, managedSceneName(projectId, ref.sceneId));
     return { name: scene.sceneName, uuid: scene.sceneUuid };
@@ -293,4 +278,52 @@ function removeWhere<T>(values: T[], predicate: (value: T) => boolean): void {
     const value = values[index];
     if (value !== undefined && predicate(value)) values.splice(index, 1);
   }
+}
+
+interface RemovalKinds {
+  kind: "remove-placement" | "remove-scene" | "remove-input";
+}
+type RemovalOperation = Extract<ObsOperation, RemovalKinds>;
+/** Removing a resource also removes fake placements that reference its UUID. */
+function removeResource(
+  operation: RemovalOperation,
+  scenes: ObservedObsScene[],
+  inputs: ObservedObsInput[],
+  items: ObservedObsSceneItem[],
+): void {
+  switch (operation.kind) {
+    case "remove-placement":
+      removeWhere(
+        items,
+        (item) =>
+          item.sceneUuid === operation.sceneUuid && item.sceneItemId === operation.sceneItemId,
+      );
+      return;
+    case "remove-scene":
+      removeWhere(scenes, (scene) => scene.sceneUuid === operation.sceneUuid);
+      removeWhere(
+        items,
+        (item) => item.sceneUuid === operation.sceneUuid || item.sourceUuid === operation.sceneUuid,
+      );
+      return;
+    case "remove-input":
+      removeWhere(inputs, (input) => input.inputUuid === operation.inputUuid);
+      removeWhere(items, (item) => item.sourceUuid === operation.inputUuid);
+      return;
+  }
+}
+
+/** Settings updates replace only the addressed managed input. */
+function setInputSettings(
+  operation: SetInputSettingsOperation,
+  projectId: ProjectId,
+  inputs: ObservedObsInput[],
+): void {
+  const name = managedSourceName(projectId, operation.sourceId);
+  const index = inputs.findIndex((input) => input.inputName === name);
+  if (index < 0) throw new Error(`Fake OBS input '${name}' does not exist.`);
+  const input = inputs[index];
+  if (input === undefined) throw new Error(`Fake OBS input '${name}' disappeared.`);
+  inputs[index] = { ...input, inputSettings: operation.inputSettings };
+  return;
 }

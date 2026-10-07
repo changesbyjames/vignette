@@ -14,6 +14,10 @@ import {
   type SourceModule,
 } from "@strangecyan/vignette-core";
 
+interface MoqSourceInput {
+  readonly id: string;
+}
+
 /** Default end-to-end latency requested from a MoQ source. */
 export const DEFAULT_MOQ_LATENCY_MS = 100;
 
@@ -31,9 +35,7 @@ export interface MoqSource extends SourceBase {
 }
 
 /** Creates a validated MoQ source definition with stable defaults. */
-export function moqSource(
-  input: Omit<MoqSource, "kind" | "id"> & { readonly id: string },
-): MoqSource {
+export function moqSource(input: Omit<MoqSource, "kind" | "id"> & MoqSourceInput): MoqSource {
   return { kind: "source:moq", ...input, id: sourceId(input.id) };
 }
 
@@ -41,6 +43,7 @@ export function moqSource(
 export const moqSourceModule: SourceModule<MoqSource> = {
   kind: "source:moq",
   intrinsicSize: (source) => source.size,
+  /** Collect independent source-setting diagnostics rather than failing after the first invalid field. */
   validate(source, path) {
     const diagnostics: Diagnostic[] = [];
     const push = (item: Diagnostic | undefined) => {

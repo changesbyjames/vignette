@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   layerId,
   projectId,
@@ -76,17 +77,18 @@ describe("planObsUpdate", () => {
     const desired = snapshot();
     const baseItem = desired.scenes[0]?.items[0];
     if (baseItem === undefined) throw new Error("Fixture item is missing.");
+    const fixtureSource1 = {
+      id: source,
+      kind: "source:color",
+      color: "#ff0000",
+      size: { width: 100, height: 100 },
+    } satisfies ColorSource;
     const clipped: CompiledSnapshot = {
       ...desired,
       sources: [
         {
           id: source,
-          definition: {
-            id: source,
-            kind: "source:color",
-            color: "#ff0000",
-            size: { width: 100, height: 100 },
-          } as ColorSource,
+          definition: fixtureSource1,
           intrinsicSize: { width: 100, height: 100 },
         },
       ],
@@ -141,19 +143,21 @@ describe("planObsUpdate", () => {
     if (definition?.kind !== "source:color" || baseItem === undefined) {
       throw new Error("Fixture is malformed.");
     }
-    const colorDefinition = definition as ColorSource;
+    const colorDefinition =
+      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ definition as ColorSource;
+    const fixtureSource2 = {
+      id: colorDefinition.id,
+      kind: "source:color",
+      color: colorDefinition.color,
+      ...omitUndefined({ label: colorDefinition.label }),
+    } satisfies ColorSource;
     const result = planObsUpdate({
       desired: {
         ...desired,
         sources: [
           {
             id: source,
-            definition: {
-              id: colorDefinition.id,
-              kind: "source:color",
-              color: colorDefinition.color,
-              ...(colorDefinition.label === undefined ? {} : { label: colorDefinition.label }),
-            } as ColorSource,
+            definition: fixtureSource2,
           },
         ],
         scenes: [
@@ -341,6 +345,12 @@ describe("planObsUpdate", () => {
 });
 
 function snapshot(): CompiledSnapshot {
+  const fixtureSource3 = {
+    id: source,
+    kind: "source:color",
+    color: "#ff0000",
+    size: { width: 1920, height: 1080 },
+  } satisfies ColorSource;
   return {
     revision: 1,
     projectId: project,
@@ -349,12 +359,7 @@ function snapshot(): CompiledSnapshot {
     sources: [
       {
         id: source,
-        definition: {
-          id: source,
-          kind: "source:color",
-          color: "#ff0000",
-          size: { width: 1920, height: 1080 },
-        } as ColorSource,
+        definition: fixtureSource3,
       },
     ],
     scenes: [
@@ -377,6 +382,12 @@ function snapshot(): CompiledSnapshot {
 
 function browserSnapshot(width: number, height: number): CompiledSnapshot {
   const browser = sourceId("browser");
+  const fixtureSource4 = {
+    id: browser,
+    kind: "source:browser",
+    url: "http://127.0.0.1:4173/frame",
+    viewport: { width: 1280, height: 720 },
+  } satisfies BrowserSource;
   return {
     revision: 1,
     projectId: project,
@@ -385,12 +396,7 @@ function browserSnapshot(width: number, height: number): CompiledSnapshot {
     sources: [
       {
         id: browser,
-        definition: {
-          id: browser,
-          kind: "source:browser",
-          url: "http://127.0.0.1:4173/frame",
-          viewport: { width: 1280, height: 720 },
-        } as BrowserSource,
+        definition: fixtureSource4,
       },
     ],
     scenes: [

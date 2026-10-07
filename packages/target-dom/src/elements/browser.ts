@@ -25,7 +25,10 @@ export const browserRenderer: DomSourceRenderer<BrowserSource> = {
         if (source.kind !== "source:browser") {
           throw new TypeError("Browser renderer received another source kind.");
         }
-        updateBrowser(frame, source as BrowserSource);
+        updateBrowser(
+          frame,
+          /* SAFETY: The source registry selects this module by its source kind after core validation of that definition. */ source as BrowserSource,
+        );
         applyDefaultCss();
       },
       dispose() {

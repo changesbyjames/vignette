@@ -12,6 +12,7 @@ import {
 import { runObs } from "./obs.js";
 import { createPreviews } from "./preview.js";
 
+/** Dispatch the selected command after parsing its options, with help handling before any runtime work. */
 async function main(): Promise<void> {
   const arguments_ = process.argv.slice(2);
   if (arguments_.length === 0 || arguments_[0] === "--help") {

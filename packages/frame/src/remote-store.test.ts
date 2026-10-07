@@ -8,8 +8,40 @@ import {
 } from "./remote-store.js";
 import { remoteStoreSnapshots, type ReadableContextStore } from "./remote-store-server.js";
 
+interface TestStoreGetSnapshotContext {
+  readonly title: string;
+}
+
+interface TestStoreGetSnapshot {
+  readonly context: TestStoreGetSnapshotContext;
+}
+
+interface Context {
+  readonly title: string;
+}
+
+interface RemoteStoreContract {
+  readonly context: Context;
+}
+
+interface TestReadableStoreListenersSnapshot<TContext> {
+  readonly context: TContext;
+}
+
+interface TestReadableStoreGetSnapshotResult<TContext> {
+  readonly context: TContext;
+}
+
+interface TestReadableStoreSubscribeListenerSnapshot<TContext> {
+  readonly context: TContext;
+}
+
+interface TestReadableStoreSubscribeResult {
+  unsubscribe(): void;
+}
+
 interface TestStore {
-  getSnapshot(): { readonly context: { readonly title: string } };
+  getSnapshot(): TestStoreGetSnapshot;
 }
 
 describe("remote store reference", () => {
@@ -21,9 +53,7 @@ describe("remote store reference", () => {
 
     expect(ref).toEqual({ id: "composition", url: "/api/store/composition" });
     expect(Object.isFrozen(ref)).toBe(true);
-    expectTypeOf<RemoteSnapshotOf<typeof ref>>().toEqualTypeOf<{
-      readonly context: { readonly title: string };
-    }>();
+    expectTypeOf<RemoteSnapshotOf<typeof ref>>().toEqualTypeOf<RemoteStoreContract>();
   });
 
   it("rejects empty identity and routing values", () => {
@@ -95,27 +125,29 @@ describe("remote store snapshots", () => {
 });
 
 class TestReadableStore<TContext> implements ReadableContextStore<TContext> {
-  readonly #listeners = new Set<(snapshot: { readonly context: TContext }) => void>();
+  private readonly listeners = new Set<
+    (snapshot: TestReadableStoreListenersSnapshot<TContext>) => void
+  >();
 
   constructor(private context: TContext) {}
 
   get subscriberCount(): number {
-    return this.#listeners.size;
+    return this.listeners.size;
   }
 
-  getSnapshot(): { readonly context: TContext } {
+  getSnapshot(): TestReadableStoreGetSnapshotResult<TContext> {
     return { context: this.context };
   }
 
-  subscribe(listener: (snapshot: { readonly context: TContext }) => void): {
-    unsubscribe(): void;
-  } {
-    this.#listeners.add(listener);
-    return { unsubscribe: () => this.#listeners.delete(listener) };
+  subscribe(
+    listener: (snapshot: TestReadableStoreSubscribeListenerSnapshot<TContext>) => void,
+  ): TestReadableStoreSubscribeResult {
+    this.listeners.add(listener);
+    return { unsubscribe: () => this.listeners.delete(listener) };
   }
 
   emit(context: TContext): void {
     this.context = context;
-    for (const listener of this.#listeners) listener({ context });
+    for (const listener of this.listeners) listener({ context });
   }
 }

@@ -31,49 +31,50 @@ export interface OBSRuntimeOptions extends ObsAssetStoreOptions {
 
 /** Applies runtime messages to OBS through dependency-aware convergence planning. */
 export class OBSRuntime implements SnapshotRuntime {
-  readonly #assets: ObsAssetStore;
-  readonly #scheduler: ObsConvergenceScheduler;
-  #setup = false;
+  private readonly assets: ObsAssetStore;
+  private readonly scheduler: ObsConvergenceScheduler;
+  private hasSetup = false;
 
   constructor(options: OBSRuntimeOptions) {
-    this.#assets = new ObsAssetStore(options);
-    this.#scheduler = createObsScheduler(
-      { ...options, assetResolver: this.#assets },
+    this.assets = new ObsAssetStore(options);
+    this.scheduler = createObsScheduler(
+      { ...options, assetResolver: this.assets },
       options.transport ?? new ObsWebSocketTransport(),
       options.schedulerRuntime,
     );
   }
 
   async setup(manifest: AssetManifest): Promise<void> {
-    await this.#assets.setup(manifest);
-    this.#setup = true;
+    await this.assets.setup(manifest);
+    this.hasSetup = true;
   }
 
   update(snapshot: CompiledSnapshot): void {
     this.assertSetup();
-    this.#scheduler.publish(snapshot);
+    this.scheduler.publish(snapshot);
   }
 
   event(event: RuntimeEvent): Promise<void> {
     this.assertSetup();
-    return this.#scheduler.event(event);
+    return this.scheduler.event(event);
   }
 
   whenSettled(revision: number): Promise<TargetApplyReceipt> {
-    return this.#scheduler.whenSettled(revision);
+    return this.scheduler.whenSettled(revision);
   }
 
   getStatus(): TargetStatus {
-    return this.#scheduler.getStatus();
+    return this.scheduler.getStatus();
   }
 
   async dispose(): Promise<void> {
-    await this.#scheduler.dispose();
-    await this.#assets.dispose();
-    this.#setup = false;
+    await this.scheduler.dispose();
+    await this.assets.dispose();
+    this.hasSetup = false;
   }
 
   private assertSetup(): void {
-    if (!this.#setup) throw new Error("OBS runtime must receive an asset manifest before updates.");
+    if (!this.hasSetup)
+      throw new Error("OBS runtime must receive an asset manifest before updates.");
   }
 }

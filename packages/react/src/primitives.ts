@@ -17,6 +17,10 @@ import { createElement, type ReactElement, type ReactNode } from "react";
 
 import { sourceElement, type SourceProps } from "./source-element.js";
 
+interface SourceDefinitionProps {
+  readonly definition: AnySourceDefinition;
+}
+
 interface ChildrenProps {
   readonly children?: ReactNode;
 }
@@ -86,7 +90,7 @@ export function SceneLayer(props: SceneLayerProps): ReactElement {
 }
 
 /** Declares one already-built source definition; the escape hatch for dynamic compositions. */
-export function Source(props: { readonly definition: AnySourceDefinition }): ReactElement {
+export function Source(props: SourceDefinitionProps): ReactElement {
   return createElement("source", props);
 }
 

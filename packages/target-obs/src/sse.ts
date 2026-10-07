@@ -6,6 +6,11 @@ import {
   type RuntimeSseEvent,
 } from "@strangecyan/vignette-core";
 
+interface FindEventBoundary {
+  readonly index: number;
+  readonly length: number;
+}
+
 /** Reconnection behavior and error observation for an SSE runtime source. */
 export interface SseRuntimeSourceOptions {
   readonly retryDelayMs?: number;
@@ -24,12 +29,15 @@ export function sseRuntimeSource(
   return (signal) => consume(url, options, signal);
 }
 
+/** Reconnect after stream failure unless the caller aborted, reporting errors before waiting for the retry delay. */
 async function* consume(
   url: string,
   options: SseRuntimeSourceOptions,
   signal: AbortSignal,
 ): AsyncIterable<RuntimeMessage> {
   while (!signal.aborted) {
+    // Reconnect after stream failure unless the caller aborted, reporting errors before waiting for the retry delay.
+
     try {
       yield* consumeConnection(url, signal);
       if (!isAborted(signal)) throw new Error("Runtime SSE connection ended unexpectedly.");
@@ -41,6 +49,7 @@ async function* consume(
   }
 }
 
+/** Decode complete SSE records from streamed UTF-8 chunks and cancel the reader when consumption ends. */
 async function* consumeConnection(url: string, signal: AbortSignal): AsyncIterable<RuntimeMessage> {
   const response = await fetch(url, {
     headers: { Accept: "text/event-stream" },
@@ -55,10 +64,15 @@ async function* consumeConnection(url: string, signal: AbortSignal): AsyncIterab
   const decoder = new TextDecoder();
   let buffer = "";
   try {
+    // Decode complete SSE records from streamed UTF-8 chunks and cancel the reader when consumption ends.
+
     while (!signal.aborted) {
       const chunk = await reader.read();
       if (chunk.done) return;
-      buffer += decoder.decode(chunk.value as Uint8Array, { stream: true });
+      buffer += decoder.decode(
+        /* SAFETY: A successful non-final read of the fetch body contains a Uint8Array chunk. */ chunk.value as Uint8Array,
+        { stream: true },
+      );
 
       let boundary = findEventBoundary(buffer);
       while (boundary !== undefined) {
@@ -74,17 +88,18 @@ async function* consumeConnection(url: string, signal: AbortSignal): AsyncIterab
   }
 }
 
-function findEventBoundary(
-  value: string,
-): { readonly index: number; readonly length: number } | undefined {
+function findEventBoundary(value: string): FindEventBoundary | undefined {
   const match = /\r?\n\r?\n/u.exec(value);
   return match === null ? undefined : { index: match.index, length: match[0].length };
 }
 
+/** Ignore SSE comments, collect data lines, and decode only known runtime message events. */
 function decodeEventBlock(block: string): RuntimeMessage | undefined {
-  let event: string | undefined;
+  let event: string | undefined = undefined;
   const data: string[] = [];
   for (const line of block.split(/\r?\n/u)) {
+    // Ignore SSE comments, collect data lines, and decode only known runtime message events.
+
     if (line.startsWith(":")) continue;
     const separator = line.indexOf(":");
     const field = separator < 0 ? line : line.slice(0, separator);
@@ -98,7 +113,9 @@ function decodeEventBlock(block: string): RuntimeMessage | undefined {
 }
 
 function isRuntimeEvent(value: string): value is RuntimeSseEvent {
-  return (RUNTIME_SSE_EVENTS as readonly string[]).includes(value);
+  return /* SAFETY: The event list contains only strings; widening its lookup input does not alter the closed event vocabulary. */ (
+    RUNTIME_SSE_EVENTS as readonly string[]
+  ).includes(value);
 }
 
 function normalizeError(cause: unknown): Error {

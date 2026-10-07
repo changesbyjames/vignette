@@ -18,6 +18,12 @@ export function applyLayoutStyle(yoga: Yoga, node: YogaNode, style: LayoutStyle 
   node.setFlexShrink(style.flexShrink);
   node.setFlexBasis(style.flexBasis);
 
+  applyFlexAlignment(yoga, node, style);
+  applySpacing(yoga, node, style);
+}
+
+/** Translate flex choices through Yoga constants, leaving omitted values at Yoga defaults. */
+function applyFlexAlignment(yoga: Yoga, node: YogaNode, style: LayoutStyle): void {
   if (style.flexDirection !== undefined) {
     node.setFlexDirection(
       {
@@ -44,7 +50,10 @@ export function applyLayoutStyle(yoga: Yoga, node: YogaNode, style: LayoutStyle 
 
   if (style.alignItems !== undefined) node.setAlignItems(toYogaAlign(yoga, style.alignItems));
   if (style.alignSelf !== undefined) node.setAlignSelf(toYogaAlign(yoga, style.alignSelf));
+}
 
+/** Yoga owns gaps, edges, and positioning; targets only consume the resulting absolute geometry. */
+function applySpacing(yoga: Yoga, node: YogaNode, style: LayoutStyle): void {
   if (style.position !== undefined) {
     node.setPositionType(
       style.position === "absolute" ? yoga.POSITION_TYPE_ABSOLUTE : yoga.POSITION_TYPE_RELATIVE,
@@ -77,15 +86,18 @@ function applyEdges(
   apply: (edge: Parameters<YogaNode["setMargin"]>[0], value: Length) => void,
 ): void {
   if (edges === undefined) return;
-  if (typeof edges === "number" || typeof edges === "string") {
-    apply(yoga.EDGE_ALL, edges);
+  if (Object(edges) !== edges) {
+    // SAFETY: The closed Edges union contains only scalar Lengths or an edge map; boxing changes only a scalar.
+    apply(yoga.EDGE_ALL, edges as Length);
     return;
   }
 
-  if (edges.left !== undefined) apply(yoga.EDGE_LEFT, edges.left);
-  if (edges.top !== undefined) apply(yoga.EDGE_TOP, edges.top);
-  if (edges.right !== undefined) apply(yoga.EDGE_RIGHT, edges.right);
-  if (edges.bottom !== undefined) apply(yoga.EDGE_BOTTOM, edges.bottom);
+  // SAFETY: Scalar Lengths returned above, leaving the edge-map member of the closed union.
+  const map = edges as Exclude<Edges<Length>, Length>;
+  if (map.left !== undefined) apply(yoga.EDGE_LEFT, map.left);
+  if (map.top !== undefined) apply(yoga.EDGE_TOP, map.top);
+  if (map.right !== undefined) apply(yoga.EDGE_RIGHT, map.right);
+  if (map.bottom !== undefined) apply(yoga.EDGE_BOTTOM, map.bottom);
 }
 
 function toYogaAlign(yoga: Yoga, align: Align): Parameters<YogaNode["setAlignItems"]>[0] {

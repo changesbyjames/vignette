@@ -12,6 +12,14 @@ import { isStableId } from "./ids.js";
 import { resolveSourceModules, type SourceModuleMap } from "./source-module.js";
 import type { AnySourceDefinition } from "./sources.js";
 
+interface ValidateCanvasCanvas {
+  readonly frameRate?: number;
+}
+
+interface ValidateLayerPresentationNode {
+  readonly kind: "box";
+}
+
 interface LocatedScene {
   readonly scene: SceneNode;
   readonly path: string;
@@ -151,7 +159,8 @@ function indexScenes(
   return result;
 }
 
-function validateCanvas(canvas: Size & { readonly frameRate?: number }, diagnostics: Diagnostic[]) {
+/** Validate positive canvas dimensions and an optional finite positive frame rate independently. */
+function validateCanvas(canvas: Size & ValidateCanvasCanvas, diagnostics: Diagnostic[]) {
   if (!isPositiveSize(canvas)) {
     diagnostics.push(
       diagnostic(
@@ -200,6 +209,7 @@ function validateSource(
   diagnostics.push(...(module.validate?.(source, path) ?? []));
 }
 
+/** Validate node identity and references by discriminator, descending only through virtual boxes. */
 function validateLayoutNode(
   node: LayoutNode,
   path: string,
@@ -269,8 +279,9 @@ function validateLayoutNode(
   }
 }
 
+/** Report invalid opacity, rotation, crop, and alignment at their authoring paths. */
 function validateLayerPresentation(
-  node: Exclude<LayoutNode, { readonly kind: "box" }>,
+  node: Exclude<LayoutNode, ValidateLayerPresentationNode>,
   path: string,
   diagnostics: Diagnostic[],
 ) {
@@ -294,6 +305,7 @@ function validateLayerPresentation(
   }
 }
 
+/** Validate each provided crop edge as a finite non-negative source-pixel amount. */
 function validateCrop(crop: Partial<Insets> | undefined, path: string, diagnostics: Diagnostic[]) {
   if (crop === undefined) return;
   for (const edge of ["top", "right", "bottom", "left"] as const) {
@@ -311,6 +323,7 @@ function validateCrop(crop: Partial<Insets> | undefined, path: string, diagnosti
   }
 }
 
+/** Validate dimensions, flex values, gaps, and edge maps using each property's numeric constraints. */
 function validateLayoutStyle(
   style: LayoutStyle | undefined,
   path: string,
@@ -367,15 +380,19 @@ function validateEdges(
   diagnostics: Diagnostic[],
 ) {
   if (edges === undefined) return;
-  if (typeof edges === "number" || typeof edges === "string") {
-    validateLength(edges, path, allowNegative, diagnostics);
+  if (Object(edges) !== edges) {
+    // SAFETY: Boxing changes identity only for the scalar member of the Edges union.
+    validateLength(edges as Length, path, allowNegative, diagnostics);
     return;
   }
+  // SAFETY: Scalar Lengths returned above, leaving the edge-map member of the closed union.
+  const map = edges as Exclude<Edges<Length>, Length>;
   for (const edge of ["top", "right", "bottom", "left"] as const) {
-    validateLength(edges[edge], `${path}.${edge}`, allowNegative, diagnostics);
+    validateLength(map[edge], `${path}.${edge}`, allowNegative, diagnostics);
   }
 }
 
+/** Allow omitted and auto lengths; numeric and percentage lengths must satisfy finiteness and sign constraints. */
 function validateLength(
   value: Length | undefined,
   path: string,
@@ -383,7 +400,7 @@ function validateLength(
   diagnostics: Diagnostic[],
 ) {
   if (value === undefined || value === "auto") return;
-  const numeric = typeof value === "number" ? value : Number(value.slice(0, -1));
+  const numeric = Number(String(value).replace(/%$/u, ""));
   if (!isFiniteNumber(numeric) || (!allowNegative && numeric < 0)) {
     diagnostics.push(
       diagnostic(
@@ -448,33 +465,35 @@ function validateSceneCycles(
   const active: string[] = [];
   const reported = new Set<string>();
 
-  const visit = (id: string) => {
-    if (complete.has(id)) return;
-    const activeIndex = active.indexOf(id);
-    if (activeIndex >= 0) {
-      const cycle = [...active.slice(activeIndex), id];
-      const key = [...new Set(cycle)].sort().join("|");
-      if (!reported.has(key)) {
-        reported.add(key);
-        const located = scenesById.get(id);
-        diagnostics.push(
-          diagnostic(
-            "SCENE_CYCLE",
-            "error",
-            located === undefined ? "broadcast" : `${located.path}.id`,
-            `Nested scene cycle detected: ${cycle.join(" -> ")}.`,
-            cycle,
-          ),
-        );
+  const visit =
+    /** Track the active scene path to report cycles once, while skipping already completed subgraphs. */
+    (id: string) => {
+      if (complete.has(id)) return;
+      const activeIndex = active.indexOf(id);
+      if (activeIndex >= 0) {
+        const cycle = [...active.slice(activeIndex), id];
+        const key = [...new Set(cycle)].sort().join("|");
+        if (!reported.has(key)) {
+          reported.add(key);
+          const located = scenesById.get(id);
+          diagnostics.push(
+            diagnostic(
+              "SCENE_CYCLE",
+              "error",
+              located === undefined ? "broadcast" : `${located.path}.id`,
+              `Nested scene cycle detected: ${cycle.join(" -> ")}.`,
+              cycle,
+            ),
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    active.push(id);
-    for (const referenced of adjacency.get(id) ?? []) visit(referenced);
-    active.pop();
-    complete.add(id);
-  };
+      active.push(id);
+      for (const referenced of adjacency.get(id) ?? []) visit(referenced);
+      active.pop();
+      complete.add(id);
+    };
 
   for (const located of scenes) visit(located.scene.id);
 }

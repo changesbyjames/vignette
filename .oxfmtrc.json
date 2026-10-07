@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "endOfLine": "lf",
+  "printWidth": 100,
+  "proseWrap": "always",
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "node_modules/",
+    "**/dist/",
+    "coverage/",
+    "reference/",
+    "plans/",
+    "pnpm-lock.yaml",
+    "playwright-report/",
+    "test-results/",
+    "tools/"
+  ]
+}

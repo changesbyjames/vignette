@@ -33,7 +33,8 @@
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
     "obs-websocket-js": "5.0.8",
-    "ramda": "0.32.0"
+    "ramda": "0.32.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/ramda": "0.32.0"

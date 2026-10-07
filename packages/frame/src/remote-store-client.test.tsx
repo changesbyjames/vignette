@@ -5,8 +5,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRemoteStore } from "./remote-store-client.js";
 import { defineRemoteStore } from "./remote-store.js";
 
+interface TestStoreGetSnapshotContext {
+  readonly title: string;
+}
+
+interface TestStoreGetSnapshot {
+  readonly context: TestStoreGetSnapshotContext;
+}
+
+interface FakeEventSourceOnmessageEvent {
+  readonly data: string;
+}
+
 interface TestStore {
-  getSnapshot(): { readonly context: { readonly title: string } };
+  getSnapshot(): TestStoreGetSnapshot;
 }
 
 describe("useRemoteStore", () => {
@@ -60,7 +72,7 @@ function render(ref: ReturnType<typeof defineRemoteStore<TestStore>>): string {
 
 class FakeEventSource {
   static readonly instances: FakeEventSource[] = [];
-  onmessage: ((event: { readonly data: string }) => void) | null = null;
+  onmessage: ((event: FakeEventSourceOnmessageEvent) => void) | null = null;
 
   constructor(readonly url: string) {
     FakeEventSource.instances.push(this);

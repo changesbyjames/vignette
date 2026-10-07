@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { consumeRuntimeMessages, toSseEvent } from "@strangecyan/vignette-core";
@@ -58,14 +59,12 @@ app.use("/*", serveStatic({ root: clientDirectory }));
 
 const server = serve({ fetch: app.fetch, port, hostname });
 const runtimeAbort = new AbortController();
-let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined;
-let runtimeConsumer: Promise<void> | undefined;
+let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined = undefined;
+let runtimeConsumer: Promise<void> | undefined = undefined;
 if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
   runtime = createKitchenSinkObsRuntime({
     url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-    ...(process.env.VIGNETTE_OBS_PASSWORD === undefined
-      ? {}
-      : { password: process.env.VIGNETTE_OBS_PASSWORD }),
+    ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
     onError: reportError,
   });
   runtimeConsumer = consumeRuntimeMessages(runtime, root.messages(runtimeAbort.signal)).catch(
@@ -76,7 +75,7 @@ if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
 }
 console.log(`Vignette kitchen sink listening at ${origin}`);
 
-let shutdownPromise: Promise<void> | undefined;
+let shutdownPromise: Promise<void> | undefined = undefined;
 const shutdown = () => {
   shutdownPromise ??= (async () => {
     runtimeAbort.abort();
@@ -99,6 +98,7 @@ function closeServer(): Promise<void> {
   });
 }
 
+/** Use the default port when absent and reject non-integer values outside the TCP port range. */
 function readPort(raw: string | undefined): number {
   const value = raw === undefined ? 4173 : Number(raw);
   if (!Number.isInteger(value) || value < 1 || value > 65_535) {
@@ -107,6 +107,7 @@ function readPort(raw: string | undefined): number {
   return value;
 }
 
+/** Validate an HTTP origin with no extra path or query before constructing public runtime URLs. */
 function readOrigin(raw: string): string {
   const value = new URL(raw);
   if (

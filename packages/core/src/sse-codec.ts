@@ -1,10 +1,14 @@
-import type { AssetManifest, RuntimeEvent, RuntimeMessage } from "./runtime.js";
-import type { CompiledSnapshot } from "./snapshot.js";
+import type { RuntimeMessage } from "./runtime.js";
+import {
+  AssetManifestWireSchema,
+  CompiledSnapshotWireSchema,
+  RuntimeEventWireSchema,
+} from "./wire-schemas.js";
 
 /**
  * The wire format shared by SSE servers and clients: one named event per runtime message.
  * Servers write `encodeRuntimeMessageSse`; clients decode each event with
- * `decodeRuntimeSseEvent`. Payloads are trusted; both ends are owned by the same project.
+ * `decodeRuntimeSseEvent`. Payloads are decoded against their runtime contracts before consumption.
  */
 export const RUNTIME_SSE_EVENTS = ["setup", "update", "event"] as const;
 
@@ -35,14 +39,14 @@ export function encodeRuntimeMessageSse(message: RuntimeMessage): string {
   return `id: ${event.id}\nevent: ${event.event}\ndata: ${event.data}\n\n`;
 }
 
-/** Decodes trusted SSE event data into a runtime message. */
+/** Validates and decodes SSE event data into a runtime message. */
 export function decodeRuntimeSseEvent(event: RuntimeSseEvent, data: string): RuntimeMessage {
   switch (event) {
     case "setup":
-      return { kind: "setup", manifest: JSON.parse(data) as AssetManifest };
+      return { kind: "setup", manifest: AssetManifestWireSchema.parse(JSON.parse(data)) };
     case "update":
-      return { kind: "update", snapshot: JSON.parse(data) as CompiledSnapshot };
+      return { kind: "update", snapshot: CompiledSnapshotWireSchema.parse(JSON.parse(data)) };
     case "event":
-      return { kind: "event", event: JSON.parse(data) as RuntimeEvent };
+      return { kind: "event", event: RuntimeEventWireSchema.parse(JSON.parse(data)) };
   }
 }

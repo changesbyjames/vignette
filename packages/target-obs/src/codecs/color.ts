@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type { ColorSource } from "@strangecyan/vignette-core";
 
 import { selectInputKind, type ObsSourceCodec } from "./types.js";
@@ -16,9 +17,10 @@ export const colorCodec: ObsSourceCodec<ColorSource> = {
       inputKind,
       settings: {
         color: toObsColor(source.color),
-        ...(source.size === undefined
-          ? {}
-          : { width: source.size.width, height: source.size.height }),
+        ...omitUndefined({
+          width: source.size === undefined ? undefined : source.size.width,
+          height: source.size === undefined ? undefined : source.size.height,
+        }),
       },
     };
   },

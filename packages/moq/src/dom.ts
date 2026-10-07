@@ -7,19 +7,31 @@ import type { DomSourceRenderer } from "@strangecyan/vignette-target-dom";
 
 import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 
-interface MoqWatchElement extends HTMLElement {
-  readonly backend?: {
-    readonly video: {
-      readonly source: {
-        readonly target: {
-          update(update: (current: Readonly<Record<string, unknown>> | undefined) => object): void;
-        };
-      };
-    };
-  };
+interface MoqVideoTarget {
+  readonly name?: string | undefined;
 }
 
-let elementRegistration: Promise<void> | undefined;
+interface MoqWatchElementBackendVideoSourceTarget {
+  update(update: (current: MoqVideoTarget | undefined) => MoqVideoTarget): void;
+}
+
+interface MoqWatchElementBackendVideoSource {
+  readonly target: MoqWatchElementBackendVideoSourceTarget;
+}
+
+interface MoqWatchElementBackendVideo {
+  readonly source: MoqWatchElementBackendVideoSource;
+}
+
+interface MoqWatchElementBackend {
+  readonly video: MoqWatchElementBackendVideo;
+}
+
+interface MoqWatchElement extends HTMLElement {
+  readonly backend?: MoqWatchElementBackend;
+}
+
+let elementRegistration: Promise<void> | undefined = undefined;
 
 /** DOM facet: register with the DOM runtime (`extensions: [moqDomRenderer]`). */
 export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
@@ -33,6 +45,7 @@ export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
     return !(source.disableWhenHidden ?? true);
   },
   create(document) {
+    // SAFETY: prepare registers the moq-watch custom element before create is called.
     const watch = document.createElement("moq-watch") as MoqWatchElement;
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");
@@ -49,7 +62,8 @@ export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
         if (source.kind !== "source:moq") {
           throw new TypeError("MoQ renderer received another source kind.");
         }
-        updateMoq(watch, source as unknown as MoqSource);
+        // SAFETY: The composer validates MoQ settings using the registered MoQ source module before publication.
+        updateMoq(watch, source as MoqSource);
       },
       dispose() {
         watch.removeAttribute("url");
@@ -59,6 +73,7 @@ export const moqDomRenderer: DomSourceRenderer<MoqSource> = {
   },
 };
 
+/** Update the custom element from validated source settings, applying optional controls only when supplied. */
 function updateMoq(watch: MoqWatchElement, source: MoqSource): void {
   watch.setAttribute("url", source.url);
   watch.setAttribute("name", source.broadcast);

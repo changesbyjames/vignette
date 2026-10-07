@@ -23,7 +23,12 @@ export type Edges<T> = T | EdgeValues<T>;
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 /** Distribution of children along a flex container's main axis. */
 export type JustifyContent =
-  "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+  | "flex-start"
+  | "center"
+  | "flex-end"
+  | "space-between"
+  | "space-around"
+  | "space-evenly";
 /** Cross-axis alignment accepted by Yoga layout nodes. */
 export type Align = "auto" | "flex-start" | "center" | "flex-end" | "stretch";
 

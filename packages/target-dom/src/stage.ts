@@ -6,13 +6,13 @@ export class DomStage {
   readonly viewport: HTMLDivElement;
   readonly stage: HTMLDivElement;
 
-  readonly #container: HTMLElement;
-  readonly #resizeObserver: ResizeObserver | undefined;
-  #width = 0;
-  #height = 0;
+  private readonly container: HTMLElement;
+  private readonly resizeObserver: ResizeObserver | undefined;
+  private width = 0;
+  private height = 0;
 
   constructor(container: HTMLElement) {
-    this.#container = container;
+    this.container = container;
     const document = container.ownerDocument;
     this.viewport = document.createElement("div");
     this.stage = document.createElement("div");
@@ -38,40 +38,41 @@ export class DomStage {
     container.replaceChildren(this.viewport);
 
     const ResizeObserverConstructor = container.ownerDocument.defaultView?.ResizeObserver;
-    this.#resizeObserver =
+    this.resizeObserver =
       ResizeObserverConstructor === undefined
         ? undefined
         : new ResizeObserverConstructor(() => {
             this.scaleToContainer();
           });
-    this.#resizeObserver?.observe(container);
+    this.resizeObserver?.observe(container);
   }
 
   update(snapshot: CompiledSnapshot): void {
-    this.#width = snapshot.canvas.width;
-    this.#height = snapshot.canvas.height;
+    this.width = snapshot.canvas.width;
+    this.height = snapshot.canvas.height;
     this.stage.dataset.vignetteProject = snapshot.projectId;
     this.stage.dataset.vignetteRevision = String(snapshot.revision);
     Object.assign(this.stage.style, {
-      width: px(this.#width),
-      height: px(this.#height),
+      width: px(this.width),
+      height: px(this.height),
     });
     this.scaleToContainer();
   }
 
   dispose(): void {
-    this.#resizeObserver?.disconnect();
-    this.#container.replaceChildren();
+    this.resizeObserver?.disconnect();
+    this.container.replaceChildren();
   }
 
+  /** Fit the compiled canvas inside the measured container without changing its internal Yoga layout. */
   private scaleToContainer(): void {
-    if (this.#width <= 0 || this.#height <= 0) return;
-    const availableWidth = this.#container.clientWidth;
-    const availableHeight = this.#container.clientHeight;
+    if (this.width <= 0 || this.height <= 0) return;
+    const availableWidth = this.container.clientWidth;
+    const availableHeight = this.container.clientHeight;
     const scale =
       availableWidth <= 0 || availableHeight <= 0
         ? 1
-        : Math.min(availableWidth / this.#width, availableHeight / this.#height);
+        : Math.min(availableWidth / this.width, availableHeight / this.height);
     this.stage.style.transform = scale === 1 ? "" : `scale(${String(scale)})`;
   }
 }

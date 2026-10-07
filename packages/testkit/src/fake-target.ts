@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type {
   CompiledSnapshot,
   RenderTarget,
@@ -13,8 +14,8 @@ export class FakeRenderTarget implements RenderTarget {
   readonly kind: TargetKind;
   readonly capabilities: TargetCapabilities;
   readonly published: CompiledSnapshot[] = [];
-  #listeners = new Set<() => void>();
-  #disposed = false;
+  private listeners = new Set<() => void>();
+  private disposed = false;
   publishError: Error | undefined;
 
   constructor(
@@ -32,10 +33,10 @@ export class FakeRenderTarget implements RenderTarget {
   }
 
   publish(snapshot: CompiledSnapshot): void {
-    if (this.#disposed) throw new Error(`Fake target '${this.id}' is disposed.`);
+    if (this.disposed) throw new Error(`Fake target '${this.id}' is disposed.`);
     if (this.publishError !== undefined) throw this.publishError;
     this.published.push(snapshot);
-    for (const listener of this.#listeners) listener();
+    for (const listener of this.listeners) listener();
   }
 
   whenSettled(revision: number): Promise<TargetApplyReceipt> {
@@ -57,19 +58,19 @@ export class FakeRenderTarget implements RenderTarget {
     const revision = this.published.at(-1)?.revision;
     return {
       targetId: this.id,
-      phase: this.#disposed ? "disposed" : revision === undefined ? "disconnected" : "settled",
-      ...(revision === undefined ? {} : { desiredRevision: revision, settledRevision: revision }),
+      phase: this.disposed ? "disposed" : revision === undefined ? "disconnected" : "settled",
+      ...omitUndefined({ desiredRevision: revision, settledRevision: revision }),
     };
   }
 
   subscribe(listener: () => void): () => void {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   dispose(): Promise<void> {
-    this.#disposed = true;
-    this.#listeners.clear();
+    this.disposed = true;
+    this.listeners.clear();
     return Promise.resolve();
   }
 }

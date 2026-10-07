@@ -10,6 +10,16 @@ import {
 import type { ContentPlacement } from "../snapshot.js";
 import { roundInsets, roundRect } from "./rounding.js";
 
+interface ContentFitSuccess {
+  readonly ok: true;
+  readonly placement: ContentPlacement;
+}
+
+interface ContentFitFailure {
+  readonly ok: false;
+  readonly message: string;
+}
+
 /** Source and destination geometry used for content fitting. */
 export interface ContentFitInput {
   readonly destination: Rect;
@@ -20,9 +30,7 @@ export interface ContentFitInput {
 }
 
 /** A calculated placement or an explanation of invalid fitting inputs. */
-export type ContentFitResult =
-  | { readonly ok: true; readonly placement: ContentPlacement }
-  | { readonly ok: false; readonly message: string };
+export type ContentFitResult = ContentFitSuccess | ContentFitFailure;
 
 /** Calculates deterministic contain, cover, or fill placement and crop geometry. */
 export function calculateContentPlacement(input: ContentFitInput): ContentFitResult {
@@ -34,17 +42,7 @@ export function calculateContentPlacement(input: ContentFitInput): ContentFitRes
   }
 
   if (input.fit === "fill" && input.sourceSize === undefined) {
-    if (hasCrop(crop)) {
-      return { ok: false, message: "Manual crop requires declared source dimensions." };
-    }
-    return {
-      ok: true,
-      placement: {
-        destination: roundRect(input.destination),
-        sourceCrop: ZERO_INSETS,
-        alignment,
-      },
-    };
+    return fillWithoutSource(input.destination, crop, alignment);
   }
 
   const sourceSize = input.sourceSize;
@@ -52,6 +50,29 @@ export function calculateContentPlacement(input: ContentFitInput): ContentFitRes
     return { ok: false, message: `${input.fit} fitting requires declared source dimensions.` };
   }
 
+  return calculateSizedPlacement(input, sourceSize, crop, alignment);
+}
+
+function fillWithoutSource(
+  destination: Rect,
+  crop: Insets,
+  alignment: ContentAlignment,
+): ContentFitResult {
+  if (hasCrop(crop))
+    return { ok: false, message: "Manual crop requires declared source dimensions." };
+  return {
+    ok: true,
+    placement: { destination: roundRect(destination), sourceCrop: ZERO_INSETS, alignment },
+  };
+}
+
+/** Fit a source's remaining area after manual crop, then distribute unused space by alignment. */
+function calculateSizedPlacement(
+  input: ContentFitInput,
+  sourceSize: Size,
+  crop: Insets,
+  alignment: ContentAlignment,
+): ContentFitResult {
   const effectiveWidth = sourceSize.width - crop.left - crop.right;
   const effectiveHeight = sourceSize.height - crop.top - crop.bottom;
   if (effectiveWidth <= 0 || effectiveHeight <= 0) {
@@ -114,6 +135,7 @@ export function calculateContentPlacement(input: ContentFitInput): ContentFitRes
   };
 }
 
+/** Supply zero for omitted crop edges so subsequent fitting uses a complete inset tuple. */
 function completeCrop(crop: Partial<Insets> | undefined): Insets {
   return {
     top: crop?.top ?? 0,

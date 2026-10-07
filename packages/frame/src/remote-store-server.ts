@@ -1,12 +1,24 @@
 /** Pure server-side snapshot stream for remote frame stores. */
 import type { RemoteStoreSnapshot } from "./remote-store.js";
 
+interface ReadableContextStoreGetSnapshot<TContext> {
+  readonly context: TContext;
+}
+
+interface ReadableContextStoreSubscribeListenerSnapshot<TContext> {
+  readonly context: TContext;
+}
+
+interface ReadableContextStoreSubscribe {
+  unsubscribe(): void;
+}
+
 /** Structural contract implemented by context stores such as `@xstate/store`. */
 export interface ReadableContextStore<TContext> {
-  getSnapshot(): { readonly context: TContext };
-  subscribe(listener: (snapshot: { readonly context: TContext }) => void): {
-    unsubscribe(): void;
-  };
+  getSnapshot(): ReadableContextStoreGetSnapshot<TContext>;
+  subscribe(
+    listener: (snapshot: ReadableContextStoreSubscribeListenerSnapshot<TContext>) => void,
+  ): ReadableContextStoreSubscribe;
 }
 
 /** Replays the current context, then conflates live updates while the consumer is busy. */
@@ -17,7 +29,7 @@ export async function* remoteStoreSnapshots<TContext>(
   let pending: RemoteStoreSnapshot<TContext> | undefined = {
     context: store.getSnapshot().context,
   };
-  let wake: (() => void) | undefined;
+  let wake: (() => void) | undefined = undefined;
   let stopped = signal?.aborted ?? false;
 
   const stop = (): void => {
@@ -33,7 +45,11 @@ export async function* remoteStoreSnapshots<TContext>(
   signal?.addEventListener("abort", stop, { once: true });
 
   try {
+    // Coalesce store updates while waiting, emit the newest snapshot, and release the subscription on abort.
+
     while (!stopped) {
+      // Coalesce store updates while waiting, emit the newest snapshot, and release the subscription on abort.
+
       if (pending === undefined) {
         await new Promise<void>((resolve) => {
           wake = resolve;

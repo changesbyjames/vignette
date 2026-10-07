@@ -34,7 +34,8 @@ describe("browser element", () => {
 
     sourceElement.update(browser, item);
 
-    const frame = sourceElement.element as HTMLIFrameElement;
+    const frame =
+      /* SAFETY: The browser source module creates an iframe for this fixture; the test accesses iframe-only properties. */ sourceElement.element as HTMLIFrameElement;
     const style = frame.contentDocument?.querySelector<HTMLStyleElement>(
       "style[data-vignette-browser-css]",
     );
@@ -47,7 +48,8 @@ describe("browser element", () => {
     document.body.append(sourceElement.element);
     sourceElement.update(browser, item);
 
-    const frame = sourceElement.element as HTMLIFrameElement;
+    const frame =
+      /* SAFETY: The browser source module creates an iframe for this fixture; the test accesses iframe-only properties. */ sourceElement.element as HTMLIFrameElement;
     frame.contentDocument?.querySelector("style[data-vignette-browser-css]")?.remove();
     frame.dispatchEvent(new Event("load"));
 

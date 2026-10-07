@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { asset } from "./assets.js";
 import { broadcast, imageSource, layer, scene, sceneLayer, sources } from "./builders.js";
-import type { SourceDefinition } from "./sources.js";
+import type { AnySourceDefinition } from "./sources.js";
+import { sourceId } from "./ids.js";
 import { validateBroadcast } from "./validation.js";
 
 describe("validateBroadcast", () => {
@@ -48,7 +49,7 @@ describe("validateBroadcast", () => {
   });
 
   it("rejects source kinds without a registered module", () => {
-    const unknown = { kind: "source:unknown", id: "mystery" } as unknown as SourceDefinition;
+    const unknown: AnySourceDefinition = { kind: "source:unknown", id: sourceId("mystery") };
     const graph = broadcast({
       projectId: "weekly-show",
       children: [

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { extname, relative, resolve, sep } from "node:path";
@@ -24,6 +25,12 @@ export interface VignettePluginOptions {
   readonly frames?: string | readonly string[];
   /** Composition-asset globs relative to the Vite root. */
   readonly assets?: string | readonly string[];
+}
+
+type InputEntries = Record<string, string>;
+
+interface FrameModuleExports {
+  readonly frames?: FrameBundle;
 }
 
 interface FrameRegistration extends FrameMetadata {
@@ -98,15 +105,17 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
       const fallback = outputOptions.entryFileNames;
       return {
         ...outputOptions,
-        entryFileNames: (chunk) => {
-          if (chunk.name === "vignette-frame-client") return "assets/vignette/frame-client.js";
-          if (chunk.name.startsWith("vignette-frame-")) {
-            return `assets/vignette/frame/${chunk.name.slice("vignette-frame-".length)}.js`;
-          }
-          return typeof fallback === "function"
-            ? fallback(chunk)
-            : (fallback ?? "assets/[name]-[hash].js");
-        },
+        entryFileNames:
+          /** Frame client entries use stable dedicated filenames while other chunks retain the normal output naming. */
+          (chunk) => {
+            if (chunk.name === "vignette-frame-client") return "assets/vignette/frame-client.js";
+            if (chunk.name.startsWith("vignette-frame-")) {
+              return `assets/vignette/frame/${chunk.name.slice("vignette-frame-".length)}.js`;
+            }
+            return fallback instanceof Function
+              ? fallback(chunk)
+              : (fallback ?? "assets/[name]-[hash].js");
+          },
       };
     },
     buildStart() {
@@ -116,10 +125,11 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
       }
     },
     configureServer(server) {
-      let handler: Promise<ReturnType<typeof createNodeFrameRequestHandler>> | undefined;
+      let handler: Promise<ReturnType<typeof createNodeFrameRequestHandler>> | undefined =
+        undefined;
       const getHandler = () => {
-        handler ??= server.ssrLoadModule(FRAMES_ID).then((loaded: Record<string, unknown>) => {
-          const bundle = loaded.frames as FrameBundle | undefined;
+        handler ??= server.ssrLoadModule(FRAMES_ID).then((loaded: FrameModuleExports) => {
+          const bundle = loaded.frames;
           if (bundle === undefined) throw new Error("The Vignette frame registry did not load.");
           return createNodeFrameRequestHandler(createFrameRequestHandler(bundle));
         });
@@ -132,8 +142,8 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
             (handled) => {
               if (!handled) next();
             },
-            (error: unknown) => {
-              next(error);
+            (cause: unknown) => {
+              next(cause);
             },
           );
       });
@@ -247,25 +257,25 @@ export const frames = { registry, modules };
 `;
 }
 
-function clientInputs(registrations: readonly FrameRegistration[]): Record<string, string> {
+function clientInputs(registrations: readonly FrameRegistration[]) {
   const frameByFile = new Map<string, FrameRegistration>();
   for (const registration of registrations) frameByFile.set(registration.file, registration);
-  const vignetteInputs: Record<string, string> = { "vignette-frame-client": HELPER_ENTRY };
+  const vignetteInputs: InputEntries = {};
+  vignetteInputs["vignette-frame-client"] = HELPER_ENTRY;
   for (const [file, registration] of frameByFile) {
     vignetteInputs[`vignette-frame-${registration.routeKey}`] = file;
   }
   return vignetteInputs;
 }
 
-function normalizeInput(
-  input: string | readonly string[] | Readonly<Record<string, string>> | undefined,
-): Record<string, string> {
+function normalizeInput(input: string | readonly string[] | Readonly<InputEntries> | undefined) {
   if (input === undefined) return {};
-  if (typeof input === "string") return { index: input };
+  const scalar = z.string().safeParse(input);
+  if (scalar.success) return { index: scalar.data };
   if (Array.isArray(input)) {
     return Object.fromEntries(input.map((entry, index) => [`entry-${String(index)}`, entry]));
   }
-  return { ...(input as Readonly<Record<string, string>>) };
+  return z.record(z.string(), z.string()).parse(input);
 }
 
 function toModuleUrl(id: string, root: string): string {

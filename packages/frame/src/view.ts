@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { layerId, sourceId, type Size } from "@strangecyan/vignette-core";
 import { BrowserView, type BrowserViewProps } from "@strangecyan/vignette";
 import { createElement, useContext, type ReactElement } from "react";
@@ -38,16 +39,14 @@ export function View<Params extends object>(props: ViewProps<Params>): ReactElem
     sourceId: sourceId(`${identity}.source`),
     url: `${scene.origin}${FRAME_ROUTE_PREFIX}/${metadata.routeKey}?props=${encodeURIComponent(serialized)}`,
     viewport: props.viewport ?? DEFAULT_VIEWPORT,
-    ...(props.label === undefined ? {} : { label: props.label }),
-    ...(props.shutdownWhenHidden === undefined
-      ? {}
-      : { shutdownWhenHidden: props.shutdownWhenHidden }),
-    ...(props.style === undefined ? {} : { style: props.style }),
-    ...(props.fit === undefined ? {} : { fit: props.fit }),
-    ...(props.alignment === undefined ? {} : { alignment: props.alignment }),
-    ...(props.crop === undefined ? {} : { crop: props.crop }),
-    ...(props.visible === undefined ? {} : { visible: props.visible }),
-    ...(props.opacity === undefined ? {} : { opacity: props.opacity }),
-    ...(props.rotation === undefined ? {} : { rotation: props.rotation }),
+    ...omitUndefined({ label: props.label }),
+    ...omitUndefined({ shutdownWhenHidden: props.shutdownWhenHidden }),
+    ...omitUndefined({ style: props.style }),
+    ...omitUndefined({ fit: props.fit }),
+    ...omitUndefined({ alignment: props.alignment }),
+    ...omitUndefined({ crop: props.crop }),
+    ...omitUndefined({ visible: props.visible }),
+    ...omitUndefined({ opacity: props.opacity }),
+    ...omitUndefined({ rotation: props.rotation }),
   });
 }

@@ -1,3 +1,5 @@
+import { readObsErrorCode } from "@strangecyan/vignette-target-obs";
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type {
   ObsBatchRequest,
   ObsBatchResponse,
@@ -31,16 +33,16 @@ export interface FakeObsConnectionAttempt {
 export class FakeObsTransport implements ObsTransport {
   readonly requests: FakeObsRequest[] = [];
   readonly connections: FakeObsConnectionAttempt[] = [];
-  readonly #responses = new Map<string, FakeResponse[]>();
-  readonly #listeners = new Map<string, Set<ObsEventListener>>();
+  private readonly responses = new Map<string, FakeResponse[]>();
+  private readonly listeners = new Map<string, Set<ObsEventListener>>();
   connected = false;
   connectError: Error | undefined;
   disconnectAtRequest: number | undefined;
 
   enqueue(requestType: string, ...responses: readonly FakeResponse[]): this {
-    const queue = this.#responses.get(requestType) ?? [];
+    const queue = this.responses.get(requestType) ?? [];
     queue.push(...responses);
-    this.#responses.set(requestType, queue);
+    this.responses.set(requestType, queue);
     return this;
   }
 
@@ -48,7 +50,7 @@ export class FakeObsTransport implements ObsTransport {
     if (this.connectError !== undefined) return Promise.reject(this.connectError);
     this.connections.push({
       url: options.url,
-      ...(options.rpcVersion === undefined ? {} : { rpcVersion: options.rpcVersion }),
+      ...omitUndefined({ rpcVersion: options.rpcVersion }),
     });
     this.connected = true;
     return Promise.resolve({ obsWebSocketVersion: "5.fake", negotiatedRpcVersion: 1 });
@@ -59,23 +61,25 @@ export class FakeObsTransport implements ObsTransport {
     return Promise.resolve();
   }
 
+  /** Record connected requests, apply queued failures, and resolve the configured response or fallback. */
   async call(requestType: string, requestData?: ObsJsonObject): Promise<ObsJsonObject> {
     if (!this.connected) throw new Error("Fake OBS transport is disconnected.");
-    this.requests.push({ requestType, ...(requestData === undefined ? {} : { requestData }) });
+    this.requests.push({ requestType, ...omitUndefined({ requestData: requestData }) });
     if (this.disconnectAtRequest === this.requests.length) {
       this.connected = false;
       throw new Error("Fake OBS transport disconnected before the response.");
     }
-    const response = this.#responses.get(requestType)?.shift();
+    const response = this.responses.get(requestType)?.shift();
     if (response === undefined) return {};
     if (response instanceof Error) throw response;
     try {
-      return await (typeof response === "function" ? response(requestData) : response);
+      return await (response instanceof Function ? response(requestData) : response);
     } catch (cause) {
       throw cause instanceof Error ? cause : new Error("Fake response failed.");
     }
   }
 
+  /** Run requests in order and turn each failure into a protocol-style batch result. */
   async callBatch(requests: readonly ObsBatchRequest[]): Promise<readonly ObsBatchResponse[]> {
     const responses: ObsBatchResponse[] = [];
     for (const request of requests) {
@@ -91,7 +95,7 @@ export class FakeObsTransport implements ObsTransport {
         responses.push({
           requestType: request.requestType,
           ok: false,
-          code: readErrorCode(cause) ?? 500,
+          code: readObsErrorCode(cause) ?? 500,
           comment: cause instanceof Error ? cause.message : "Fake failure",
         });
       }
@@ -100,24 +104,19 @@ export class FakeObsTransport implements ObsTransport {
   }
 
   on(event: string, listener: ObsEventListener): () => void {
-    const listeners = this.#listeners.get(event) ?? new Set();
+    const listeners = this.listeners.get(event) ?? new Set();
     listeners.add(listener);
-    this.#listeners.set(event, listeners);
+    this.listeners.set(event, listeners);
     return () => listeners.delete(listener);
   }
 
-  emit(event: string, payload: unknown = {}): void {
+  /** Connection closure updates transport state before notifying all listeners for that event. */
+  emit(event: string, payload: Parameters<ObsEventListener>[0] = {}): void {
     if (event === "ConnectionClosed") this.connected = false;
-    for (const listener of this.#listeners.get(event) ?? []) listener(payload);
+    for (const listener of this.listeners.get(event) ?? []) listener(payload);
   }
 
   listenerCount(event: string): number {
-    return this.#listeners.get(event)?.size ?? 0;
+    return this.listeners.get(event)?.size ?? 0;
   }
-}
-
-function readErrorCode(cause: unknown): number | undefined {
-  if (typeof cause !== "object" || cause === null) return undefined;
-  const code = (cause as { readonly code?: unknown }).code;
-  return typeof code === "number" ? code : undefined;
 }

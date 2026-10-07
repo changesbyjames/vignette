@@ -6,6 +6,7 @@ import { selectInputKind, type ObsSourceCodec } from "./types.js";
 export const mediaCodec: ObsSourceCodec<MediaFileSource> = {
   kind: "source:media-file",
   inputKinds: ["ffmpeg_source"],
+  /** Choose an available media input kind and require its resolved file before translating playback settings. */
   compile(source, context) {
     const inputKind = selectInputKind(this.inputKinds, context.availableInputKinds);
     if (inputKind === undefined) {

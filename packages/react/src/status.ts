@@ -14,28 +14,28 @@ export interface BroadcastRootStatus {
 
 /** Observable external store for composer status. */
 export class RootStatusStore {
-  readonly #listeners = new Set<() => void>();
-  #status: BroadcastRootStatus = {
+  private readonly listeners = new Set<() => void>();
+  private status: BroadcastRootStatus = {
     phase: "idle",
     commitRevision: 0,
     diagnostics: [],
   };
 
   getSnapshot(): BroadcastRootStatus {
-    return this.#status;
+    return this.status;
   }
 
   set(status: BroadcastRootStatus): void {
-    this.#status = status;
-    for (const listener of this.#listeners) listener();
+    this.status = status;
+    for (const listener of this.listeners) listener();
   }
 
   subscribe(listener: () => void): () => void {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   clear(): void {
-    this.#listeners.clear();
+    this.listeners.clear();
   }
 }

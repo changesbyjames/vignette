@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
 import { OBSRuntime } from "@strangecyan/vignette-target-obs";
 
@@ -17,14 +18,18 @@ export function createKitchenSinkObsRuntime(options: KitchenSinkObsRuntimeOption
     projectId: KITCHEN_SINK_PROJECT_ID,
     url: options.url ?? "ws://127.0.0.1:4455",
     extensions: [moqObsCodec],
-    ...(options.password === undefined ? {} : { password: options.password }),
-    ...(assetOrigin === undefined
-      ? {}
-      : { fetch: (url: string) => fetch(rewriteAssetOrigin(url, assetOrigin)) }),
+    ...omitUndefined({ password: options.password }),
+    ...omitUndefined({
+      fetch:
+        assetOrigin === undefined
+          ? undefined
+          : (url: string) => fetch(rewriteAssetOrigin(url, assetOrigin)),
+    }),
     onError: options.onError,
   });
 }
 
+/** Accept a bare HTTP origin and preserve the asset path, query, and fragment when rewriting its host. */
 export function rewriteAssetOrigin(url: string, origin: string): string {
   const source = new URL(url);
   const target = new URL(origin);

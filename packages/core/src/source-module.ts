@@ -81,20 +81,22 @@ export const mediaFileSourceModule: SourceModule<SourceKinds["source:media-file"
   kind: "source:media-file",
   intrinsicSize: (source) => source.size,
   asset: (source) => source.asset,
-  validate: (source, path) =>
-    compactDiagnostics(
-      invalidAsset(source.asset, path),
-      source.size === undefined ? undefined : invalidSourceSize(source.size, `${path}.size`),
-      source.playbackRate !== undefined &&
-        (!isFiniteNumber(source.playbackRate) || source.playbackRate <= 0)
-        ? diagnostic(
-            "INVALID_SOURCE_SETTING",
-            "error",
-            `${path}.playbackRate`,
-            "Playback rate must be a finite positive number.",
-          )
-        : undefined,
-    ),
+  validate:
+    /** Validate the media asset, optional size, and finite positive playback rate as independent diagnostics. */
+    (source, path) =>
+      compactDiagnostics(
+        invalidAsset(source.asset, path),
+        source.size === undefined ? undefined : invalidSourceSize(source.size, `${path}.size`),
+        source.playbackRate !== undefined &&
+          (!isFiniteNumber(source.playbackRate) || source.playbackRate <= 0)
+          ? diagnostic(
+              "INVALID_SOURCE_SETTING",
+              "error",
+              `${path}.playbackRate`,
+              "Playback rate must be a finite positive number.",
+            )
+          : undefined,
+      ),
 };
 
 /** Built-in browser-source validation and metadata behavior. */

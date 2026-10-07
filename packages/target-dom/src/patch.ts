@@ -21,13 +21,13 @@ interface LayerRecord {
 }
 
 export class DomScenePatcher {
-  readonly #container: HTMLElement;
-  readonly #records = new Map<string, LayerRecord>();
-  readonly #sources: DomSourceRegistry;
+  private readonly container: HTMLElement;
+  private readonly records = new Map<string, LayerRecord>();
+  private readonly sources: DomSourceRegistry;
 
   constructor(container: HTMLElement, renderers: DomRendererMap) {
-    this.#container = container;
-    this.#sources = new DomSourceRegistry(container, renderers);
+    this.container = container;
+    this.sources = new DomSourceRegistry(container, renderers);
   }
 
   patch(
@@ -35,25 +35,18 @@ export class DomScenePatcher {
     scene: CompiledScene,
     resolvedUrls: ReadonlyMap<string, string>,
   ): void {
-    this.#sources.reconcile(snapshot.sources);
-    patchScene(
-      this.#container,
-      this.#records,
-      this.#sources,
-      snapshot,
-      scene,
-      resolvedUrls,
-      scene.id,
-    );
+    this.sources.reconcile(snapshot.sources);
+    patchScene(this.container, this.records, this.sources, snapshot, scene, resolvedUrls, scene.id);
   }
 
   dispose(): void {
-    this.#sources.dispose();
-    disposeRecords(this.#records);
-    this.#container.replaceChildren();
+    this.sources.dispose();
+    disposeRecords(this.records);
+    this.container.replaceChildren();
   }
 }
 
+/** Reuse records by layer identity, patch their content in snapshot order, and release absent placements. */
 function patchScene(
   container: HTMLElement,
   records: Map<string, LayerRecord>,
@@ -108,6 +101,7 @@ function patchScene(
   }
 }
 
+/** Reuse matching content kinds; otherwise release the old content before constructing its replacement wrapper. */
 function ensureRecord(
   document: Document,
   records: Map<string, LayerRecord>,
@@ -115,15 +109,7 @@ function ensureRecord(
   item: CompiledItem,
   sources: ReadonlyMap<string, CompiledSource>,
 ): LayerRecord {
-  let expectedKind: AnySourceDefinition["kind"] | "scene";
-  if (item.content.kind === "scene") {
-    expectedKind = "scene";
-  } else {
-    const source = sources.get(item.content.sourceId);
-    if (source === undefined)
-      throw new Error(`Compiled source '${item.content.sourceId}' is missing.`);
-    expectedKind = source.definition.kind;
-  }
+  const expectedKind = contentKind(item, sources);
 
   const existing = records.get(item.id);
   if (existing?.contentKind === expectedKind) return existing;
@@ -152,6 +138,7 @@ function ensureRecord(
   return record;
 }
 
+/** Release incompatible nested or prior source content before mounting the current source definition. */
 function patchSource(
   record: LayerRecord,
   sourceRegistry: DomSourceRegistry,
@@ -219,6 +206,7 @@ function patchNestedScene(
   );
 }
 
+/** Derive the content transform from compiled destination and crop geometry rather than performing CSS layout. */
 function applyContentPlacement(
   record: LayerRecord,
   element: HTMLElement,
@@ -300,11 +288,27 @@ function releaseRecords(
   return released;
 }
 
+/** Use state-preserving DOM moves when available for connected nodes; otherwise append the wrapper. */
 function mountRecord(container: HTMLElement, wrapper: HTMLDivElement): void {
   if (wrapper.parentNode === container) return;
-  if (wrapper.isConnected && container.isConnected && typeof container.moveBefore === "function") {
+  if (wrapper.isConnected && container.isConnected && container.moveBefore !== undefined) {
     container.moveBefore(wrapper, null);
   } else {
     container.append(wrapper);
+  }
+}
+
+/** Resolve content identity before reusing or replacing a layer DOM record. */
+function contentKind(
+  item: CompiledItem,
+  sources: ReadonlyMap<string, CompiledSource>,
+): AnySourceDefinition["kind"] | "scene" {
+  if (item.content.kind === "scene") {
+    return "scene";
+  } else {
+    const source = sources.get(item.content.sourceId);
+    if (source === undefined)
+      throw new Error(`Compiled source '${item.content.sourceId}' is missing.`);
+    return source.definition.kind;
   }
 }

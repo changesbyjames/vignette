@@ -1,3 +1,28 @@
+interface ProjectIdBrand {
+  readonly [projectIdBrand]: "ProjectId";
+}
+
+interface SceneIdBrand {
+  readonly [sceneIdBrand]: "SceneId";
+}
+
+interface SourceIdBrand {
+  readonly [sourceIdBrand]: "SourceId";
+}
+
+interface LayerIdBrand {
+  readonly [layerIdBrand]: "LayerId";
+}
+
+interface ValidStableId<T extends StableId> {
+  readonly ok: true;
+  readonly value: T;
+}
+
+interface InvalidStableIdResult {
+  readonly ok: false;
+  readonly error: InvalidStableId;
+}
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 
 declare const projectIdBrand: unique symbol;
@@ -6,13 +31,13 @@ declare const sourceIdBrand: unique symbol;
 declare const layerIdBrand: unique symbol;
 
 /** Explicit identifier for a managed Vignette project. */
-export type ProjectId = string & { readonly [projectIdBrand]: "ProjectId" };
+export type ProjectId = string & ProjectIdBrand;
 /** Explicit identifier for a scene. */
-export type SceneId = string & { readonly [sceneIdBrand]: "SceneId" };
+export type SceneId = string & SceneIdBrand;
 /** Explicit identifier for a reusable source. */
-export type SourceId = string & { readonly [sourceIdBrand]: "SourceId" };
+export type SourceId = string & SourceIdBrand;
 /** Explicit identifier for a layer placement. */
-export type LayerId = string & { readonly [layerIdBrand]: "LayerId" };
+export type LayerId = string & LayerIdBrand;
 
 /** Any branded identifier used by the authoring graph. */
 export type StableId = ProjectId | SceneId | SourceId | LayerId;
@@ -27,9 +52,7 @@ export interface InvalidStableId {
 }
 
 /** Successful branded ID parsing or a deterministic validation error. */
-export type StableIdResult<T extends StableId> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: InvalidStableId };
+export type StableIdResult<T extends StableId> = ValidStableId<T> | InvalidStableIdResult;
 
 /** Tests whether a string follows the stable ID syntax. */
 export function isStableId(value: string): boolean {
@@ -38,22 +61,42 @@ export function isStableId(value: string): boolean {
 
 /** Validates and brands a project identifier without throwing. */
 export function parseProjectId(value: string): StableIdResult<ProjectId> {
-  return parseId("project", value, (id) => id as ProjectId);
+  return parseId(
+    "project",
+    value,
+    (id) =>
+      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as ProjectId,
+  );
 }
 
 /** Validates and brands a scene identifier without throwing. */
 export function parseSceneId(value: string): StableIdResult<SceneId> {
-  return parseId("scene", value, (id) => id as SceneId);
+  return parseId(
+    "scene",
+    value,
+    (id) =>
+      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as SceneId,
+  );
 }
 
 /** Validates and brands a source identifier without throwing. */
 export function parseSourceId(value: string): StableIdResult<SourceId> {
-  return parseId("source", value, (id) => id as SourceId);
+  return parseId(
+    "source",
+    value,
+    (id) =>
+      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as SourceId,
+  );
 }
 
 /** Validates and brands a layer identifier without throwing. */
 export function parseLayerId(value: string): StableIdResult<LayerId> {
-  return parseId("layer", value, (id) => id as LayerId);
+  return parseId(
+    "layer",
+    value,
+    (id) =>
+      /* SAFETY: parseId invokes the branding callback only after the stable-ID format has passed validation. */ id as LayerId,
+  );
 }
 
 /** Validates and returns a project identifier, throwing for invalid input. */

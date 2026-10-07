@@ -2,6 +2,17 @@ import type { AnySourceDefinition, Size } from "@strangecyan/vignette-core";
 
 import type { ObsJsonObject } from "../operations.js";
 
+interface ObsSupportedCodecResult {
+  readonly supported: true;
+  readonly inputKind: string;
+  readonly settings: ObsJsonObject;
+}
+
+interface ObsUnsupportedCodecResult {
+  readonly supported: false;
+  readonly reason: string;
+}
+
 /** OBS capabilities and resolved metadata available while compiling a source. */
 export interface ObsCodecContext {
   readonly availableInputKinds: ReadonlySet<string>;
@@ -10,13 +21,7 @@ export interface ObsCodecContext {
 }
 
 /** Supported OBS input settings or a deterministic unsupported reason. */
-export type ObsCodecResult =
-  | {
-      readonly supported: true;
-      readonly inputKind: string;
-      readonly settings: ObsJsonObject;
-    }
-  | { readonly supported: false; readonly reason: string };
+export type ObsCodecResult = ObsSupportedCodecResult | ObsUnsupportedCodecResult;
 
 /**
  * Compiles one source kind to OBS input settings. Extension packages export a codec and pass it

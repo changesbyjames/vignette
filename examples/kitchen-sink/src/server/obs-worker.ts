@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { consumeRuntimeMessages } from "@strangecyan/vignette-core";
 import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
 import process from "node:process";
@@ -10,12 +11,8 @@ const reportError = (error: Error): void => {
 };
 const runtime = createKitchenSinkObsRuntime({
   url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-  ...(process.env.VIGNETTE_ASSET_ORIGIN === undefined
-    ? {}
-    : { assetOrigin: process.env.VIGNETTE_ASSET_ORIGIN }),
-  ...(process.env.VIGNETTE_OBS_PASSWORD === undefined
-    ? {}
-    : { password: process.env.VIGNETTE_OBS_PASSWORD }),
+  ...omitUndefined({ assetOrigin: process.env.VIGNETTE_ASSET_ORIGIN }),
+  ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
   onError: reportError,
 });
 const controller = new AbortController();

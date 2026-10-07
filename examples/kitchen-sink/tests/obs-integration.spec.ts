@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { expect, test } from "@playwright/test";
 import {
   consumeRuntimeMessages,
@@ -31,6 +33,12 @@ import {
   createParityReportHtml,
   MAX_DIFFERENCE_RATIO,
 } from "./parity.js";
+
+interface IsolateFrameSnapshot {
+  snapshot: CompiledSnapshot;
+  source: CompiledSource;
+  item: CompiledItem;
+}
 
 const enabled = process.env.VIGNETTE_ALLOW_INTEGRATION === "1";
 
@@ -79,7 +87,10 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
   }
 });
 
-test("View frame has pixel-aligned DOM and OBS browser viewports", async ({ page }, testInfo) => {
+test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
+  page,
+  baseURL,
+}, testInfo) => {
   test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
   test.setTimeout(60_000);
   const url = requiredEnvironment("VIGNETTE_OBS_URL");
@@ -89,7 +100,7 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({ page
   const prefix = `vignette::${project}::`;
 
   await assertDisposableCollection(url, password, expectedCollection);
-  const exampleSnapshot = await readExampleSnapshot();
+  const exampleSnapshot = await readExampleSnapshot(new URL("/runtime", baseURL));
   const { snapshot, source, item } = isolateFrameSnapshot(exampleSnapshot, project);
   const width = Math.round(item.frame.width);
   const height = Math.round(item.frame.height);
@@ -191,12 +202,13 @@ function show(color: string) {
   );
 }
 
-async function readExampleSnapshot(): Promise<CompiledSnapshot> {
+/** Read complete SSE records until an update arrives, retaining incomplete bytes between chunks. */
+async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, 10_000);
-  const response = await fetch("http://127.0.0.1:4173/runtime", { signal: controller.signal });
+  const response = await fetch(url, { signal: controller.signal });
   if (!response.ok || response.body === null) {
     clearTimeout(timeout);
     throw new Error(`Kitchen-sink runtime stream returned ${String(response.status)}.`);
@@ -205,7 +217,11 @@ async function readExampleSnapshot(): Promise<CompiledSnapshot> {
   const decoder = new TextDecoder();
   let buffered = "";
   try {
+    // Read complete SSE records until an update arrives, retaining incomplete bytes between chunks.
+
     for (;;) {
+      // Read complete SSE records until an update arrives, retaining incomplete bytes between chunks.
+
       const chunk = await reader.read();
       buffered += decoder.decode(chunk.value, { stream: !chunk.done });
       const blocks = buffered.split("\n\n");
@@ -224,7 +240,9 @@ async function readExampleSnapshot(): Promise<CompiledSnapshot> {
           .filter((line) => line.startsWith("data:"))
           .map((line) => line.slice(5).trimStart())
           .join("\n");
-        return JSON.parse(data) as CompiledSnapshot;
+        return /* SAFETY: The update event is emitted by the Vignette runtime snapshot encoder. */ JSON.parse(
+          data,
+        ) as CompiledSnapshot;
       }
       if (chunk.done) throw new Error("Kitchen-sink runtime stream ended before an update.");
     }
@@ -234,18 +252,17 @@ async function readExampleSnapshot(): Promise<CompiledSnapshot> {
   }
 }
 
+/** Select the frame browser source and its placement, then build an isolated managed project for comparison. */
 function isolateFrameSnapshot(
   example: CompiledSnapshot,
   project: ReturnType<typeof projectId>,
-): Readonly<{
-  snapshot: CompiledSnapshot;
-  source: CompiledSource;
-  item: CompiledItem;
-}> {
+): Readonly<IsolateFrameSnapshot> {
   const source = example.sources.find(
     (candidate) =>
       candidate.definition.kind === "source:browser" &&
-      (candidate.definition as BrowserSource).url.includes("/__vignette/frame/"),
+      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ (
+        candidate.definition as BrowserSource
+      ).url.includes("/__vignette/frame/"),
   );
   if (source === undefined) throw new Error("Kitchen-sink snapshot has no <View> browser source.");
   const originalItem = example.scenes
@@ -260,14 +277,15 @@ function isolateFrameSnapshot(
     id: layerId("frame-view"),
     content: { kind: "source", sourceId: source.id },
     frame: { x: 0, y: 0, width: destination.width, height: destination.height },
-    ...(originalItem.placement === undefined
-      ? {}
-      : {
-          placement: {
-            ...originalItem.placement,
-            destination: { x: 0, y: 0, width: destination.width, height: destination.height },
-          },
-        }),
+    ...omitUndefined({
+      placement:
+        originalItem.placement === undefined
+          ? undefined
+          : {
+              ...originalItem.placement,
+              destination: { x: 0, y: 0, width: destination.width, height: destination.height },
+            },
+    }),
     visible: true,
     opacity: 1,
     rotation: 0,
@@ -290,10 +308,10 @@ async function inputSettings(
   url: string,
   password: string,
   inputName: string,
-): Promise<Record<string, unknown>> {
+): Promise<ObsInputSettings> {
   return withClient(url, password, async (client) => {
     const response = await client.call("GetInputSettings", { inputName });
-    return response.inputSettings;
+    return ObsInputSettingsSchema.parse(response.inputSettings);
   });
 }
 
@@ -338,7 +356,7 @@ async function captureObsCandidates(
 }
 
 async function waitForRuntime(runtime: OBSRuntime, revision: number, label: string): Promise<void> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
   try {
     await Promise.race([
       runtime.whenSettled(revision),
@@ -368,11 +386,16 @@ async function assertDisposableCollection(
   });
 }
 
+const ObsInputSettingsSchema = z.record(z.string(), z.json());
+type ObsInputSettings = z.output<typeof ObsInputSettingsSchema>;
+const ObsSceneHeaderSchema = z.object({ sceneName: z.string(), sceneUuid: z.string().optional() });
+type ObsSceneHeader = z.output<typeof ObsSceneHeaderSchema>;
+
 async function sceneExists(url: string, password: string, sceneName: string): Promise<boolean> {
   return withClient(url, password, async (client) => {
     const response = await client.call("GetSceneList");
     return response.scenes.some(
-      (value) => (value as { readonly sceneName?: unknown }).sceneName === sceneName,
+      (value) => ObsSceneHeaderSchema.safeParse(value).data?.sceneName === sceneName,
     );
   });
 }
@@ -380,10 +403,12 @@ async function sceneExists(url: string, password: string, sceneName: string): Pr
 async function cleanupManagedPrefix(url: string, password: string, prefix: string): Promise<void> {
   await withClient(url, password, async (client) => {
     const scenes = await client.call("GetSceneList");
+    // Cleanup only successfully decoded scenes owned by this integration run's namespace.
     for (const value of scenes.scenes) {
-      const scene = value as { readonly sceneName?: unknown; readonly sceneUuid?: unknown };
-      if (typeof scene.sceneName !== "string" || !scene.sceneName.startsWith(prefix)) continue;
-      if (typeof scene.sceneUuid !== "string") throw new Error("Managed scene has no UUID.");
+      const parsed = ObsSceneHeaderSchema.safeParse(value);
+      if (!parsed.success || !parsed.data.sceneName.startsWith(prefix)) continue;
+      const scene: ObsSceneHeader = parsed.data;
+      if (scene.sceneUuid === undefined) throw new Error("Managed scene has no UUID.");
       await client.call("RemoveScene", { sceneUuid: scene.sceneUuid });
     }
   });

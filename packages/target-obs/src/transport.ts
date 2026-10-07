@@ -29,7 +29,7 @@ export interface ObsBatchResponse {
 }
 
 /** Listener for an obs-websocket event payload. */
-export type ObsEventListener = (payload: unknown) => void;
+export type ObsEventListener = (payload: ObsJsonObject | Error | undefined) => void;
 
 /** Narrow seam used by bootstrap and execution. It is deliberately client-agnostic. */
 export interface ObsTransport {

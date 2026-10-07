@@ -62,7 +62,7 @@ test("publishes dynamic layer updates from the Node composer", async ({ page }) 
     .toBeGreaterThan(initial);
 });
 
-test("captures an exact-canvas static CLI preview", async () => {
+test("captures an exact-canvas static CLI preview", async ({ baseURL }) => {
   test.setTimeout(30_000);
   const directory = await mkdtemp(join(tmpdir(), "vignette-preview-e2e-"));
   const output = join(directory, "kitchen-sink.png");
@@ -73,7 +73,7 @@ test("captures an exact-canvas static CLI preview", async () => {
         resolve("packages/cli/bin/vignette.js"),
         "preview",
         "--snapshot",
-        "http://127.0.0.1:4173/runtime",
+        new URL("/runtime", baseURL).href,
         "--scene",
         "main",
         "--out",

@@ -22,6 +22,7 @@ export interface ParityResult {
   readonly diffPng: Buffer;
 }
 
+/** Reject dimension mismatches before comparing pixels, then apply the requested mismatch threshold. */
 export function comparePngBuffers(
   domBytes: Buffer,
   obsBytes: Buffer,

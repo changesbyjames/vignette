@@ -12,7 +12,10 @@ export const colorRenderer: DomSourceRenderer<ColorSource> = {
       update(source) {
         if (source.kind !== "source:color")
           throw new TypeError("Color renderer received another source kind.");
-        element.style.backgroundColor = (source as ColorSource).color;
+        element.style.backgroundColor =
+          /* SAFETY: The source registry selects this module by its source kind after core validation of that definition. */ (
+            source as ColorSource
+          ).color;
       },
       dispose() {
         element.remove();

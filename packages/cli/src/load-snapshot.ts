@@ -1,5 +1,9 @@
+import { z } from "zod";
+import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   decodeRuntimeSseEvent,
+  CompiledSnapshotWireSchema,
+  AssetManifestWireSchema,
   type AssetManifest,
   type CompiledSnapshot,
   type RuntimeSseEvent,
@@ -9,6 +13,16 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { LoadedSnapshot } from "./types.js";
+
+interface ParseSseRecord {
+  event: RuntimeSseEvent;
+  data: string;
+}
+
+interface SseBoundary {
+  index: number;
+  length: number;
+}
 
 interface SnapshotEnvelope {
   readonly snapshot: CompiledSnapshot;
@@ -50,7 +64,7 @@ async function loadRemoteSnapshot(input: string, timeoutMs: number): Promise<Loa
     };
   }
 
-  const envelope = readSnapshotEnvelope((await response.json()) as unknown);
+  const envelope = readSnapshotEnvelope(await response.json());
   return {
     snapshot: envelope.snapshot,
     assetUrls: manifestUrls(envelope.manifest, sourceUrl),
@@ -58,15 +72,20 @@ async function loadRemoteSnapshot(input: string, timeoutMs: number): Promise<Loa
   };
 }
 
+/** Accumulate complete SSE records until a validated update is available, retaining setup manifest data. */
 async function readSseSnapshot(response: Response): Promise<SnapshotEnvelope> {
   if (response.body === null) throw new Error("Snapshot SSE response has no body.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let manifest: AssetManifest | undefined;
+  let manifest: AssetManifest | undefined = undefined;
 
   try {
+    // Accumulate complete SSE records until a validated update is available, retaining setup manifest data.
+
     for (;;) {
+      // Accumulate complete SSE records until a validated update is available, retaining setup manifest data.
+
       const next = await reader.read();
       buffer += decoder.decode(next.value, { stream: !next.done });
       let boundary = sseBoundary(buffer);
@@ -80,7 +99,7 @@ async function readSseSnapshot(response: Response): Promise<SnapshotEnvelope> {
         if (message.kind === "update") {
           return {
             snapshot: validateSnapshot(message.snapshot),
-            ...(manifest === undefined ? {} : { manifest }),
+            ...omitUndefined({ manifest: manifest }),
           };
         }
       }
@@ -92,12 +111,13 @@ async function readSseSnapshot(response: Response): Promise<SnapshotEnvelope> {
   throw new Error("Snapshot SSE stream ended before its first update.");
 }
 
-function parseSseRecord(
-  record: string,
-): Readonly<{ event: RuntimeSseEvent; data: string }> | undefined {
-  let event: RuntimeSseEvent | undefined;
+/** Ignore comments and unknown events while joining data lines according to the SSE record format. */
+function parseSseRecord(record: string): Readonly<ParseSseRecord> | undefined {
+  let event: RuntimeSseEvent | undefined = undefined;
   const data: string[] = [];
   for (const line of record.split(/\r\n|\r|\n/gu)) {
+    // Ignore comments and unknown events while joining data lines according to the SSE record format.
+
     if (line.startsWith(":")) continue;
     const separator = line.indexOf(":");
     const field = separator < 0 ? line : line.slice(0, separator);
@@ -109,47 +129,33 @@ function parseSseRecord(
   return event === undefined ? undefined : { event, data: data.join("\n") };
 }
 
-function sseBoundary(value: string): Readonly<{ index: number; length: number }> | undefined {
+function sseBoundary(value: string): Readonly<SseBoundary> | undefined {
   const match = /(?:\r\n|\r|\n){2}/u.exec(value);
   return match?.index === undefined ? undefined : { index: match.index, length: match[0].length };
 }
 
-function readSnapshotEnvelope(value: unknown): SnapshotEnvelope {
-  if (!isRecord(value)) throw new TypeError("Snapshot JSON must be an object.");
-  if ("snapshot" in value) {
-    return {
-      snapshot: validateSnapshot(value.snapshot),
-      ...(value.manifest === undefined ? {} : { manifest: validateManifest(value.manifest) }),
-    };
-  }
+export const SnapshotEnvelopeWireSchema = z
+  .object({ snapshot: CompiledSnapshotWireSchema, manifest: AssetManifestWireSchema.optional() })
+  .transform(omitUndefined);
+export type SnapshotEnvelopeWire = z.output<typeof SnapshotEnvelopeWireSchema>;
+
+function readSnapshotEnvelope(
+  value: Parameters<typeof SnapshotEnvelopeWireSchema.parse>[0],
+): SnapshotEnvelope {
+  const envelope = SnapshotEnvelopeWireSchema.safeParse(value);
+  if (envelope.success) return envelope.data;
   return { snapshot: validateSnapshot(value) };
 }
 
-function validateSnapshot(value: unknown): CompiledSnapshot {
-  if (
-    !isRecord(value) ||
-    typeof value.revision !== "number" ||
-    typeof value.projectId !== "string" ||
-    !isRecord(value.canvas) ||
-    typeof value.canvas.width !== "number" ||
-    typeof value.canvas.height !== "number" ||
-    !Array.isArray(value.sources) ||
-    !Array.isArray(value.scenes) ||
-    !Array.isArray(value.warnings)
-  ) {
-    throw new TypeError("Input is not a Vignette compiled snapshot.");
-  }
-  if (value.canvas.width <= 0 || value.canvas.height <= 0) {
-    throw new TypeError("Snapshot canvas dimensions must be positive.");
-  }
-  return value as unknown as CompiledSnapshot;
-}
-
-function validateManifest(value: unknown): AssetManifest {
-  if (!isRecord(value) || !Array.isArray(value.assets)) {
-    throw new TypeError("Snapshot asset manifest is invalid.");
-  }
-  return value as unknown as AssetManifest;
+function validateSnapshot(
+  value: Parameters<typeof CompiledSnapshotWireSchema.parse>[0],
+): CompiledSnapshot {
+  const parsed = CompiledSnapshotWireSchema.safeParse(value);
+  if (!parsed.success)
+    throw new TypeError(
+      "Input is not a Vignette compiled snapshot with positive canvas dimensions.",
+    );
+  return parsed.data;
 }
 
 function manifestUrls(
@@ -168,8 +174,4 @@ function isHttpUrl(value: string): boolean {
 
 function isRuntimeEvent(value: string): value is RuntimeSseEvent {
   return value === "setup" || value === "update" || value === "event";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

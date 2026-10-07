@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -11,23 +12,28 @@ import {
   type FrameModuleHost,
 } from "./server.js";
 
+interface FrameResponse {
+  readonly status: number;
+  readonly headers: Headers;
+  readonly text: string;
+}
+
 const metadata: FrameMetadata = {
   routeKey: "greeting-test",
   moduleUrl: "/frames/greeting.js",
   exportName: "greeting",
 };
 
+interface GreetingParams {
+  name: string;
+}
+
 const greeting = frame.withMetadata(metadata)({
   params: {
-    parse(input: unknown): { name: string } {
-      if (
-        typeof input !== "object" ||
-        input === null ||
-        typeof (input as { name?: unknown }).name !== "string"
-      ) {
-        throw new Error("name must be a string");
-      }
-      return { name: (input as { name: string }).name };
+    parse(input: Parameters<z.ZodType<GreetingParams>["parse"]>[0]): GreetingParams {
+      const result = z.object({ name: z.string() }).safeParse(input);
+      if (!result.success) throw new Error("name must be a string");
+      return result.data;
     },
   },
   view: ({ name }) => createElement("strong", null, `Hello ${name}`),
@@ -113,7 +119,7 @@ describe("frame request handler", () => {
 describe("FrameRouteRegistry", () => {
   it("rejects definitions without transform metadata", () => {
     const registry = new FrameRouteRegistry();
-    const plain = frame({ params: passthroughParams, view: EmptyView });
+    const plain = frame({ params: PassthroughParamsSchema, view: EmptyView });
 
     expect(() => {
       registry.registerDefinition(plain);
@@ -127,7 +133,7 @@ describe("FrameRouteRegistry", () => {
     expect(() => {
       registry.registerDefinition(
         frame.withMetadata({ ...metadata, moduleUrl: "/frames/other.js" })({
-          params: passthroughParams,
+          params: PassthroughParamsSchema,
           view: EmptyView,
         }),
       );
@@ -144,7 +150,8 @@ describe("FrameRouteRegistry", () => {
   });
 });
 
-const passthroughParams = { parse: (input: unknown) => input as object };
+const PassthroughParamsSchema = z.object({}).loose();
+export type PassthroughParams = z.output<typeof PassthroughParamsSchema>;
 
 function EmptyView(): ReturnType<typeof createElement> {
   return createElement("div");
@@ -166,10 +173,7 @@ function createHost(): FrameModuleHost {
   };
 }
 
-async function request(
-  handler: FrameRequestHandler,
-  path: string,
-): Promise<{ readonly status: number; readonly headers: Headers; readonly text: string }> {
+async function request(handler: FrameRequestHandler, path: string): Promise<FrameResponse> {
   const response =
     (await handler(new Request(`https://vignette.test${path}`))) ??
     new Response("Not handled.", { status: 404 });

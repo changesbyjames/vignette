@@ -91,17 +91,18 @@ describe("OBS convergence scheduler", () => {
       },
       transport,
     );
+    const fixtureSource1 = {
+      id: sourceId("background"),
+      kind: "source:image",
+      asset: asset("missing.png"),
+      size: { width: 1920, height: 1080 },
+    } satisfies ImageSource;
     const invalid: CompiledSnapshot = {
       ...snapshot(1),
       sources: [
         {
           id: sourceId("background"),
-          definition: {
-            id: sourceId("background"),
-            kind: "source:image",
-            asset: asset("missing.png"),
-            size: { width: 1920, height: 1080 },
-          } as ImageSource,
+          definition: fixtureSource1,
           intrinsicSize: { width: 1920, height: 1080 },
           asset: asset("missing.png"),
         },
@@ -123,7 +124,9 @@ describe("OBS convergence scheduler", () => {
     const project = projectId("scheduler-test");
     const transport = new FakeObsTransport();
     enqueueEmptyObservation(transport);
-    let releaseFirstScene: ((value: ObsJsonObject) => void) | undefined;
+    let releaseFirstScene: (value: ObsJsonObject) => void = () => {
+      throw new Error("Scene request has not started.");
+    };
     const firstScene = new Promise<ObsJsonObject>((resolve) => {
       releaseFirstScene = resolve;
     });
@@ -258,6 +261,12 @@ const rejectingAssetResolver: AssetResolver = {
 
 function snapshot(revision: number): CompiledSnapshot {
   const source = sourceId("background");
+  const fixtureSource2 = {
+    id: source,
+    kind: "source:color",
+    color: "#112233",
+    size: { width: 1920, height: 1080 },
+  } satisfies ColorSource;
   return {
     revision,
     projectId: projectId("scheduler-test"),
@@ -266,12 +275,7 @@ function snapshot(revision: number): CompiledSnapshot {
     sources: [
       {
         id: source,
-        definition: {
-          id: source,
-          kind: "source:color",
-          color: "#112233",
-          size: { width: 1920, height: 1080 },
-        } as ColorSource,
+        definition: fixtureSource2,
       },
     ],
     scenes: [
@@ -294,6 +298,12 @@ function snapshot(revision: number): CompiledSnapshot {
 
 function browserSnapshot(revision: number): CompiledSnapshot {
   const source = sourceId("browser");
+  const fixtureSource3 = {
+    id: source,
+    kind: "source:browser",
+    url: "http://127.0.0.1:4173/frame",
+    viewport: { width: 1280, height: 720 },
+  } satisfies BrowserSource;
   return {
     revision,
     projectId: projectId("scheduler-test"),
@@ -302,12 +312,7 @@ function browserSnapshot(revision: number): CompiledSnapshot {
     sources: [
       {
         id: source,
-        definition: {
-          id: source,
-          kind: "source:browser",
-          url: "http://127.0.0.1:4173/frame",
-          viewport: { width: 1280, height: 720 },
-        } as BrowserSource,
+        definition: fixtureSource3,
       },
     ],
     scenes: [

@@ -12,9 +12,9 @@ export interface AsyncQueue<T> extends AsyncIterable<T> {
 /** Creates a single-consumer asynchronous FIFO queue. */
 export function createAsyncQueue<T>(): AsyncQueue<T> {
   const values: T[] = [];
-  let wake: (() => void) | undefined;
+  let wake: (() => void) | undefined = undefined;
   let closed = false;
-  let error: Error | undefined;
+  let error: Error | undefined = undefined;
 
   const notify = () => {
     wake?.();
@@ -37,10 +37,11 @@ export function createAsyncQueue<T>(): AsyncQueue<T> {
       closed = true;
       notify();
     },
+    /** Yield buffered values first, then wait for a push or closure without losing a wakeup. */
     async *[Symbol.asyncIterator]() {
       for (;;) {
         if (values.length > 0) {
-          yield values.shift() as T;
+          yield /* SAFETY: The loop checked the queue length before shifting; queued values retain the generic element type. */ values.shift() as T;
           continue;
         }
         if (error !== undefined) throw error;

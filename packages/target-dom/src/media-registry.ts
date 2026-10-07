@@ -1,32 +1,32 @@
 import type { AssetRef, AssetResolver, ResolvedAsset } from "@strangecyan/vignette-core";
 
 export class DomAssetRegistry {
-  readonly #resolver: AssetResolver;
-  readonly #targetId: string;
-  readonly #cache = new Map<string, Promise<string>>();
+  private readonly resolver: AssetResolver;
+  private readonly targetId: string;
+  private readonly cache = new Map<string, Promise<string>>();
 
   constructor(resolver: AssetResolver, targetId: string) {
-    this.#resolver = resolver;
-    this.#targetId = targetId;
+    this.resolver = resolver;
+    this.targetId = targetId;
   }
 
   resolve(asset: AssetRef): Promise<string> {
-    const existing = this.#cache.get(asset.name);
+    const existing = this.cache.get(asset.name);
     if (existing !== undefined) return existing;
 
-    const resolution = this.#resolver
-      .resolve(asset, { targetId: this.#targetId, targetKind: "dom" })
+    const resolution = this.resolver
+      .resolve(asset, { targetId: this.targetId, targetKind: "dom" })
       .then(toDomUrl)
-      .catch((error: unknown) => {
-        this.#cache.delete(asset.name);
-        throw error;
+      .catch((cause: unknown) => {
+        this.cache.delete(asset.name);
+        throw cause;
       });
-    this.#cache.set(asset.name, resolution);
+    this.cache.set(asset.name, resolution);
     return resolution;
   }
 
   clear(): void {
-    this.#cache.clear();
+    this.cache.clear();
   }
 }
 

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,10 +8,48 @@ import { describe, expect, it } from "vitest";
 
 import { vignette } from "./index.js";
 
+interface InputOptionsContract {
+  readonly input?: unknown;
+}
+
+interface OutputEntryFileNamesInfo {
+  name: string;
+}
+
+interface OutputContract {
+  entryFileNames(info: OutputEntryFileNamesInfo): string;
+}
+
+interface LoadAssetsAssets {
+  readonly name: string;
+  readonly url: string;
+  readonly integrity: string;
+}
+
+interface LoadAssetsContract {
+  readonly version: string | number;
+  readonly assets: readonly LoadAssetsAssets[];
+}
+
+interface HookEnvironment {
+  readonly name: string;
+}
+interface HookContext {
+  readonly environment?: HookEnvironment;
+}
+interface HookObject<Args extends unknown[], Result> {
+  readonly handler: (...args: Args) => Result;
+}
+
+interface IsCodeResult {
+  readonly code: string;
+}
+
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), "../test-fixtures");
 
 describe("vignette", () => {
   it("generates a static registry with route keys matching transformed modules", async () => {
+    // Configure the frame fixture, transform its export, and check that registry metadata uses the same route keys.
     const root = resolve(fixtures, "project");
     const plugin = vignette();
     await configure(plugin, root, "build");
@@ -22,7 +61,7 @@ describe("vignette", () => {
     const generated = await runHook(plugin.load, {}, "\0virtual:vignette/frames");
 
     expect(routeKey).toBeDefined();
-    if (routeKey === undefined || typeof generated !== "string") {
+    if (routeKey === undefined || !z.string().safeParse(generated).success) {
       throw new Error("Frame virtual module was not generated.");
     }
     expect(generated).toContain(`registry.registerDefinition(frame0["one"]);`);
@@ -35,11 +74,17 @@ describe("vignette", () => {
     await configure(plugin, resolve(fixtures, "project"), "build");
 
     const environmentContext = { environment: { name: "client" } };
-    const inputOptions = (await runHook(plugin.options, environmentContext, {
-      input: { app: "/app.html" },
-    })) as { readonly input?: unknown };
+    const inputOptions =
+      /* SAFETY: The configured client options hook returns the input object inspected by this test. */ (await runHook(
+        plugin.options,
+        environmentContext,
+        {
+          input: { app: "/app.html" },
+        },
+      )) as InputOptionsContract;
     const input = inputOptions.input;
-    if (typeof input !== "object" || input === null) throw new Error("Client inputs are missing.");
+    if (input === null || input === undefined || !(input instanceof Object))
+      throw new Error("Client inputs are missing.");
     expect(Object.keys(input)).toEqual(
       expect.arrayContaining([
         "app",
@@ -48,9 +93,12 @@ describe("vignette", () => {
         expect.stringMatching(/^vignette-frame-two-/u),
       ]),
     );
-    const output = (await runHook(plugin.outputOptions, environmentContext, {})) as {
-      entryFileNames(info: { name: string }): string;
-    };
+    const output =
+      /* SAFETY: The configured client output hook installs the entryFileNames function exercised by this test. */ (await runHook(
+        plugin.outputOptions,
+        environmentContext,
+        {},
+      )) as OutputContract;
     expect(output.entryFileNames({ name: "vignette-frame-client" })).toBe(
       "assets/vignette/frame-client.js",
     );
@@ -75,15 +123,11 @@ async function loadAssets(root: string) {
   const plugin = vignette({ assets: "asset.txt" });
   await configure(plugin, root, "build");
   const generated = await runHook(plugin.load, {}, "\0virtual:vignette/assets");
-  if (typeof generated !== "string") throw new Error("Asset virtual module was not generated.");
-  return JSON.parse(generated.slice("export const assets = ".length, -1)) as {
-    readonly version: string | number;
-    readonly assets: readonly {
-      readonly name: string;
-      readonly url: string;
-      readonly integrity: string;
-    }[];
-  };
+  if (!z.string().safeParse(generated).success)
+    throw new Error("Asset virtual module was not generated.");
+  return /* SAFETY: The generated module is produced by the asset plugin in this same test process. */ JSON.parse(
+    z.string().parse(generated).slice("export const assets = ".length, -1),
+  ) as LoadAssetsContract;
 }
 
 async function configure(plugin: Plugin, root: string, command: "build" | "serve") {
@@ -95,22 +139,18 @@ async function configure(plugin: Plugin, root: string, command: "build" | "serve
   );
 }
 
-function runHook(hook: unknown, context: object, ...args: unknown[]): Promise<unknown> {
-  if (typeof hook === "function") {
-    return Promise.resolve((hook as (...values: unknown[]) => unknown).call(context, ...args));
-  }
-  if (typeof hook === "object" && hook !== null && "handler" in hook) {
-    const result = (hook as { handler: (...values: unknown[]) => unknown }).handler.call(
-      context,
-      ...args,
-    );
-    return Promise.resolve(result);
-  }
-  throw new Error("Expected a plugin hook.");
+function runHook<Args extends unknown[], Result>(
+  hook: ((...values: Args) => Result) | HookObject<Args, Result> | undefined,
+  context: HookContext,
+  ...args: Args
+): Promise<Awaited<Result>> {
+  if (hook === undefined) throw new Error("Expected a plugin hook.");
+  const handler = hook instanceof Function ? hook : hook.handler;
+  return Promise.resolve(handler.apply(context, args));
 }
 
-function isCodeResult(value: unknown): value is { readonly code: string } {
-  return (
-    typeof value === "object" && value !== null && "code" in value && typeof value.code === "string"
-  );
+function isCodeResult(
+  value: Parameters<z.ZodType<IsCodeResult>["parse"]>[0],
+): value is IsCodeResult {
+  return z.object({ code: z.string() }).safeParse(value).success;
 }

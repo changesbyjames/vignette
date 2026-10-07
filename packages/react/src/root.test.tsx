@@ -65,7 +65,11 @@ describe("createComposerRoot", () => {
     root.subscribe((snapshot) => {
       const definition = snapshot.sources[0]?.definition;
       if (definition?.kind === "source:color") {
-        colors.push((definition as ColorSourceDefinition).color);
+        colors.push(
+          /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ (
+            definition as ColorSourceDefinition
+          ).color,
+        );
       }
     });
 

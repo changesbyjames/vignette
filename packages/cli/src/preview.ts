@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type { CompiledScene } from "@strangecyan/vignette-core";
 import { chromium, type Browser } from "playwright";
 import { mkdir, readFile, stat } from "node:fs/promises";
@@ -20,9 +21,11 @@ export async function createPreviews(options: PreviewOptions): Promise<readonly 
   const scenes = selectScenes(loaded.snapshot.scenes, options.scene, options.allScenes);
   const paths = outputPaths(options, loaded, scenes);
   const server = await startPreviewServer(loaded.localAssetRoot);
-  let browser: Browser | undefined;
+  let browser: Browser | undefined = undefined;
 
   try {
+    // Render each selected scene with one prepared browser context and save captures to its matching output path.
+
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
       deviceScaleFactor: 1,
@@ -38,6 +41,8 @@ export async function createPreviews(options: PreviewOptions): Promise<readonly 
     const results: PreviewResult[] = [];
 
     for (let index = 0; index < scenes.length; index += 1) {
+      // Render each selected scene with one prepared browser context and save captures to its matching output path.
+
       const scene = scenes[index];
       const outputPath = paths[index];
       if (scene === undefined || outputPath === undefined) continue;
@@ -46,9 +51,12 @@ export async function createPreviews(options: PreviewOptions): Promise<readonly 
         snapshot: loaded.snapshot,
         sceneId: scene.id,
         assetUrls: browserAssetUrls(loaded, server.origin),
-        ...(loaded.localAssetRoot === undefined && loaded.assetBaseUrl === undefined
-          ? {}
-          : { assetBaseUrl: loaded.assetBaseUrl ?? `${server.origin}assets/` }),
+        ...omitUndefined({
+          assetBaseUrl:
+            loaded.localAssetRoot === undefined && loaded.assetBaseUrl === undefined
+              ? undefined
+              : (loaded.assetBaseUrl ?? `${server.origin}assets/`),
+        }),
       };
       const rendered = await page.evaluate<BrowserPreviewResult, BrowserPreviewInput>(
         async (previewInput) => {
@@ -86,15 +94,18 @@ function browserAssetUrls(
   const assetRoot = loaded.localAssetRoot;
   if (assetRoot === undefined) return loaded.assetUrls;
   return Object.fromEntries(
-    Object.entries(loaded.assetUrls).map(([name, url]) => {
-      if (!url.startsWith("file:")) return [name, url];
-      const location = relative(assetRoot, fileURLToPath(url));
-      if (location === ".." || location.startsWith(`..${sep}`) || isAbsolute(location)) {
-        throw new Error(`Local manifest asset '${name}' is outside the snapshot directory.`);
-      }
-      const route = location.split(sep).map(encodeURIComponent).join("/");
-      return [name, new URL(`assets/${route}`, previewOrigin).href];
-    }),
+    Object.entries(loaded.assetUrls).map(
+      /** Rewrite local file assets only after proving their paths remain inside the configured asset root. */
+      ([name, url]) => {
+        if (!url.startsWith("file:")) return [name, url];
+        const location = relative(assetRoot, fileURLToPath(url));
+        if (location === ".." || location.startsWith(`..${sep}`) || isAbsolute(location)) {
+          throw new Error(`Local manifest asset '${name}' is outside the snapshot directory.`);
+        }
+        const route = location.split(sep).map(encodeURIComponent).join("/");
+        return [name, new URL(`assets/${route}`, previewOrigin).href];
+      },
+    ),
   );
 }
 
@@ -109,6 +120,7 @@ async function startPreviewServer(localAssetRoot: string | undefined): Promise<P
   const targetDomRoot = dirname(
     fileURLToPath(import.meta.resolve("@strangecyan/vignette-target-dom")),
   );
+  const zodRoot = dirname(fileURLToPath(import.meta.resolve("zod")));
   const server = createServer((request, response) => {
     void handleRequest(
       request.url ?? "/",
@@ -116,6 +128,7 @@ async function startPreviewServer(localAssetRoot: string | undefined): Promise<P
       previewRoot,
       coreRoot,
       targetDomRoot,
+      zodRoot,
       localAssetRoot,
     ).catch((cause: unknown) => {
       response.statusCode = 500;
@@ -129,7 +142,7 @@ async function startPreviewServer(localAssetRoot: string | undefined): Promise<P
     });
   });
   const address = server.address();
-  if (address === null || typeof address === "string")
+  if (address === null || !(address instanceof Object))
     throw new Error("Preview server did not bind.");
   return {
     origin: `http://127.0.0.1:${String(address.port)}/`,
@@ -143,12 +156,14 @@ async function startPreviewServer(localAssetRoot: string | undefined): Promise<P
   };
 }
 
+/** Route preview modules and local assets to their own roots, returning a missing-file response for other paths. */
 async function handleRequest(
   rawUrl: string,
   response: ServerResponse,
   previewRoot: string,
   coreRoot: string,
   targetDomRoot: string,
+  zodRoot: string,
   localAssetRoot: string | undefined,
 ): Promise<void> {
   const pathname = new URL(rawUrl, "http://preview.invalid").pathname;
@@ -169,6 +184,10 @@ async function handleRequest(
     await serveFile(targetDomRoot, pathname.slice("/modules/target-dom/".length), response);
     return;
   }
+  if (pathname.startsWith("/modules/zod/")) {
+    await serveFile(zodRoot, pathname.slice("/modules/zod/".length), response);
+    return;
+  }
   if (pathname.startsWith("/assets/") && localAssetRoot !== undefined) {
     await serveFile(
       localAssetRoot,
@@ -181,6 +200,7 @@ async function handleRequest(
   response.end("Not found");
 }
 
+/** Resolve paths inside the selected root before serving file bytes, and translate filesystem failures to HTTP errors. */
 async function serveFile(
   root: string,
   requestedPath: string,
@@ -209,13 +229,14 @@ function previewHtml(): string {
   <head>
     <meta charset="utf-8">
     <style>html, body, #preview { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }</style>
-    <script type="importmap">{"imports":{"@strangecyan/vignette-core":"/modules/core/index.js","@strangecyan/vignette-target-dom":"/modules/target-dom/index.js"}}</script>
+    <script type="importmap">{"imports":{"@strangecyan/vignette-core":"/modules/core/index.js","@strangecyan/vignette-target-dom":"/modules/target-dom/index.js","zod":"/modules/zod/index.js"}}</script>
     <script type="module" src="/modules/preview/browser.js"></script>
   </head>
   <body><main id="preview"></main></body>
 </html>`;
 }
 
+/** Choose MIME types for preview resources by extension, falling back to binary content. */
 function contentType(path: string): string {
   switch (extname(path)) {
     case ".js":
@@ -236,6 +257,7 @@ function contentType(path: string): string {
   }
 }
 
+/** Apply the explicit scene selection or all-scenes option, rejecting missing scenes and empty compositions. */
 function selectScenes(
   scenes: readonly CompiledScene[],
   selector: string | undefined,
@@ -254,6 +276,7 @@ function selectScenes(
   throw new Error(`Scene '${selector}' is not present in the snapshot.`);
 }
 
+/** Choose one explicit output or generate per-scene paths from sanitized project and scene names. */
 function outputPaths(
   options: PreviewOptions,
   loaded: LoadedSnapshot,

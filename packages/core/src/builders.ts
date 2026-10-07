@@ -22,12 +22,50 @@ import type {
   AnySourceDefinition,
 } from "./sources.js";
 
-/** Builds the root authoring node with validated project identity and canvas defaults. */
-export function broadcast(input: {
+interface BroadcastInput {
   readonly projectId: string;
   readonly canvas?: BroadcastCanvas;
   readonly children: readonly (SourcesNode | SceneNode)[];
-}): BroadcastNode {
+}
+
+interface SceneInput {
+  readonly id: string;
+  readonly label?: string;
+  readonly children?: readonly LayoutNode[];
+}
+
+interface BoxInput {
+  readonly children?: readonly LayoutNode[];
+}
+
+interface LayerInput {
+  readonly id: string;
+  readonly sourceId: string;
+}
+
+interface SceneLayerInput {
+  readonly id: string;
+  readonly sceneId: string;
+}
+
+interface ImageSourceInput {
+  readonly id: string;
+}
+
+interface MediaSourceInput {
+  readonly id: string;
+}
+
+interface BrowserSourceInput {
+  readonly id: string;
+}
+
+interface ColorSourceInput {
+  readonly id: string;
+}
+
+/** Builds the root authoring node with validated project identity and canvas defaults. */
+export function broadcast(input: BroadcastInput): BroadcastNode {
   return {
     kind: "broadcast",
     projectId: projectId(input.projectId),
@@ -42,67 +80,53 @@ export function sources(...children: readonly AnySourceDefinition[]): SourcesNod
 }
 
 /** Builds a scene node with a validated explicit ID. */
-export function scene(input: {
-  readonly id: string;
-  readonly label?: string;
-  readonly children?: readonly LayoutNode[];
-}): SceneNode {
+export function scene(input: SceneInput): SceneNode {
   return input.label === undefined
     ? { kind: "scene", id: sceneId(input.id), children: input.children ?? [] }
     : { kind: "scene", id: sceneId(input.id), label: input.label, children: input.children ?? [] };
 }
 
 /** Builds a virtual Yoga layout container. */
-export function box(
-  input: Omit<BoxNode, "kind" | "children"> & { readonly children?: readonly LayoutNode[] } = {},
-): BoxNode {
+export function box(input: Omit<BoxNode, "kind" | "children"> & BoxInput = {}): BoxNode {
   return { kind: "box", ...input, children: input.children ?? [] };
 }
 
 /** Builds a source placement with validated layer and source IDs. */
-export function layer(
-  input: Omit<LayerNode, "kind" | "id" | "sourceId"> & {
-    readonly id: string;
-    readonly sourceId: string;
-  },
-): LayerNode {
+export function layer(input: Omit<LayerNode, "kind" | "id" | "sourceId"> & LayerInput): LayerNode {
   return { kind: "layer", ...input, id: layerId(input.id), sourceId: sourceId(input.sourceId) };
 }
 
 /** Builds a nested-scene placement with validated IDs. */
 export function sceneLayer(
-  input: Omit<SceneLayerNode, "kind" | "id" | "sceneId"> & {
-    readonly id: string;
-    readonly sceneId: string;
-  },
+  input: Omit<SceneLayerNode, "kind" | "id" | "sceneId"> & SceneLayerInput,
 ): SceneLayerNode {
   return { kind: "scene-layer", ...input, id: layerId(input.id), sceneId: sceneId(input.sceneId) };
 }
 
 /** Builds an image source with a validated source ID. */
 export function imageSource(
-  input: Omit<ImageSource, "kind" | "id"> & { readonly id: string },
+  input: Omit<ImageSource, "kind" | "id"> & ImageSourceInput,
 ): ImageSource {
   return { kind: "source:image", ...input, id: sourceId(input.id) };
 }
 
 /** Builds a media-file source with a validated source ID. */
 export function mediaSource(
-  input: Omit<MediaFileSource, "kind" | "id"> & { readonly id: string },
+  input: Omit<MediaFileSource, "kind" | "id"> & MediaSourceInput,
 ): MediaFileSource {
   return { kind: "source:media-file", ...input, id: sourceId(input.id) };
 }
 
 /** Builds a browser source with a validated source ID. */
 export function browserSource(
-  input: Omit<BrowserSource, "kind" | "id"> & { readonly id: string },
+  input: Omit<BrowserSource, "kind" | "id"> & BrowserSourceInput,
 ): BrowserSource {
   return { kind: "source:browser", ...input, id: sourceId(input.id) };
 }
 
 /** Builds a color source with a validated source ID. */
 export function colorSource(
-  input: Omit<ColorSource, "kind" | "id"> & { readonly id: string },
+  input: Omit<ColorSource, "kind" | "id"> & ColorSourceInput,
 ): ColorSource {
   return { kind: "source:color", ...input, id: sourceId(input.id) };
 }

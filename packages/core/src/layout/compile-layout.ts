@@ -1,6 +1,13 @@
-import type { BroadcastNode, SceneNode } from "../authoring.js";
+import { omitUndefined } from "../objects.js";
+import type {
+  BroadcastNode,
+  SceneNode,
+  LayerNode,
+  SceneLayerNode,
+  LayoutStyle,
+} from "../authoring.js";
 import { diagnostic, type Diagnostic } from "../diagnostics.js";
-import { CENTER_ALIGNMENT, intersectRects, type Rect } from "../geometry.js";
+import { CENTER_ALIGNMENT, intersectRects, type Rect, type Size } from "../geometry.js";
 import { deepFreeze } from "../objects.js";
 import type { CompiledItem, CompiledScene, CompiledSnapshot, CompiledSource } from "../snapshot.js";
 import { resolveSourceModules, type SourceModuleMap } from "../source-module.js";
@@ -10,6 +17,22 @@ import { calculateContentPlacement } from "./content-fit.js";
 import type { LayoutEngine, LayoutRecord } from "./layout-engine.js";
 import { roundRect } from "./rounding.js";
 
+interface CompileSuccess {
+  readonly ok: true;
+  readonly snapshot: CompiledSnapshot;
+  readonly diagnostics: readonly Diagnostic[];
+}
+
+interface CompileFailure {
+  readonly ok: false;
+  readonly diagnostics: readonly Diagnostic[];
+}
+
+interface LayoutOrigin {
+  x: number;
+  y: number;
+}
+
 /** Inputs controlling one authoring-graph compilation. */
 export interface CompileOptions {
   readonly revision: number;
@@ -18,13 +41,7 @@ export interface CompileOptions {
 }
 
 /** Successful immutable snapshot compilation or deterministic diagnostics. */
-export type CompileResult =
-  | {
-      readonly ok: true;
-      readonly snapshot: CompiledSnapshot;
-      readonly diagnostics: readonly Diagnostic[];
-    }
-  | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] };
+export type CompileResult = CompileSuccess | CompileFailure;
 
 /** Validates and compiles an authoring graph into a target-neutral snapshot. */
 export function compileBroadcast(root: BroadcastNode, options: CompileOptions): CompileResult {
@@ -52,27 +69,14 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
   const compiledScenes: CompiledScene[] = [];
 
   for (const scene of collectScenes(root)) {
-    try {
-      const items: CompiledItem[] = [];
-      options.layoutEngine.layout(scene.children, root.canvas).forEach((record) => {
-        compileRecord(record, { x: 0, y: 0 }, undefined, sourcesById, items, diagnostics);
-      });
-      compiledScenes.push(
-        scene.label === undefined
-          ? { id: scene.id, items }
-          : { id: scene.id, label: scene.label, items },
-      );
-    } catch (error) {
-      diagnostics.push(
-        diagnostic(
-          "LAYOUT_COMPILE_FAILED",
-          "error",
-          `scene.${scene.id}`,
-          error instanceof Error ? error.message : "Layout failed with an unknown error.",
-          [scene.id],
-        ),
-      );
-    }
+    const compiled = compileScene(
+      scene,
+      root.canvas,
+      options.layoutEngine,
+      sourcesById,
+      diagnostics,
+    );
+    if (compiled !== undefined) compiledScenes.push(compiled);
   }
 
   const sortedDiagnostics = sortDiagnostics(diagnostics);
@@ -104,9 +108,37 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
   return { ok: true, snapshot, diagnostics: sortedDiagnostics };
 }
 
+/** Keep layout failures local to their scene so diagnostics from other scenes remain deterministic. */
+function compileScene(
+  scene: SceneNode,
+  canvas: Size,
+  engine: LayoutEngine,
+  sourcesById: ReadonlyMap<string, CompiledSource>,
+  diagnostics: Diagnostic[],
+): CompiledScene | undefined {
+  try {
+    const items: CompiledItem[] = [];
+    for (const record of engine.layout(scene.children, canvas))
+      compileRecord(record, { x: 0, y: 0 }, undefined, sourcesById, items, diagnostics);
+    return omitUndefined({ id: scene.id, label: scene.label, items });
+  } catch (cause) {
+    diagnostics.push(
+      diagnostic(
+        "LAYOUT_COMPILE_FAILED",
+        "error",
+        `scene.${scene.id}`,
+        cause instanceof Error ? cause.message : "Layout failed with an unknown error.",
+        [scene.id],
+      ),
+    );
+    return undefined;
+  }
+}
+
+/** Boxes propagate world-space origins and clips; only materialized layers become snapshot items. */
 function compileRecord(
   record: LayoutRecord,
-  parentOrigin: Readonly<{ x: number; y: number }>,
+  parentOrigin: Readonly<LayoutOrigin>,
   inheritedClip: Rect | null | undefined,
   sourcesById: ReadonlyMap<string, CompiledSource>,
   items: CompiledItem[],
@@ -119,43 +151,34 @@ function compileRecord(
     width: layout.width,
     height: layout.height,
   };
-  const frame = roundRect(rawFrame);
-
-  if (record.node.kind === "box") {
-    let childClip = inheritedClip;
-    if (record.node.style?.overflow === "hidden") {
-      childClip =
-        inheritedClip === null
-          ? null
-          : ((inheritedClip === undefined ? rawFrame : intersectRects(inheritedClip, rawFrame)) ??
-            null);
-    }
-
-    record.children.forEach((child) => {
-      compileRecord(
-        child,
-        { x: rawFrame.x, y: rawFrame.y },
-        childClip,
-        sourcesById,
-        items,
-        diagnostics,
-      );
-    });
+  const node = record.node;
+  if (node.kind === "box") {
+    const childClip = clipForBox(node.style, rawFrame, inheritedClip);
+    for (const child of record.children)
+      compileRecord(child, rawFrame, childClip, sourcesById, items, diagnostics);
     return;
   }
+  items.push(compileLayer(node, record.path, rawFrame, inheritedClip, sourcesById, diagnostics));
+}
 
-  if (frame.width <= 0 || frame.height <= 0) {
-    diagnostics.push(
-      diagnostic(
-        "INVALID_LAYOUT_VALUE",
-        "error",
-        record.path,
-        `Materialized layer '${record.node.id}' resolved to a non-positive frame.`,
-        [record.node.id],
-      ),
-    );
-  }
+/** undefined means no clipping, while null means an already-empty inherited clip. */
+function clipForBox(
+  style: LayoutStyle | undefined,
+  rawFrame: Rect,
+  inheritedClip: Rect | null | undefined,
+): Rect | null | undefined {
+  if (style?.overflow !== "hidden") return inheritedClip;
+  if (inheritedClip === null) return null;
+  return inheritedClip === undefined ? rawFrame : (intersectRects(inheritedClip, rawFrame) ?? null);
+}
 
+interface LayerVisibility {
+  readonly visible: boolean;
+  readonly clip?: Rect;
+}
+
+/** Clip before rounding so fractional Yoga geometry does not change intersection decisions. */
+function layerVisibility(rawFrame: Rect, inheritedClip: Rect | null | undefined): LayerVisibility {
   const visibleRect =
     inheritedClip === null
       ? undefined
@@ -163,53 +186,73 @@ function compileRecord(
         ? rawFrame
         : intersectRects(inheritedClip, rawFrame);
   const clip = visibleRect === undefined ? undefined : roundRect(visibleRect);
-  const isClipped = clip !== undefined && !rectEquals(clip, frame);
-  const visible = record.node.visible !== false && visibleRect !== undefined;
+  const isClipped = clip !== undefined && !rectEquals(clip, roundRect(rawFrame));
+  return omitUndefined({ visible: visibleRect !== undefined, clip: isClipped ? clip : undefined });
+}
 
-  if (record.node.kind === "scene-layer") {
-    items.push({
-      id: record.node.id,
-      content: { kind: "scene", sceneId: record.node.sceneId },
-      frame,
-      ...(isClipped ? { clip } : {}),
-      visible,
-      opacity: record.node.opacity ?? 1,
-      rotation: record.node.rotation ?? 0,
-    });
-    return;
-  }
-
-  const sourceSize = sourcesById.get(record.node.sourceId)?.intrinsicSize;
-  const fitResult = calculateContentPlacement({
-    destination: frame,
-    fit: record.node.fit ?? "fill",
-    alignment: record.node.alignment ?? CENTER_ALIGNMENT,
-    ...(sourceSize === undefined ? {} : { sourceSize }),
-    ...(record.node.crop === undefined ? {} : { manualCrop: record.node.crop }),
-  });
-
-  if (!fitResult.ok) {
+/** Compute clipping from unrounded layout bounds, then emit either scene content or fitted source content. */
+function compileLayer(
+  node: LayerNode | SceneLayerNode,
+  path: string,
+  rawFrame: Rect,
+  inheritedClip: Rect | null | undefined,
+  sourcesById: ReadonlyMap<string, CompiledSource>,
+  diagnostics: Diagnostic[],
+): CompiledItem {
+  const frame = roundRect(rawFrame);
+  if (frame.width <= 0 || frame.height <= 0)
     diagnostics.push(
       diagnostic(
-        "INVALID_SOURCE_SIZE",
+        "INVALID_LAYOUT_VALUE",
         "error",
-        record.path,
-        `Layer '${record.node.id}': ${fitResult.message}`,
-        [record.node.id, record.node.sourceId],
+        path,
+        `Materialized layer '${node.id}' resolved to a non-positive frame.`,
+        [node.id],
       ),
     );
-  }
-
-  items.push({
-    id: record.node.id,
-    content: { kind: "source", sourceId: record.node.sourceId },
+  const visibility = layerVisibility(rawFrame, inheritedClip);
+  const common = omitUndefined({
+    id: node.id,
     frame,
-    ...(isClipped ? { clip } : {}),
-    ...(fitResult.ok ? { placement: fitResult.placement } : {}),
-    visible,
-    opacity: record.node.opacity ?? 1,
-    rotation: record.node.rotation ?? 0,
+    clip: visibility.clip,
+    visible: node.visible !== false && visibility.visible,
+    opacity: node.opacity ?? 1,
+    rotation: node.rotation ?? 0,
   });
+  if (node.kind === "scene-layer")
+    return { ...common, content: { kind: "scene", sceneId: node.sceneId } };
+  return {
+    ...common,
+    content: { kind: "source", sourceId: node.sourceId },
+    ...omitUndefined({ placement: fitSourceLayer(node, path, frame, sourcesById, diagnostics) }),
+  };
+}
+
+/** Invalid fitting inputs become diagnostics while the rest of the graph can still be compiled. */
+function fitSourceLayer(
+  node: LayerNode,
+  path: string,
+  frame: Rect,
+  sourcesById: ReadonlyMap<string, CompiledSource>,
+  diagnostics: Diagnostic[],
+): CompiledItem["placement"] {
+  const fitResult = calculateContentPlacement(
+    omitUndefined({
+      destination: frame,
+      fit: node.fit ?? "fill",
+      alignment: node.alignment ?? CENTER_ALIGNMENT,
+      sourceSize: sourcesById.get(node.sourceId)?.intrinsicSize,
+      manualCrop: node.crop,
+    }),
+  );
+  if (fitResult.ok) return fitResult.placement;
+  diagnostics.push(
+    diagnostic("INVALID_SOURCE_SIZE", "error", path, `Layer '${node.id}': ${fitResult.message}`, [
+      node.id,
+      node.sourceId,
+    ]),
+  );
+  return undefined;
 }
 
 function collectSources(root: BroadcastNode): AnySourceDefinition[] {
@@ -224,14 +267,17 @@ function compileSource(
   modules: SourceModuleMap,
 ): (definition: AnySourceDefinition) => CompiledSource {
   return (definition) => {
+    // Source modules supply intrinsic dimensions and assets; omit unavailable metadata from the snapshot.
     const module = modules.get(definition.kind);
     const intrinsicSize = module?.intrinsicSize(definition);
     const asset = module?.asset?.(definition);
     return {
       id: definition.id,
       definition: structuredClone(definition),
-      ...(intrinsicSize === undefined ? {} : { intrinsicSize: { ...intrinsicSize } }),
-      ...(asset === undefined ? {} : { asset: { ...asset } }),
+      ...omitUndefined({
+        intrinsicSize: intrinsicSize === undefined ? undefined : { ...intrinsicSize },
+      }),
+      ...omitUndefined({ asset: asset === undefined ? undefined : { ...asset } }),
     };
   };
 }

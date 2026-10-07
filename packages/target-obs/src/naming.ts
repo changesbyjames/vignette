@@ -8,14 +8,28 @@ import {
   type SourceId,
 } from "@strangecyan/vignette-core";
 
+interface ManagedRegistryName {
+  readonly kind: "registry";
+  readonly projectId: ProjectId;
+}
+
+interface ManagedSceneName {
+  readonly kind: "scene";
+  readonly projectId: ProjectId;
+  readonly sceneId: SceneId;
+}
+
+interface ManagedSourceName {
+  readonly kind: "source";
+  readonly projectId: ProjectId;
+  readonly sourceId: SourceId;
+}
+
 const PREFIX = "vignette";
 const SEPARATOR = "::";
 
 /** Parsed identity of an OBS resource managed by Vignette. */
-export type ManagedObsName =
-  | { readonly kind: "registry"; readonly projectId: ProjectId }
-  | { readonly kind: "scene"; readonly projectId: ProjectId; readonly sceneId: SceneId }
-  | { readonly kind: "source"; readonly projectId: ProjectId; readonly sourceId: SourceId };
+export type ManagedObsName = ManagedRegistryName | ManagedSceneName | ManagedSourceName;
 
 /** Returns the managed OBS registry-scene name for a project. */
 export function registrySceneName(project: ProjectId): string {
@@ -41,6 +55,19 @@ export function parseManagedName(name: string): ManagedObsName | undefined {
   if (parts.length === 3 && parts[2] === "registry") {
     return { kind: "registry", projectId: parsedProject };
   }
+  return parseResourceName(parts, parsedProject);
+}
+
+/** Tests whether an OBS resource name belongs to one managed project. */
+export function belongsToProject(name: string, project: ProjectId): boolean {
+  return parseManagedName(name)?.projectId === project;
+}
+
+/** Resource names need one stable resource ID in addition to their validated project ID. */
+function parseResourceName(
+  parts: readonly string[],
+  parsedProject: ProjectId,
+): ManagedObsName | undefined {
   if (parts.length !== 4 || parts[3] === undefined || !isStableId(parts[3])) return undefined;
   if (parts[2] === "scene") {
     return { kind: "scene", projectId: parsedProject, sceneId: sceneId(parts[3]) };
@@ -49,9 +76,4 @@ export function parseManagedName(name: string): ManagedObsName | undefined {
     return { kind: "source", projectId: parsedProject, sourceId: sourceId(parts[3]) };
   }
   return undefined;
-}
-
-/** Tests whether an OBS resource name belongs to one managed project. */
-export function belongsToProject(name: string, project: ProjectId): boolean {
-  return parseManagedName(name)?.projectId === project;
 }

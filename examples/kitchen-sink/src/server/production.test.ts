@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import type { RuntimeMessage } from "@strangecyan/vignette-core";
 import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
@@ -42,6 +43,8 @@ describe("production kitchen-sink server", () => {
     });
 
     try {
+      // Wait for the launched server, inspect its runtime replay and frame routes, and always stop the child process.
+
       await waitForServer(origin, child, () => output);
       const messages = await readRuntimeReplay(`${origin}/runtime`);
       expect(messages.map((message) => message.kind)).toEqual(["setup", "update"]);
@@ -61,8 +64,8 @@ describe("production kitchen-sink server", () => {
       const hydrationResponse = await fetch(new URL(hydrationPath ?? "", origin));
       expect(hydrationResponse.status).toBe(200);
       const hydrationModule = await hydrationResponse.text();
-      const imports = [...hydrationModule.matchAll(/from ("[^"]+")/gu)].map(
-        (match) => JSON.parse(match[1] ?? "") as string,
+      const imports = [...hydrationModule.matchAll(/from ("[^"]+")/gu)].map((match) =>
+        z.string().parse(JSON.parse(match[1] ?? "")),
       );
       expect(imports).toHaveLength(2);
       for (const moduleUrl of imports) {
@@ -81,7 +84,10 @@ describe("production kitchen-sink server", () => {
 async function reservePort(): Promise<number> {
   const server = createServer();
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
+  const port =
+    /* SAFETY: This server was bound to an ephemeral TCP port, so its address is an AddressInfo rather than a pipe name. */ (
+      server.address() as AddressInfo
+    ).port;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error === undefined) resolve();
@@ -91,6 +97,7 @@ async function reservePort(): Promise<number> {
   return port;
 }
 
+/** Poll readiness while the child remains alive, then report collected output if startup never succeeds. */
 async function waitForServer(
   origin: string,
   child: ChildProcess,
@@ -121,20 +128,20 @@ async function readRuntimeReplay(url: string): Promise<readonly RuntimeMessage[]
   return messages;
 }
 
-function findFrameUrl(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    return value.includes("/__vignette/frame/") ? value : undefined;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = findFrameUrl(entry);
-      if (result !== undefined) return result;
-    }
-    return undefined;
-  }
-  if (typeof value !== "object" || value === null) return undefined;
-  for (const entry of Object.values(value)) {
-    const result = findFrameUrl(entry);
+const ReplayJsonSchema = z.json();
+export type ReplayJson = z.output<typeof ReplayJsonSchema>;
+
+function findFrameUrl(input: Parameters<typeof ReplayJsonSchema.parse>[0]): string | undefined {
+  return findJsonFrameUrl(ReplayJsonSchema.parse(input));
+}
+
+/** Search each JSON branch until the first frame URL is found, preserving the wire traversal order. */
+function findJsonFrameUrl(value: ReplayJson): string | undefined {
+  const string = z.string().safeParse(value);
+  if (string.success) return string.data.includes("/__vignette/frame/") ? string.data : undefined;
+  if (!(value instanceof Object)) return undefined;
+  for (const child of Array.isArray(value) ? value : Object.values(value)) {
+    const result = findJsonFrameUrl(child);
     if (result !== undefined) return result;
   }
   return undefined;

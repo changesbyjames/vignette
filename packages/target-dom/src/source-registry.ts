@@ -7,6 +7,11 @@ import type {
 
 import type { DomRendererMap, DomSourceView } from "./elements/index.js";
 
+interface DomSourceRegistryLocateIn {
+  id: SourceId;
+  record: SourceRecord;
+}
+
 interface SourceRecord {
   readonly kind: AnySourceDefinition["kind"];
   readonly view: DomSourceView;
@@ -15,36 +20,37 @@ interface SourceRecord {
 }
 
 export class DomSourceRegistry {
-  readonly #document: Document;
-  readonly #renderers: DomRendererMap;
-  readonly #parking: HTMLDivElement;
-  readonly #records = new Map<SourceId, SourceRecord>();
+  private readonly document: Document;
+  private readonly renderers: DomRendererMap;
+  private readonly parking: HTMLDivElement;
+  private readonly records = new Map<SourceId, SourceRecord>();
 
   constructor(container: HTMLElement, renderers: DomRendererMap) {
-    this.#document = container.ownerDocument;
-    this.#renderers = renderers;
-    this.#parking = this.#document.createElement("div");
-    this.#parking.dataset.vignetteSourceParking = "";
-    this.#parking.hidden = true;
-    this.#parking.style.display = "none";
-    container.append(this.#parking);
+    this.document = container.ownerDocument;
+    this.renderers = renderers;
+    this.parking = this.document.createElement("div");
+    this.parking.dataset.vignetteSourceParking = "";
+    this.parking.hidden = true;
+    this.parking.style.display = "none";
+    container.append(this.parking);
   }
 
   reconcile(sources: readonly CompiledSource[]): void {
     const desired = new Map(sources.map((source) => [source.id, source.definition.kind]));
-    for (const [id, record] of this.#records) {
+    for (const [id, record] of this.records) {
       if (desired.get(id) === record.kind) continue;
       this.disposeRecord(id, record);
     }
   }
 
+  /** Reuse compatible source views while tracking host ownership, and replace views when their module changes. */
   mount(
     host: HTMLElement,
     source: AnySourceDefinition,
     item: CompiledItem,
     resolvedUrl: string | undefined,
   ): DomSourceView {
-    let record = this.#records.get(source.id);
+    let record = this.records.get(source.id);
     if (record?.kind !== source.kind) {
       if (record !== undefined) this.disposeRecord(source.id, record);
       record = {
@@ -53,7 +59,7 @@ export class DomSourceRegistry {
         active: false,
         retainWhenInactive: this.shouldRetain(source),
       };
-      this.#records.set(source.id, record);
+      this.records.set(source.id, record);
     }
     record.retainWhenInactive = this.shouldRetain(source);
 
@@ -75,8 +81,8 @@ export class DomSourceRegistry {
       this.disposeRecord(located.id, located.record);
       return true;
     }
-    if (!canMovePreservingState(this.#parking, located.record.view.element)) return false;
-    this.#parking.moveBefore(located.record.view.element, null);
+    if (!canMovePreservingState(this.parking, located.record.view.element)) return false;
+    this.parking.moveBefore(located.record.view.element, null);
     return true;
   }
 
@@ -87,26 +93,24 @@ export class DomSourceRegistry {
   }
 
   dispose(): void {
-    for (const [id, record] of this.#records) this.disposeRecord(id, record);
-    this.#parking.remove();
+    for (const [id, record] of this.records) this.disposeRecord(id, record);
+    this.parking.remove();
   }
 
   private createView(source: AnySourceDefinition): DomSourceView {
-    const renderer = this.#renderers.get(source.kind);
+    const renderer = this.renderers.get(source.kind);
     if (renderer === undefined) {
       throw new Error(`No DOM renderer is registered for source kind '${source.kind}'.`);
     }
-    return renderer.create(this.#document);
+    return renderer.create(this.document);
   }
 
   private shouldRetain(source: AnySourceDefinition): boolean {
-    return this.#renderers.get(source.kind)?.retainWhenHidden?.(source) ?? true;
+    return this.renderers.get(source.kind)?.retainWhenHidden?.(source) ?? true;
   }
 
-  private locateIn(
-    host: HTMLElement,
-  ): Readonly<{ id: SourceId; record: SourceRecord }> | undefined {
-    for (const [id, record] of this.#records) {
+  private locateIn(host: HTMLElement): Readonly<DomSourceRegistryLocateIn> | undefined {
+    for (const [id, record] of this.records) {
       if (record.view.element.parentNode === host) return { id, record };
     }
     return undefined;
@@ -115,12 +119,12 @@ export class DomSourceRegistry {
   private disposeRecord(id: SourceId, record: SourceRecord): void {
     record.view.dispose();
     record.view.element.remove();
-    this.#records.delete(id);
+    this.records.delete(id);
   }
 }
 
 function canMovePreservingState(parent: HTMLElement, element: HTMLElement): boolean {
-  return element.isConnected && parent.isConnected && typeof parent.moveBefore === "function";
+  return element.isConnected && parent.isConnected && parent.moveBefore !== undefined;
 }
 
 function moveElement(parent: HTMLElement, element: HTMLElement): void {

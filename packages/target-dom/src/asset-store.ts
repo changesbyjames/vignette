@@ -13,24 +13,26 @@ export interface DomAssetStoreOptions {
 }
 
 export class DomAssetStore implements AssetResolver {
-  readonly #fetch: typeof globalThis.fetch;
-  readonly #createObjectURL: (blob: Blob) => string;
-  readonly #revokeObjectURL: (url: string) => void;
-  #urls = new Map<string, string>();
+  private readonly fetch: typeof globalThis.fetch;
+  private readonly createObjectURL: (blob: Blob) => string;
+  private readonly revokeObjectURL: (url: string) => void;
+  private urls = new Map<string, string>();
 
+  /** Use injected I/O or bind the platform fetch and object-URL implementations. */
   constructor(options: DomAssetStoreOptions = {}) {
-    this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
-    this.#createObjectURL = options.createObjectURL ?? URL.createObjectURL.bind(URL);
-    this.#revokeObjectURL = options.revokeObjectURL ?? URL.revokeObjectURL.bind(URL);
+    this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.createObjectURL = options.createObjectURL ?? URL.createObjectURL.bind(URL);
+    this.revokeObjectURL = options.revokeObjectURL ?? URL.revokeObjectURL.bind(URL);
   }
 
+  /** Download and verify the new manifest before replacing existing URLs, releasing partial allocations on failure. */
   async setup(manifest: AssetManifest): Promise<void> {
     validateManifest(manifest);
     const next = new Map<string, string>();
     try {
       const downloads = await Promise.all(
         manifest.assets.map(async (entry) => {
-          const response = await this.#fetch(entry.url);
+          const response = await this.fetch(entry.url);
           if (!response.ok) {
             throw new Error(
               `Asset '${entry.name}' download failed with HTTP ${String(response.status)}.`,
@@ -42,34 +44,37 @@ export class DomAssetStore implements AssetResolver {
         }),
       );
       for (const download of downloads) {
-        next.set(download.name, this.#createObjectURL(download.blob));
+        next.set(download.name, this.createObjectURL(download.blob));
       }
     } catch (error) {
-      for (const url of next.values()) this.#revokeObjectURL(url);
+      for (const url of next.values()) this.revokeObjectURL(url);
       throw error;
     }
 
-    const previous = this.#urls;
-    this.#urls = next;
-    for (const url of previous.values()) this.#revokeObjectURL(url);
+    const previous = this.urls;
+    this.urls = next;
+    for (const url of previous.values()) this.revokeObjectURL(url);
   }
 
   resolve(asset: AssetRef): Promise<ResolvedAsset> {
-    const url = this.#urls.get(asset.name);
+    const url = this.urls.get(asset.name);
     return url === undefined
       ? Promise.reject(new Error(`Asset '${asset.name}' is absent from the runtime manifest.`))
       : Promise.resolve({ kind: "url", url });
   }
 
   dispose(): void {
-    for (const url of this.#urls.values()) this.#revokeObjectURL(url);
-    this.#urls.clear();
+    for (const url of this.urls.values()) this.revokeObjectURL(url);
+    this.urls.clear();
   }
 }
 
+/** Reject invalid or repeated asset names and require HTTP asset URLs before starting downloads. */
 function validateManifest(manifest: AssetManifest): void {
   const names = new Set<string>();
   for (const entry of manifest.assets) {
+    // Reject invalid or repeated asset names and require HTTP asset URLs before starting downloads.
+
     const error = validateAssetName(entry.name);
     if (error !== undefined) throw new Error(error);
     if (names.has(entry.name)) {

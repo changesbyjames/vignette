@@ -18,7 +18,8 @@ export const mediaRenderer: DomSourceRenderer<MediaFileSource> = {
         if (source.kind !== "source:media-file") {
           throw new TypeError("Media renderer received another source kind.");
         }
-        const definition = source as MediaFileSource;
+        const definition =
+          /* SAFETY: The source registry selects this module by its source kind after core validation of that definition. */ source as MediaFileSource;
         if (resolvedUrl === undefined) throw new TypeError("Media source requires a resolved URL.");
         if (video.src !== resolvedUrl) video.src = resolvedUrl;
         video.loop = definition.loop ?? false;

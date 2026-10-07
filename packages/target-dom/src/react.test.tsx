@@ -6,7 +6,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useCompositor, type RuntimeMessageSource } from "./react.js";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+interface ReactActEnvironment {
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+}
+
+interface CompositorRevision {
+  readonly revision: number;
+}
+
+/* SAFETY: React uses this documented global flag for act; the test environment initializes that flag here. */ (
+  globalThis as ReactActEnvironment
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("useCompositor", () => {
   const mounted: ReturnType<typeof createRoot>[] = [];
@@ -27,7 +37,7 @@ describe("useCompositor", () => {
     const root = createRoot(container);
     mounted.push(root);
 
-    function Compositor({ revision }: { readonly revision: number }) {
+    function Compositor({ revision }: CompositorRevision) {
       const [ref] = useCompositor({
         sceneId: "main",
         transport,

@@ -1,3 +1,5 @@
+import type { RuntimeMessage } from "@strangecyan/vignette-core";
+import { omitUndefined } from "@strangecyan/vignette-core";
 /**
  * React integration for mounting and observing a DOM compositor driven by runtime messages.
  *
@@ -18,7 +20,10 @@ export interface UseCompositorOptions extends Omit<DOMRuntimeOptions, "container
 
 /** Browser compositor lifecycle, including pre-runtime setup phases. */
 export type CompositorPhase =
-  "waiting-for-container" | "connecting" | "downloading-assets" | TargetPhase;
+  | "waiting-for-container"
+  | "connecting"
+  | "downloading-assets"
+  | TargetPhase;
 
 /** Stable React external-store snapshot for a mounted compositor. */
 export interface CompositorSnapshot {
@@ -46,8 +51,8 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
     () =>
       new CompositorController({
         sceneId: options.sceneId,
-        ...(options.id === undefined ? {} : { id: options.id }),
-        ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
+        ...omitUndefined({ id: options.id }),
+        ...omitUndefined({ extensions: options.extensions }),
         transport: options.transport,
         onError: (error) => {
           optionsRef.current.onError?.(error);
@@ -71,37 +76,37 @@ export function useCompositor(options: UseCompositorOptions): CompositorResult {
 }
 
 class CompositorController {
-  readonly #options: UseCompositorOptions;
-  readonly #listeners = new Set<() => void>();
-  readonly #serverSnapshot: CompositorSnapshot;
-  #snapshot: CompositorSnapshot;
-  #container: HTMLDivElement | undefined;
-  #runtime: DOMRuntime | undefined;
-  #unsubscribeRuntime: (() => void) | undefined;
-  #abort: AbortController | undefined;
-  #generation = 0;
+  private readonly options: UseCompositorOptions;
+  private readonly listeners = new Set<() => void>();
+  private readonly serverSnapshot: CompositorSnapshot;
+  private snapshot: CompositorSnapshot;
+  private container: HTMLDivElement | undefined;
+  private runtime: DOMRuntime | undefined;
+  private unsubscribeRuntime: (() => void) | undefined;
+  private abort: AbortController | undefined;
+  private generation = 0;
 
   constructor(options: UseCompositorOptions) {
-    this.#options = options;
-    this.#serverSnapshot = {
+    this.options = options;
+    this.serverSnapshot = {
       targetId: options.id ?? "dom",
       sceneId: options.sceneId,
       phase: "waiting-for-container" as const,
       revision: 0,
     };
-    this.#snapshot = this.#serverSnapshot;
+    this.snapshot = this.serverSnapshot;
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
+    this.listeners.add(listener);
     return () => {
-      this.#listeners.delete(listener);
+      this.listeners.delete(listener);
     };
   };
 
-  readonly getSnapshot = (): CompositorSnapshot => this.#snapshot;
+  readonly getSnapshot = (): CompositorSnapshot => this.snapshot;
 
-  readonly getServerSnapshot = (): CompositorSnapshot => this.#serverSnapshot;
+  readonly getServerSnapshot = (): CompositorSnapshot => this.serverSnapshot;
 
   readonly ref: CompositorRef = (container) => {
     if (container === null) {
@@ -115,16 +120,16 @@ class CompositorController {
   };
 
   private attach(container: HTMLDivElement): void {
-    if (this.#container === container) return;
+    if (this.container === container) return;
     this.detach();
-    this.#container = container;
-    const generation = ++this.#generation;
+    this.container = container;
+    const generation = ++this.generation;
     const abort = new AbortController();
-    this.#abort = abort;
-    const { transport, ...runtimeOptions } = this.#options;
+    this.abort = abort;
+    const { transport, ...runtimeOptions } = this.options;
     const runtime = new DOMRuntime({ ...runtimeOptions, container });
-    this.#runtime = runtime;
-    this.#unsubscribeRuntime = runtime.subscribe(() => {
+    this.runtime = runtime;
+    this.unsubscribeRuntime = runtime.subscribe(() => {
       if (!this.isCurrent(generation, runtime)) return;
       this.publishTarget(runtime.getSnapshot());
     });
@@ -132,20 +137,22 @@ class CompositorController {
     void this.consume(runtime, transport, abort.signal, generation);
   }
 
+  /** Invalidate the current generation before aborting subscriptions and releasing its runtime and container. */
   private detach(container?: HTMLDivElement): void {
-    if (container !== undefined && container !== this.#container) return;
-    this.#generation += 1;
-    this.#abort?.abort();
-    this.#abort = undefined;
-    this.#unsubscribeRuntime?.();
-    this.#unsubscribeRuntime = undefined;
-    const runtime = this.#runtime;
-    this.#runtime = undefined;
-    this.#container = undefined;
+    if (container !== undefined && container !== this.container) return;
+    this.generation += 1;
+    this.abort?.abort();
+    this.abort = undefined;
+    this.unsubscribeRuntime?.();
+    this.unsubscribeRuntime = undefined;
+    const runtime = this.runtime;
+    this.runtime = undefined;
+    this.container = undefined;
     if (runtime !== undefined) void runtime.dispose();
     this.publish({ phase: "waiting-for-container", revision: 0 });
   }
 
+  /** Ignore messages and failures from stale runtimes; publish disconnection only when the active stream ends. */
   private async consume(
     runtime: DOMRuntime,
     transport: RuntimeMessageSource,
@@ -154,57 +161,70 @@ class CompositorController {
   ): Promise<void> {
     try {
       for await (const message of transport(signal)) {
-        if (!this.isCurrent(generation, runtime) || signal.aborted) return;
-        if (message.kind === "setup") {
-          this.publish({ phase: "downloading-assets", revision: this.#snapshot.revision });
-          await runtime.setup(message.manifest);
-          if (this.isCurrent(generation, runtime)) {
-            this.publish({ phase: "connecting", revision: this.#snapshot.revision });
-          }
-        } else if (message.kind === "update") {
-          runtime.update(message.snapshot);
-        } else {
-          await runtime.event(message.event);
-        }
+        if (!this.isActive(generation, runtime, signal)) return;
+        await this.consumeMessage(message, runtime, generation);
       }
-      if (this.isCurrent(generation, runtime) && !signal.aborted) {
+      if (this.isActive(generation, runtime, signal)) {
         this.publish({
           phase: "disconnected",
-          revision: this.#snapshot.revision,
+          revision: this.snapshot.revision,
           message: "Runtime message stream ended.",
         });
       }
     } catch (cause) {
-      if (!this.isCurrent(generation, runtime) || signal.aborted) return;
+      if (!this.isActive(generation, runtime, signal)) return;
       const error = cause instanceof Error ? cause : new Error("DOM compositor failed.", { cause });
-      this.publish({ phase: "error", revision: this.#snapshot.revision, message: error.message });
-      this.#options.onError?.(error);
+      this.publish({ phase: "error", revision: this.snapshot.revision, message: error.message });
+      this.options.onError?.(error);
     }
   }
 
+  /** Setup may outlive the current connection; publish completion only for its original runtime. */
+  private async consumeMessage(
+    message: RuntimeMessage,
+    runtime: DOMRuntime,
+    generation: number,
+  ): Promise<void> {
+    if (message.kind === "setup") {
+      this.publish({ phase: "downloading-assets", revision: this.snapshot.revision });
+      await runtime.setup(message.manifest);
+      if (this.isCurrent(generation, runtime)) {
+        this.publish({ phase: "connecting", revision: this.snapshot.revision });
+      }
+    } else if (message.kind === "update") {
+      runtime.update(message.snapshot);
+    } else {
+      await runtime.event(message.event);
+    }
+  }
+
+  private isActive(generation: number, runtime: DOMRuntime, signal: AbortSignal): boolean {
+    return this.isCurrent(generation, runtime) && !signal.aborted;
+  }
+
   private isCurrent(generation: number, runtime: DOMRuntime): boolean {
-    return generation === this.#generation && runtime === this.#runtime;
+    return generation === this.generation && runtime === this.runtime;
   }
 
   private publishTarget(status: TargetStatus): void {
     this.publish({
       phase: status.phase,
       revision: status.settledRevision ?? 0,
-      ...(status.desiredRevision === undefined ? {} : { desiredRevision: status.desiredRevision }),
-      ...(status.settledRevision === undefined ? {} : { settledRevision: status.settledRevision }),
-      ...(status.message === undefined ? {} : { message: status.message }),
+      ...omitUndefined({ desiredRevision: status.desiredRevision }),
+      ...omitUndefined({ settledRevision: status.settledRevision }),
+      ...omitUndefined({ message: status.message }),
     });
   }
 
   private publish(update: Omit<CompositorSnapshot, "targetId" | "sceneId">): void {
     const next = {
-      targetId: this.#options.id ?? "dom",
-      sceneId: this.#options.sceneId,
+      targetId: this.options.id ?? "dom",
+      sceneId: this.options.sceneId,
       ...update,
     };
-    if (equals(this.#snapshot, next)) return;
-    this.#snapshot = next;
-    for (const listener of this.#listeners) listener();
+    if (equals(this.snapshot, next)) return;
+    this.snapshot = next;
+    for (const listener of this.listeners) listener();
   }
 }
 

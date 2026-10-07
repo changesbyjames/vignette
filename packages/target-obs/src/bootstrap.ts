@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { ObsWireObjectSchema, ObsWireTransformSchema } from "./wire-schemas.js";
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type { ProjectId } from "@strangecyan/vignette-core";
 
 import { parseManagedName } from "./naming.js";
@@ -7,7 +10,7 @@ import type {
   ObservedObsSceneItem,
   ObservedObsState,
 } from "./observed-state.js";
-import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
+import type { ObsJsonObject, ObsJsonValue } from "./operations.js";
 import type { ObsTransport } from "./transport.js";
 
 export async function bootstrapObsState(
@@ -69,17 +72,19 @@ export async function bootstrapObsState(
   };
 }
 
-function normalizeScene(value: unknown): ObservedObsScene {
+function normalizeScene(value: ObsJsonValue | undefined): ObservedObsScene {
   const scene = asRecord(value);
   return {
     sceneName: readString(scene, "sceneName"),
     sceneUuid: readString(scene, "sceneUuid"),
     sceneIndex: readNumber(scene, "sceneIndex"),
-    ...(typeof scene.canvasUuid === "string" ? { canvasUuid: scene.canvasUuid } : {}),
+    ...omitUndefined({
+      canvasUuid: z.string().safeParse(scene.canvasUuid).data,
+    }),
   };
 }
 
-function normalizeItem(sceneUuid: string, value: unknown): ObservedObsSceneItem {
+function normalizeItem(sceneUuid: string, value: ObsJsonValue | undefined): ObservedObsSceneItem {
   const item = asRecord(value);
   const transform = item.sceneItemTransform;
   return {
@@ -89,49 +94,48 @@ function normalizeItem(sceneUuid: string, value: unknown): ObservedObsSceneItem 
     sourceName: readString(item, "sourceName"),
     sourceUuid: readString(item, "sourceUuid"),
     sceneItemEnabled: readBoolean(item, "sceneItemEnabled"),
-    ...(typeof transform === "object" && transform !== null
-      ? { sceneItemTransform: transform as ObsSceneItemTransform }
-      : {}),
+    ...omitUndefined({
+      sceneItemTransform: ObsWireTransformSchema.safeParse(transform).data,
+    }),
   };
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null) throw new Error("Malformed OBS response.");
-  return value as Record<string, unknown>;
+function asRecord(value: ObsJsonValue | undefined): ObsJsonObject {
+  const parsed = ObsWireObjectSchema.safeParse(value);
+  if (!parsed.success) throw new Error("Malformed OBS response.");
+  return parsed.data;
 }
 
 function readObject(value: ObsJsonObject, key: string): ObsJsonObject {
-  return asRecord(value[key]) as ObsJsonObject;
+  return asRecord(value[key]);
 }
 
-function readArray(value: ObsJsonObject, key: string): readonly unknown[] {
-  const result = value[key];
-  if (!Array.isArray(result)) throw new Error(`OBS response is missing array '${key}'.`);
-  return result;
+function readArray(value: ObsJsonObject, key: string): readonly ObsJsonValue[] {
+  const parsed = z.array(z.json()).safeParse(value[key]);
+  if (!parsed.success) throw new Error(`OBS response is missing array '${key}'.`);
+  return parsed.data;
 }
 
 function readStringArray(value: ObsJsonObject, key: string): string[] {
-  const values = readArray(value, key);
-  if (!values.every((item) => typeof item === "string")) {
-    throw new Error(`OBS response array '${key}' contains a non-string value.`);
-  }
-  return values as string[];
+  const parsed = z.array(z.string()).safeParse(readArray(value, key));
+  if (!parsed.success) throw new Error(`OBS response array '${key}' contains a non-string value.`);
+  return parsed.data;
 }
 
-function readString(value: Record<string, unknown> | ObsJsonObject, key: string): string {
-  const result = value[key];
-  if (typeof result !== "string") throw new Error(`OBS response is missing string '${key}'.`);
-  return result;
+function readString(value: ObsJsonObject, key: string): string {
+  const parsed = z.string().safeParse(value[key]);
+  if (!parsed.success) throw new Error(`OBS response is missing string '${key}'.`);
+  return parsed.data;
 }
 
-function readNumber(value: Record<string, unknown> | ObsJsonObject, key: string): number {
-  const result = value[key];
-  if (typeof result !== "number") throw new Error(`OBS response is missing number '${key}'.`);
-  return result;
+function readNumber(value: ObsJsonObject, key: string): number {
+  const parsed = z.number().safeParse(value[key]);
+  if (!parsed.success) throw new Error(`OBS response is missing number '${key}'.`);
+  return parsed.data;
 }
 
-function readBoolean(value: Record<string, unknown>, key: string): boolean {
-  const result = value[key];
-  if (typeof result !== "boolean") throw new Error(`OBS response is missing boolean '${key}'.`);
-  return result;
+function readBoolean(value: ObsJsonObject, key: string): boolean {
+  const parsed = z.boolean().safeParse(value[key]);
+  if (!parsed.success) throw new Error(`OBS response is missing boolean '${key}'.`);
+  return parsed.data;
 }

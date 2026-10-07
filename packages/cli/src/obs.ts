@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { consumeRuntimeMessages, projectId } from "@strangecyan/vignette-core";
 import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
 import { OBSRuntime, sseRuntimeSource } from "@strangecyan/vignette-target-obs";
@@ -14,7 +15,7 @@ export async function runObs(
     url: options.obsUrl,
     extensions: [moqObsCodec],
     onError,
-    ...(options.password === undefined ? {} : { password: options.password }),
+    ...omitUndefined({ password: options.password }),
   });
   try {
     await consumeRuntimeMessages(runtime, sseRuntimeSource(options.url, { onError })(signal));

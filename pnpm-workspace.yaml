@@ -5,8 +5,4 @@ packages:
 onlyBuiltDependencies:
   - esbuild
 
-publicHoistPattern:
-  - "*eslint*"
-  - "*prettier*"
-
 confirmModulesPurge: false

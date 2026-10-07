@@ -19,6 +19,8 @@ const minimumCoverage = 0.8;
 let failed = false;
 
 for (const directory of packageDirectories) {
+  // Inspect public exports and their original declarations, requiring documentation only for project-owned APIs.
+
   const manifest = JSON.parse(readFileSync(resolve(root, directory, "package.json"), "utf8"));
   const entrypoints = Object.values(manifest.exports).map(({ types }) =>
     resolve(root, directory, sourceEntrypoint(types)),
@@ -35,6 +37,8 @@ for (const directory of packageDirectories) {
   const symbols = new Map();
 
   for (const entrypoint of entrypoints) {
+    // Inspect public exports and their original declarations, requiring documentation only for project-owned APIs.
+
     const source = program.getSourceFile(entrypoint);
     if (source === undefined) throw new Error(`TypeScript did not load ${entrypoint}.`);
     const module = checker.getSymbolAtLocation(source);
@@ -42,6 +46,8 @@ for (const directory of packageDirectories) {
     if (module === undefined)
       throw new Error(`TypeScript did not resolve exports for ${entrypoint}.`);
     for (const exported of checker.getExportsOfModule(module)) {
+      // Inspect public exports and their original declarations, requiring documentation only for project-owned APIs.
+
       const symbol =
         exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
       const declarations = symbol.getDeclarations() ?? [];

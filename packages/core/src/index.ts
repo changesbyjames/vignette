@@ -23,3 +23,5 @@ export * from "./source-module.js";
 export * from "./sources.js";
 export * from "./sse-codec.js";
 export * from "./validation.js";
+
+export * from "./wire-schemas.js";

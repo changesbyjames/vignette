@@ -1,5 +1,16 @@
 import type { ObsPlan } from "./operations.js";
 
+interface ObsPlanningSuccess {
+  readonly ok: true;
+  readonly plan: ObsPlan;
+  readonly diagnostics: readonly ObsDiagnostic[];
+}
+
+interface ObsPlanningFailure {
+  readonly ok: false;
+  readonly diagnostics: readonly ObsDiagnostic[];
+}
+
 /** Stable machine-readable code for an OBS planning diagnostic. */
 export type ObsDiagnosticCode =
   | "OBS_MISSING_REQUEST"
@@ -19,9 +30,7 @@ export interface ObsDiagnostic {
 }
 
 /** Successful OBS operation plan or blocking diagnostics. */
-export type ObsPlanningResult =
-  | { readonly ok: true; readonly plan: ObsPlan; readonly diagnostics: readonly ObsDiagnostic[] }
-  | { readonly ok: false; readonly diagnostics: readonly ObsDiagnostic[] };
+export type ObsPlanningResult = ObsPlanningSuccess | ObsPlanningFailure;
 
 /** Creates an OBS planning diagnostic. */
 export function obsDiagnostic(

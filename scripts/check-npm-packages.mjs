@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -81,6 +82,8 @@ const packages = [
 ];
 
 for (const candidate of packages) {
+  // Check each publishable manifest's identity, exports, dependencies, and packed files against its package contract.
+
   const manifest = readJson(`${candidate.directory}/package.json`);
 
   assert(manifest.private === undefined, `${candidate.name} must be publishable`);
@@ -141,14 +144,19 @@ function packageConfig(directory, name, exports, dependencies = [], files = ["di
 
 function assertExports(actual, expected, name) {
   assert(
-    actual !== undefined && typeof actual !== "string",
+    z
+      .record(z.string(), z.object({ types: z.string(), default: z.string().optional() }))
+      .safeParse(actual).success,
     `${name} must use conditional exports`,
   );
   assertSet(Object.keys(actual), expected, `${name} has unexpected npm exports`);
   for (const [subpath, conditions] of Object.entries(actual)) {
-    assert(typeof conditions.types === "string", `${name}${subpath} must export types`);
+    assert(z.string().safeParse(conditions.types).success, `${name}${subpath} must export types`);
     if (subpath !== "./virtual") {
-      assert(typeof conditions.default === "string", `${name}${subpath} must export JavaScript`);
+      assert(
+        z.string().safeParse(conditions.default).success,
+        `${name}${subpath} must export JavaScript`,
+      );
       assert(
         conditions.default.startsWith("./dist/"),
         `${name}${subpath} must export built JavaScript`,

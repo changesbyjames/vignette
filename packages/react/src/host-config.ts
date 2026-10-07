@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, type Context } from "react";
 import type ReactReconciler from "react-reconciler";
 
 import {
@@ -9,9 +9,29 @@ import {
   removeHostChild,
   updateHostNode,
 } from "./host-tree.js";
-import type { HostContainer, HostNode, HostType } from "./host-types.js";
+import type { HostContainer, HostNode, HostProps, HostType } from "./host-types.js";
 
-type Props = Readonly<Record<string, unknown>>;
+interface ReactHostExtensions {
+  readonly rendererVersion: string;
+  readonly rendererPackageName: string;
+  readonly extraDevToolsConfig: null;
+  readonly cloneMutableInstance: (instance: HostNode) => HostNode;
+  readonly cloneMutableTextInstance: () => never;
+  readonly maySuspendCommitOnUpdate: () => false;
+  readonly maySuspendCommitInSyncRender: () => false;
+  readonly suspendOnActiveViewTransition: () => void;
+  readonly getSuspendedCommitReason: () => null;
+  readonly bindToConsole: (
+    method: string,
+    args: readonly unknown[],
+    environmentName: string,
+  ) => () => void;
+  readonly supportsTestSelectors: false;
+  readonly supportsResources: false;
+  readonly supportsSingletons: false;
+}
+
+type Props = HostProps;
 type TimeoutHandle = ReturnType<typeof setTimeout>;
 type NoTimeout = -1;
 interface BroadcastHostContext {
@@ -33,29 +53,13 @@ type HostConfig = ReactReconciler.HostConfig<
   NoTimeout,
   null
 >;
-type RendererHostConfig = HostConfig & {
-  readonly rendererVersion: string;
-  readonly rendererPackageName: string;
-  readonly extraDevToolsConfig: null;
-  readonly cloneMutableInstance: (instance: HostNode) => HostNode;
-  readonly cloneMutableTextInstance: () => never;
-  readonly maySuspendCommitOnUpdate: () => false;
-  readonly maySuspendCommitInSyncRender: () => false;
-  readonly suspendOnActiveViewTransition: () => void;
-  readonly getSuspendedCommitReason: () => null;
-  readonly bindToConsole: (
-    method: string,
-    args: readonly unknown[],
-    environmentName: string,
-  ) => () => void;
-  readonly supportsTestSelectors: false;
-  readonly supportsResources: false;
-  readonly supportsSingletons: false;
-};
+type RendererHostConfig = HostConfig & ReactHostExtensions;
 
 const DEFAULT_EVENT_PRIORITY = 0b0000000000000000000000000010000;
 const HOST_CONTEXT: BroadcastHostContext = { renderer: "vignette" };
-const hostTransitionContext = createContext(null) as unknown as HostConfig["HostTransitionContext"];
+// SAFETY: React.createContext returns the internal context fields consumed by react-reconciler; public React types omit those fields.
+const hostTransitionContext = createContext(null) as Context<null> &
+  HostConfig["HostTransitionContext"];
 let currentUpdatePriority = DEFAULT_EVENT_PRIORITY;
 
 export const hostConfig: RendererHostConfig = {

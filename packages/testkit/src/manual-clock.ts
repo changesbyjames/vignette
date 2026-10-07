@@ -1,42 +1,43 @@
+interface ManualClockTasks {
+  at: number;
+  run: () => void;
+}
 /** Deterministic scheduler whose time advances only when requested by a test. */
 export class ManualClock {
-  #now = 0;
-  readonly #tasks: { at: number; run: () => void }[] = [];
+  private currentTime = 0;
+  private readonly tasks: ManualClockTasks[] = [];
 
   get now(): number {
-    return this.#now;
+    return this.currentTime;
   }
 
   schedule(delayMs: number, run: () => void): () => void {
-    const task = { at: this.#now + delayMs, run };
-    this.#tasks.push(task);
+    const task = { at: this.currentTime + delayMs, run };
+    this.tasks.push(task);
     return () => {
-      const index = this.#tasks.indexOf(task);
-      if (index >= 0) this.#tasks.splice(index, 1);
+      const index = this.tasks.indexOf(task);
+      if (index >= 0) this.tasks.splice(index, 1);
     };
   }
 
-  setTimeout(run: () => void, delayMs: number): unknown {
-    const task = { at: this.#now + delayMs, run };
-    this.#tasks.push(task);
-    return task;
+  setTimeout(run: () => void, delayMs: number): () => void {
+    return this.schedule(delayMs, run);
   }
 
-  clearTimeout(handle: unknown): void {
-    const index = this.#tasks.findIndex((task) => task === handle);
-    if (index >= 0) this.#tasks.splice(index, 1);
+  clearTimeout(handle: () => void): void {
+    handle();
   }
 
   advanceBy(durationMs: number): void {
-    const end = this.#now + durationMs;
+    const end = this.currentTime + durationMs;
     for (;;) {
-      this.#tasks.sort((left, right) => left.at - right.at);
-      const next = this.#tasks[0];
+      this.tasks.sort((left, right) => left.at - right.at);
+      const next = this.tasks[0];
       if (next === undefined || next.at > end) break;
-      this.#tasks.shift();
-      this.#now = next.at;
+      this.tasks.shift();
+      this.currentTime = next.at;
       next.run();
     }
-    this.#now = end;
+    this.currentTime = end;
   }
 }

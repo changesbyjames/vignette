@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   compileBroadcast,
   deepFreeze,
@@ -20,6 +21,15 @@ import { hostTreeToBroadcast } from "./host-tree.js";
 import type { HostContainer } from "./host-types.js";
 import { reconciler } from "./reconciler.js";
 import { RootStatusStore, type BroadcastRootStatus } from "./status.js";
+
+interface ComposerRootImplCompileFailure {
+  readonly revision: number;
+  readonly error: Error;
+}
+
+interface LoadDefaultLayoutEngineModule {
+  yogaLayoutEngine: LayoutEngine;
+}
 
 /** Identity, canvas, extensions, and error handling for a composer root. */
 export interface ComposerRootOptions {
@@ -69,31 +79,31 @@ export function createComposerRoot(options: ComposerRootOptions): ComposerRoot {
 }
 
 class ComposerRootImpl implements ComposerRoot {
-  readonly #options: ComposerRootOptions;
-  readonly #modules: SourceModuleMap;
-  readonly #container: HostContainer;
-  readonly #internalRoot: unknown;
-  readonly #compileWaiters = new Set<CompileWaiter>();
-  readonly #renderRejectors = new Set<(error: Error) => void>();
-  readonly #renderFailures = new Map<number, Error>();
-  readonly #snapshotListeners = new Set<(snapshot: CompiledSnapshot) => void>();
-  readonly #status = new RootStatusStore();
-  readonly #messages = new RuntimeMessageHub();
-  #snapshot: CompiledSnapshot | undefined;
-  #compileScheduled = false;
-  #compiledRevision = -1;
-  #disposed = false;
-  #compileFailure: { readonly revision: number; readonly error: Error } | undefined;
+  private readonly options: ComposerRootOptions;
+  private readonly modules: SourceModuleMap;
+  private readonly container: HostContainer;
+  private readonly internalRoot: unknown;
+  private readonly compileWaiters = new Set<CompileWaiter>();
+  private readonly renderRejectors = new Set<(error: Error) => void>();
+  private readonly renderFailures = new Map<number, Error>();
+  private readonly snapshotListeners = new Set<(snapshot: CompiledSnapshot) => void>();
+  private readonly status = new RootStatusStore();
+  private readonly messageHub = new RuntimeMessageHub();
+  private currentSnapshot: CompiledSnapshot | undefined;
+  private compileScheduled = false;
+  private compiledRevision = -1;
+  private disposed = false;
+  private compileFailure: ComposerRootImplCompileFailure | undefined;
 
   constructor(options: ComposerRootOptions) {
-    this.#options = options;
+    this.options = options;
     const manifest = deepFreeze<AssetManifest>({
       version: options.assets?.version ?? 1,
       assets: (options.assets?.assets ?? []).map((asset) => ({ ...asset })),
     });
-    this.#messages.publish({ kind: "setup", manifest });
-    this.#modules = resolveSourceModules(options.extensions);
-    this.#container = {
+    this.messageHub.publish({ kind: "setup", manifest });
+    this.modules = resolveSourceModules(options.extensions);
+    this.container = {
       projectId: options.projectId,
       canvas: options.canvas,
       children: [],
@@ -103,24 +113,25 @@ class ComposerRootImpl implements ComposerRoot {
         this.scheduleCompile();
       },
     };
-    this.#internalRoot = reconciler.createContainer(
-      this.#container,
-      1,
-      null,
-      options.strictMode ?? false,
-      null,
-      "vignette-",
-      (error) => {
-        this.handleRenderError(error);
-      },
-      (error) => {
-        this.handleRenderError(error);
-      },
-      (error) => {
-        this.#options.onError?.(error);
-      },
-      () => undefined,
-    ) as unknown;
+    this.internalRoot =
+      /* SAFETY: The reconciler root is opaque to Vignette and is only passed back to the same reconciler instance. */ reconciler.createContainer(
+        this.container,
+        1,
+        null,
+        options.strictMode ?? false,
+        null,
+        "vignette-",
+        (error) => {
+          this.handleRenderError(error);
+        },
+        (error) => {
+          this.handleRenderError(error);
+        },
+        (error) => {
+          this.options.onError?.(error);
+        },
+        () => undefined,
+      ) as unknown;
   }
 
   render(element: ReactNode): Promise<CommitReceipt> {
@@ -131,11 +142,11 @@ class ComposerRootImpl implements ComposerRoot {
         renderFailed = true;
         reject(error);
       };
-      this.#renderRejectors.add(rejectRender);
-      reconciler.updateContainer(element, this.#internalRoot, null, () => {
-        this.#renderRejectors.delete(rejectRender);
+      this.renderRejectors.add(rejectRender);
+      reconciler.updateContainer(element, this.internalRoot, null, () => {
+        this.renderRejectors.delete(rejectRender);
         if (renderFailed) return;
-        this.waitForCompile(this.#container.commitRevision).then((receipt) => {
+        this.waitForCompile(this.container.commitRevision).then((receipt) => {
           reconciler.flushPassiveEffects();
           resolve(receipt);
         }, reject);
@@ -144,23 +155,23 @@ class ComposerRootImpl implements ComposerRoot {
   }
 
   get snapshot(): CompiledSnapshot | undefined {
-    return this.#snapshot;
+    return this.currentSnapshot;
   }
 
   async settled(): Promise<CompiledSnapshot> {
     this.assertActive();
     reconciler.flushSyncFromReconciler(() => undefined);
     reconciler.flushSyncWork();
-    await this.waitForCompile(this.#container.commitRevision);
-    if (this.#snapshot === undefined) {
+    await this.waitForCompile(this.container.commitRevision);
+    if (this.currentSnapshot === undefined) {
       throw new Error("Composer root has not rendered a snapshot.");
     }
-    return this.#snapshot;
+    return this.currentSnapshot;
   }
 
   messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage> {
     this.assertActive();
-    return this.#messages.subscribe(signal);
+    return this.messageHub.subscribe(signal);
   }
 
   async *snapshots(signal?: AbortSignal): AsyncIterable<CompiledSnapshot> {
@@ -171,85 +182,91 @@ class ComposerRootImpl implements ComposerRoot {
 
   publishEvent(event: RuntimeEvent): void {
     this.assertActive();
-    this.#messages.publish({ kind: "event", event });
+    this.messageHub.publish({ kind: "event", event });
   }
 
   getStatus(): BroadcastRootStatus {
-    return this.#status.getSnapshot();
+    return this.status.getSnapshot();
   }
 
   subscribe(listener: (snapshot: CompiledSnapshot) => void): () => void {
     this.assertActive();
-    this.#snapshotListeners.add(listener);
-    if (this.#snapshot !== undefined) listener(this.#snapshot);
-    return () => this.#snapshotListeners.delete(listener);
+    this.snapshotListeners.add(listener);
+    if (this.currentSnapshot !== undefined) listener(this.currentSnapshot);
+    return () => this.snapshotListeners.delete(listener);
   }
 
   subscribeStatus(listener: () => void): () => void {
-    return this.#status.subscribe(listener);
+    return this.status.subscribe(listener);
   }
 
   unmount(): Promise<CommitReceipt> {
     return this.render(null);
   }
 
+  /** Unmount active authoring nodes before closing streams, rejecting receipts, and disposing targets. */
   async dispose(): Promise<void> {
-    if (this.#disposed) return;
-    if (this.#container.children.length > 0) await this.unmount();
-    this.#disposed = true;
+    if (this.disposed) return;
+    if (this.container.children.length > 0) await this.unmount();
+    this.disposed = true;
     const error = new Error("Composer root is disposed.");
     this.rejectCompileWaiters(error);
-    for (const reject of this.#renderRejectors) reject(error);
-    this.#renderRejectors.clear();
-    this.#renderFailures.clear();
-    this.#messages.close();
-    this.#snapshotListeners.clear();
-    this.#snapshot = undefined;
-    this.#status.set({
+    for (const reject of this.renderRejectors) reject(error);
+    this.renderRejectors.clear();
+    this.renderFailures.clear();
+    this.messageHub.close();
+    this.snapshotListeners.clear();
+    this.currentSnapshot = undefined;
+    this.status.set({
       phase: "disposed",
-      commitRevision: this.#container.commitRevision,
-      ...(this.#compiledRevision < 0 ? {} : { compiledRevision: this.#compiledRevision }),
+      commitRevision: this.container.commitRevision,
+      ...omitUndefined({
+        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
+      }),
       diagnostics: [],
     });
-    this.#status.clear();
+    this.status.clear();
   }
 
   private scheduleCompile(): void {
-    if (this.#compileScheduled || this.#disposed) return;
-    this.#compileScheduled = true;
-    this.#status.set({
+    if (this.compileScheduled || this.disposed) return;
+    this.compileScheduled = true;
+    this.status.set({
       phase: "compiling",
-      commitRevision: this.#container.commitRevision,
-      ...(this.#compiledRevision < 0 ? {} : { compiledRevision: this.#compiledRevision }),
+      commitRevision: this.container.commitRevision,
+      ...omitUndefined({
+        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
+      }),
       diagnostics: [],
     });
     queueMicrotask(() => {
-      this.#compileScheduled = false;
+      this.compileScheduled = false;
       void this.compileLatest();
     });
   }
 
+  /** Compile the latest committed revision, preserving render failures and rejecting superseded receipts. */
   private async compileLatest(): Promise<void> {
-    if (this.#disposed) return;
-    const revision = this.#container.commitRevision;
-    const renderFailure = this.#renderFailures.get(revision);
+    if (this.disposed) return;
+    const revision = this.container.commitRevision;
+    const renderFailure = this.renderFailures.get(revision);
     if (renderFailure !== undefined) {
-      this.#renderFailures.delete(revision);
+      this.renderFailures.delete(revision);
       this.failCompile(revision, renderFailure, []);
       return;
     }
 
-    if (this.#container.children.length === 0) {
-      this.publish(emptySnapshot(this.#options, revision), []);
+    if (this.container.children.length === 0) {
+      this.publish(emptySnapshot(this.options, revision), []);
       return;
     }
 
     try {
-      const layoutEngine = this.#options.layoutEngine ?? (await loadDefaultLayoutEngine());
+      const layoutEngine = this.options.layoutEngine ?? (await loadDefaultLayoutEngine());
       if (this.isDisposed()) return;
-      const result = compileBroadcast(hostTreeToBroadcast(this.#container), {
+      const result = compileBroadcast(hostTreeToBroadcast(this.container), {
         revision,
-        modules: this.#modules,
+        modules: this.modules,
         layoutEngine,
       });
       if (!result.ok) throw new CompileFailure(result.diagnostics);
@@ -261,86 +278,88 @@ class ComposerRootImpl implements ComposerRoot {
   }
 
   private publish(snapshot: CompiledSnapshot, diagnostics: readonly Diagnostic[]): void {
-    this.#snapshot = snapshot;
-    this.#compiledRevision = snapshot.revision;
-    this.#compileFailure = undefined;
-    this.#messages.publish({ kind: "update", snapshot });
-    this.#status.set({
+    this.currentSnapshot = snapshot;
+    this.compiledRevision = snapshot.revision;
+    this.compileFailure = undefined;
+    this.messageHub.publish({ kind: "update", snapshot });
+    this.status.set({
       phase: "ready",
       commitRevision: snapshot.revision,
       compiledRevision: snapshot.revision,
       diagnostics: [...diagnostics],
     });
-    for (const listener of this.#snapshotListeners) listener(snapshot);
-    for (const waiter of this.#compileWaiters) {
+    for (const listener of this.snapshotListeners) listener(snapshot);
+    for (const waiter of this.compileWaiters) {
       if (waiter.revision > snapshot.revision) continue;
       waiter.resolve(this.receipt(waiter.revision));
-      this.#compileWaiters.delete(waiter);
+      this.compileWaiters.delete(waiter);
     }
   }
 
   private failCompile(revision: number, error: Error, diagnostics: readonly Diagnostic[]): void {
-    this.#compileFailure = { revision, error };
-    this.#status.set({
+    this.compileFailure = { revision, error };
+    this.status.set({
       phase: "error",
       commitRevision: revision,
-      ...(this.#compiledRevision < 0 ? {} : { compiledRevision: this.#compiledRevision }),
+      ...omitUndefined({
+        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
+      }),
       diagnostics: [...diagnostics],
       message: error.message,
     });
-    this.#options.onError?.(error);
+    this.options.onError?.(error);
     this.rejectCompileWaiters(error, revision);
   }
 
   private waitForCompile(revision: number): Promise<CommitReceipt> {
-    if (this.#compiledRevision >= revision) return Promise.resolve(this.receipt(revision));
-    if (this.#compileFailure !== undefined && this.#compileFailure.revision >= revision) {
-      return Promise.reject(this.#compileFailure.error);
+    if (this.compiledRevision >= revision) return Promise.resolve(this.receipt(revision));
+    if (this.compileFailure !== undefined && this.compileFailure.revision >= revision) {
+      return Promise.reject(this.compileFailure.error);
     }
     return new Promise((resolve, reject) => {
-      this.#compileWaiters.add({ revision, resolve, reject });
+      this.compileWaiters.add({ revision, resolve, reject });
     });
   }
 
   private receipt(requestedRevision: number): CommitReceipt {
     return {
       requestedRevision,
-      compiledRevision: this.#compiledRevision,
+      compiledRevision: this.compiledRevision,
       compiledAt: Date.now(),
     };
   }
 
   private handleRenderError(error: Error): void {
-    const revision = this.#container.commitRevision;
-    this.#renderFailures.set(revision, error);
-    this.#options.onError?.(error);
-    for (const reject of this.#renderRejectors) reject(error);
-    this.#renderRejectors.clear();
+    const revision = this.container.commitRevision;
+    this.renderFailures.set(revision, error);
+    this.options.onError?.(error);
+    for (const reject of this.renderRejectors) reject(error);
+    this.renderRejectors.clear();
     this.rejectCompileWaiters(error, revision);
   }
 
   private rejectCompileWaiters(error: Error, upToRevision = Number.POSITIVE_INFINITY): void {
-    for (const waiter of this.#compileWaiters) {
+    for (const waiter of this.compileWaiters) {
       if (waiter.revision > upToRevision) continue;
       waiter.reject(error);
-      this.#compileWaiters.delete(waiter);
+      this.compileWaiters.delete(waiter);
     }
   }
 
   private assertActive(): void {
-    if (this.#disposed) throw new Error("Composer root is disposed.");
+    if (this.disposed) throw new Error("Composer root is disposed.");
   }
 
   private isDisposed(): boolean {
-    return this.#disposed;
+    return this.disposed;
   }
 }
 
-let defaultLayoutEngine: Promise<LayoutEngine> | undefined;
+let defaultLayoutEngine: Promise<LayoutEngine> | undefined = undefined;
 
 function loadDefaultLayoutEngine(): Promise<LayoutEngine> {
   defaultLayoutEngine ??= import(/* @vite-ignore */ "@strangecyan/vignette-core/layout-yoga").then(
-    (module: { yogaLayoutEngine: LayoutEngine }) => Promise.resolve(module.yogaLayoutEngine),
+    (module: LoadDefaultLayoutEngineModule) => Promise.resolve(module.yogaLayoutEngine),
   );
   return defaultLayoutEngine;
 }

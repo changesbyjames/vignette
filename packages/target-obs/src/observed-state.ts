@@ -1,7 +1,14 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type { ProjectId, SceneId, SourceId } from "@strangecyan/vignette-core";
 
 import { parseManagedName } from "./naming.js";
 import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
+
+interface ManagedObservedIndexDuplicatePlacements {
+  readonly sceneUuid: string;
+  readonly sourceUuid: string;
+  readonly sceneItemIds: readonly number[];
+}
 
 /** Protocol, request, input-kind, and platform capabilities reported by OBS. */
 export interface ObsProtocolCapabilities {
@@ -55,11 +62,7 @@ export interface ManagedObservedIndex {
   readonly scenes: ReadonlyMap<SceneId, ObservedObsScene>;
   readonly inputs: ReadonlyMap<SourceId, ObservedObsInput>;
   readonly itemsByScene: ReadonlyMap<string, readonly ObservedObsSceneItem[]>;
-  readonly duplicatePlacements: readonly {
-    readonly sceneUuid: string;
-    readonly sourceUuid: string;
-    readonly sceneItemIds: readonly number[];
-  }[];
+  readonly duplicatePlacements: readonly ManagedObservedIndexDuplicatePlacements[];
 }
 
 /** Indexes only resources belonging to a managed project namespace. */
@@ -67,24 +70,20 @@ export function indexManagedObservedState(
   state: ObservedObsState,
   project: ProjectId,
 ): ManagedObservedIndex {
-  let registry: ObservedObsScene | undefined;
+  let registry: ObservedObsScene | undefined = undefined;
   const scenes = new Map<SceneId, ObservedObsScene>();
-  const inputs = new Map<SourceId, ObservedObsInput>();
   const itemsByScene = new Map<string, ObservedObsSceneItem[]>();
 
   for (const scene of state.scenes) {
+    // Accept only scene names in this project namespace and distinguish the registry from named scenes.
+
     const managed = parseManagedName(scene.sceneName);
     if (managed?.projectId !== project) continue;
     if (managed.kind === "registry") registry = scene;
     if (managed.kind === "scene") scenes.set(managed.sceneId, scene);
   }
 
-  for (const input of state.inputs) {
-    const managed = parseManagedName(input.inputName);
-    if (managed?.kind === "source" && managed.projectId === project) {
-      inputs.set(managed.sourceId, input);
-    }
-  }
+  const inputs = indexManagedInputs(state.inputs, project);
 
   const managedSceneUuids = new Set([
     ...(registry === undefined ? [] : [registry.sceneUuid]),
@@ -97,8 +96,25 @@ export function indexManagedObservedState(
     itemsByScene.set(item.sceneUuid, current);
   }
 
+  const duplicatePlacements = findDuplicatePlacements(itemsByScene);
+
+  return {
+    ...omitUndefined({ registry: registry }),
+    scenes,
+    inputs,
+    itemsByScene,
+    duplicatePlacements,
+  };
+}
+
+/** Group placements per source while keeping each scene in observed stacking order. */
+function findDuplicatePlacements(
+  itemsByScene: Map<string, ObservedObsSceneItem[]>,
+): ManagedObservedIndex["duplicatePlacements"] {
   const duplicatePlacements: ManagedObservedIndex["duplicatePlacements"][number][] = [];
   for (const [sceneUuid, items] of itemsByScene) {
+    // Group item IDs by source within each scene and preserve observed stacking order for planning.
+
     const bySource = new Map<string, number[]>();
     for (const item of items) {
       const ids = bySource.get(item.sourceUuid) ?? [];
@@ -112,11 +128,21 @@ export function indexManagedObservedState(
     items.sort((left, right) => left.sceneItemIndex - right.sceneItemIndex);
   }
 
-  return {
-    ...(registry === undefined ? {} : { registry }),
-    scenes,
-    inputs,
-    itemsByScene,
-    duplicatePlacements,
-  };
+  return duplicatePlacements;
+}
+
+/** Foreign and non-source names never enter the managed input index. */
+function indexManagedInputs(
+  observed: readonly ObservedObsInput[],
+  project: ProjectId,
+): Map<SourceId, ObservedObsInput> {
+  const inputs = new Map<SourceId, ObservedObsInput>();
+  for (const input of observed) {
+    const managed = parseManagedName(input.inputName);
+    if (managed?.kind === "source" && managed.projectId === project) {
+      inputs.set(managed.sourceId, input);
+    }
+  }
+
+  return inputs;
 }

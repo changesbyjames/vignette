@@ -1,3 +1,4 @@
+import { z } from "zod";
 /** React subscription hook for state streamed to hydrated frames. */
 import { useSyncExternalStore } from "react";
 
@@ -8,46 +9,53 @@ import {
   type RemoteStoreSnapshot,
 } from "./remote-store.js";
 
+interface StoreWithContextGetSnapshot {
+  readonly context: unknown;
+}
+
 interface StoreWithContext {
-  getSnapshot(): { readonly context: unknown };
+  getSnapshot(): StoreWithContextGetSnapshot;
 }
 
 const clients = new Map<string, RemoteStoreClient>();
 const serverSuspense = new Promise<never>(() => undefined);
 
 class RemoteStoreClient {
-  readonly #listeners = new Set<() => void>();
-  readonly #ready: Promise<void>;
-  #resolveReady: (() => void) | undefined;
-  #snapshot: RemoteStoreSnapshot<unknown> | undefined;
+  private readonly listeners = new Set<() => void>();
+  private readonly ready: Promise<void>;
+  private resolveReady: (() => void) | undefined;
+  private snapshot: RemoteStoreSnapshot<unknown> | undefined;
 
   constructor(url: string) {
-    this.#ready = new Promise<void>((resolve) => {
-      this.#resolveReady = resolve;
+    this.ready = new Promise<void>((resolve) => {
+      this.resolveReady = resolve;
     });
 
     const source = new EventSource(url);
-    source.onmessage = (event) => {
-      if (typeof event.data !== "string") return;
-      const snapshot = decodeRemoteStoreSnapshot(event.data);
-      if (snapshot === undefined) return;
+    source.onmessage =
+      /** Ignore malformed events, replace the current snapshot, and resolve initial suspense before notifying subscribers. */
+      (event) => {
+        const payload = z.string().safeParse(event.data);
+        if (!payload.success) return;
+        const snapshot = decodeRemoteStoreSnapshot(payload.data);
+        if (snapshot === undefined) return;
 
-      this.#snapshot = snapshot;
-      this.#resolveReady?.();
-      this.#resolveReady = undefined;
-      for (const listener of this.#listeners) listener();
-    };
+        this.snapshot = snapshot;
+        this.resolveReady?.();
+        this.resolveReady = undefined;
+        for (const listener of this.listeners) listener();
+      };
   }
 
   read(): RemoteStoreSnapshot<unknown> {
-    // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Suspense uses promises.
-    if (this.#snapshot === undefined) throw this.#ready;
-    return this.#snapshot;
+    // oxlint-disable-next-line typescript/only-throw-error -- React Suspense uses promises.
+    if (this.snapshot === undefined) throw this.ready;
+    return this.snapshot;
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   };
 
   readonly getSnapshot = (): RemoteStoreSnapshot<unknown> => this.read();
@@ -61,8 +69,8 @@ export function useRemoteStore<TRef extends RemoteStoreRef<StoreWithContext>, TS
   ref: TRef,
   selector: (snapshot: RemoteSnapshotOf<TRef>) => TSelected,
 ): TSelected {
-  // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Suspense uses promises.
-  if (typeof window === "undefined") throw serverSuspense;
+  // oxlint-disable-next-line typescript/only-throw-error -- React Suspense uses promises.
+  if (globalThis.window === undefined) throw serverSuspense;
 
   let client = clients.get(ref.url);
   if (client === undefined) {
@@ -72,5 +80,7 @@ export function useRemoteStore<TRef extends RemoteStoreRef<StoreWithContext>, TS
 
   client.read();
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
-  return selector(snapshot as RemoteSnapshotOf<TRef>);
+  return selector(
+    /* SAFETY: The typed reference and selector share the same server-owned store URL; only that store publishes this context. */ snapshot as RemoteSnapshotOf<TRef>,
+  );
 }

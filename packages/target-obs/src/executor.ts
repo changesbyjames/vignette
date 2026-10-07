@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ProjectId } from "@strangecyan/vignette-core";
 
 import { ObsExecutionError, ObsRequestError } from "./errors.js";
@@ -14,6 +15,11 @@ import {
 } from "./operations.js";
 import type { ObsTransport } from "./transport.js";
 import type { ObsBatchRequest } from "./transport.js";
+
+type RemoveOperation = Extract<ObsOperation, RemovalKinds>;
+interface RemovalKinds {
+  kind: "remove-placement" | "remove-scene" | "remove-input";
+}
 
 interface SceneItemAddress {
   readonly scene: ObsJsonObject;
@@ -45,6 +51,8 @@ export async function executeObsPlan(
   let skippedDestructiveWork = false;
 
   for (const phase of OBS_PHASES) {
+    // Check execution validity before each phase and skip destructive phases when a newer revision exists.
+
     if (context.isExecutionValid?.() === false) {
       return executionResult(completed, skippedDestructiveWork, true);
     }
@@ -55,38 +63,56 @@ export async function executeObsPlan(
       continue;
     }
 
-    if (isBatchablePhase(phase)) {
-      try {
-        const phaseCompleted = await executeBatch(
-          transport,
-          operations,
-          context.projectId,
-          createdPlacements,
-        );
-        completed.push(...phaseCompleted);
-      } catch (cause) {
-        if (cause instanceof ObsExecutionError) throw cause;
-        throw new ObsExecutionError(operations[0]?.key ?? phase, cause);
-      }
-      continue;
-    }
-
-    for (const operation of operations) {
-      if (context.isExecutionValid?.() === false) {
-        return executionResult(completed, skippedDestructiveWork, true);
-      }
-      try {
-        await executeOperation(transport, operation, context.projectId, createdPlacements);
-        completed.push(operation.key);
-      } catch (cause) {
-        throw new ObsExecutionError(operation.key, cause);
-      }
+    if (await executePhase(transport, operations, phase, context, createdPlacements, completed)) {
+      return executionResult(completed, skippedDestructiveWork, true);
     }
   }
 
   return executionResult(completed, skippedDestructiveWork, false);
 }
 
+/** Batch independent properties; check cancellation between operations that create new addresses. */
+async function executePhase(
+  transport: ObsTransport,
+  operations: readonly ObsOperation[],
+  phase: ObsOperation["phase"],
+  context: ObsExecutionContext,
+  createdPlacements: Map<string, SceneItemAddress>,
+  completed: string[],
+): Promise<boolean> {
+  if (isBatchablePhase(phase)) {
+    // Batch errors retain their operation key; otherwise attribute transport failure to the first phase operation.
+
+    try {
+      const phaseCompleted = await executeBatch(
+        transport,
+        operations,
+        context.projectId,
+        createdPlacements,
+      );
+      completed.push(...phaseCompleted);
+    } catch (cause) {
+      if (cause instanceof ObsExecutionError) throw cause;
+      throw new ObsExecutionError(operations[0]?.key ?? phase, cause);
+    }
+    return false;
+  }
+
+  for (const operation of operations) {
+    if (context.isExecutionValid?.() === false) {
+      return true;
+    }
+    try {
+      await executeOperation(transport, operation, context.projectId, createdPlacements);
+      completed.push(operation.key);
+    } catch (cause) {
+      throw new ObsExecutionError(operation.key, cause);
+    }
+  }
+  return false;
+}
+
+/** Match responses by request position and stop at the first failed or missing response. */
 async function executeBatch(
   transport: ObsTransport,
   operations: readonly ObsOperation[],
@@ -139,17 +165,18 @@ async function executeOperation(
   const request = operationRequest(operation, projectId, placements);
   const response = await transport.call(request.requestType, request.requestData);
   if (operation.kind === "create-placement") {
-    const sceneItemId = response.sceneItemId;
-    if (typeof sceneItemId !== "number") {
+    const sceneItemId = z.number().safeParse(response.sceneItemId);
+    if (!sceneItemId.success) {
       throw new Error("CreateSceneItem response did not contain a sceneItemId.");
     }
     placements.set(placementKey(operation.scene, operation.layerId), {
       scene: sceneSelector(operation.scene, projectId),
-      sceneItemId,
+      sceneItemId: sceneItemId.data,
     });
   }
 }
 
+/** Translate each operation discriminator into its OBS request, resolving created placement addresses when needed. */
 function operationRequest(
   operation: ObsOperation,
   projectId: ProjectId,
@@ -222,6 +249,14 @@ function operationRequest(
         },
       };
     }
+    default:
+      return removalRequest(operation);
+  }
+}
+
+/** Destructive requests use observed UUIDs rather than newly created placement addresses. */
+function removalRequest(operation: RemoveOperation): ObsBatchRequest {
+  switch (operation.kind) {
     case "remove-placement":
       return {
         requestType: "RemoveSceneItem",
@@ -243,6 +278,7 @@ function operationRequest(
   }
 }
 
+/** Only phases without newly created placement addresses can be sent as independent batches. */
 function isBatchablePhase(phase: ObsPlan["operations"][number]["phase"]): boolean {
   return (
     phase === "settings" ||

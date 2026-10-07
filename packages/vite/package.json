@@ -41,7 +41,8 @@
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
     "@strangecyan/vignette-frame": "workspace:^",
-    "tinyglobby": "0.2.17"
+    "tinyglobby": "0.2.17",
+    "zod": "4.6.5"
   },
   "peerDependencies": {
     "vite": "^8.1.0"

@@ -4,6 +4,22 @@ import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
 import type { AnySourceDefinition } from "./sources.js";
 import type { Diagnostic } from "./diagnostics.js";
 
+interface CompiledSourceContent {
+  readonly kind: "source";
+  readonly sourceId: SourceId;
+}
+
+interface CompiledSceneContent {
+  readonly kind: "scene";
+  readonly sceneId: SceneId;
+}
+
+interface CompiledSnapshotCanvas {
+  width: number;
+  height: number;
+  frameRate?: number;
+}
+
 /** Fitted destination, source crop, and alignment for one source layer. */
 export interface ContentPlacement {
   readonly destination: Rect;
@@ -23,9 +39,7 @@ export interface CompiledSource {
 }
 
 /** Reference to source or nested-scene content in a compiled item. */
-export type CompiledItemContent =
-  | { readonly kind: "source"; readonly sourceId: SourceId }
-  | { readonly kind: "scene"; readonly sceneId: SceneId };
+export type CompiledItemContent = CompiledSourceContent | CompiledSceneContent;
 
 /** One absolute, target-neutral layer in a compiled scene. */
 export interface CompiledItem {
@@ -50,7 +64,7 @@ export interface CompiledScene {
 export interface CompiledSnapshot {
   readonly revision: number;
   readonly projectId: ProjectId;
-  readonly canvas: Readonly<{ width: number; height: number; frameRate?: number }>;
+  readonly canvas: Readonly<CompiledSnapshotCanvas>;
   readonly sources: readonly CompiledSource[];
   readonly scenes: readonly CompiledScene[];
   readonly warnings: readonly Diagnostic[];

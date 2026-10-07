@@ -22,12 +22,12 @@ export const SceneContext = createContext<SceneState | undefined>(undefined);
 
 /** Creates reactive platform plumbing used while composing frame URLs. */
 export function createSceneStore(config: SceneState): SceneStore {
-  let state: SceneState = Object.freeze({ origin: normalizeOrigin(config.origin) });
+  let state: SceneState = { origin: normalizeOrigin(config.origin) };
   const listeners = new Set<() => void>();
   return {
     get: () => state,
     set: (partial) => {
-      const next = Object.freeze({ origin: normalizeOrigin(partial.origin ?? state.origin) });
+      const next = { origin: normalizeOrigin(partial.origin ?? state.origin) };
       if (next.origin === state.origin) return;
       state = next;
       for (const listener of listeners) listener();
@@ -51,6 +51,7 @@ export function SceneProvider(props: SceneProviderProps): ReactElement {
   return createElement(SceneContext.Provider, { value: state, children: props.children });
 }
 
+/** Require a bare HTTP origin so generated frame routes cannot inherit a base path, query, or fragment. */
 function normalizeOrigin(origin: string): string {
   const parsed = new URL(origin);
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {

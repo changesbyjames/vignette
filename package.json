@@ -9,7 +9,7 @@
   "type": "module",
   "packageManager": "pnpm@11.13.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
   "scripts": {
     "build": "tsc -b && pnpm --filter @strangecyan/vignette-kitchen-sink build:app",
@@ -19,27 +19,28 @@
     "test:e2e": "playwright test examples/kitchen-sink/tests/dom.spec.ts",
     "test:obs-integration": "playwright test examples/kitchen-sink/tests/obs-integration.spec.ts",
     "test:watch": "vitest",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "publish:check": "node scripts/check-docs.mjs && node scripts/check-npm-packages.mjs",
     "publish:npm": "node scripts/publish-npm-packages.mjs",
     "ready": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check && pnpm publish:check && pnpm test:e2e"
   },
   "devDependencies": {
     "@strangecyan/vignette-cli": "workspace:*",
-    "@eslint/js": "10.0.1",
     "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
-    "eslint": "10.7.0",
     "jsdom": "29.1.1",
     "obs-websocket-js": "5.0.8",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",
     "@types/pngjs": "6.0.5",
-    "prettier": "3.9.5",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.64.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "@oxlint/plugins": "1.87.0",
+    "oxfmt": "0.72.0",
+    "oxlint": "1.87.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "zod": "4.6.5"
   }
 }

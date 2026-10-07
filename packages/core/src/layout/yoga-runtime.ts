@@ -21,10 +21,10 @@ export class YogaSceneTree {
   readonly root: YogaNode;
   readonly records: readonly YogaLayoutRecord[];
 
-  readonly #config: YogaConfig;
-  readonly #observer: YogaAllocationObserver | undefined;
-  #allocationCount = 0;
-  #disposed = false;
+  private readonly config: YogaConfig;
+  private readonly observer: YogaAllocationObserver | undefined;
+  private allocationCount = 0;
+  private disposed = false;
 
   private constructor(
     config: YogaConfig,
@@ -33,13 +33,14 @@ export class YogaSceneTree {
     observer: YogaAllocationObserver | undefined,
     allocationCount: number,
   ) {
-    this.#config = config;
+    this.config = config;
     this.root = root;
     this.records = records;
-    this.#observer = observer;
-    this.#allocationCount = allocationCount;
+    this.observer = observer;
+    this.allocationCount = allocationCount;
   }
 
+  /** Configure one scene tree and release every tracked Yoga allocation if construction fails. */
   static create(
     yoga: Yoga,
     nodes: readonly LayoutNode[],
@@ -92,18 +93,19 @@ export class YogaSceneTree {
   }
 
   dispose(): void {
-    if (this.#disposed) return;
-    this.#disposed = true;
+    if (this.disposed) return;
+    this.disposed = true;
     this.root.freeRecursive();
-    for (let index = 0; index < this.#allocationCount; index += 1) this.#observer?.free();
-    this.#config.free();
+    for (let index = 0; index < this.allocationCount; index += 1) this.observer?.free();
+    this.config.free();
   }
 
   private assertActive(): void {
-    if (this.#disposed) throw new Error("Yoga scene tree has been disposed.");
+    if (this.disposed) throw new Error("Yoga scene tree has been disposed.");
   }
 }
 
+/** Allocate each layout node recursively, attaching box children and freeing partially constructed nodes on error. */
 function buildRecord(
   yogaModule: Yoga,
   node: LayoutNode,

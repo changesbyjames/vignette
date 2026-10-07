@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
-    "@strangecyan/vignette-target-obs": "workspace:^"
+    "@strangecyan/vignette-target-obs": "workspace:^",
+    "zod": "4.6.5"
   }
 }

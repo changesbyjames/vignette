@@ -66,7 +66,11 @@ export function requiredCapabilities(snapshot: CompiledSnapshot): readonly Capab
   const required = new Set<Capability>();
   for (const source of snapshot.sources) required.add(source.definition.kind);
   for (const scene of snapshot.scenes) {
+    // Each placement contributes only the nested-scene and transform features it actually uses.
+
     for (const item of scene.items) {
+      // Each placement contributes only the nested-scene and transform features it actually uses.
+
       if (item.content.kind === "scene") required.add("scene:nested");
       if (item.rotation !== 0) required.add("transform:rotation");
       if (item.opacity !== 1) required.add("transform:opacity");

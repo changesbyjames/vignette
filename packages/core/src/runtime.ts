@@ -1,6 +1,21 @@
 import type { SceneId } from "./ids.js";
 import type { CompiledSnapshot } from "./snapshot.js";
 
+interface RuntimeSetupMessage {
+  readonly kind: "setup";
+  readonly manifest: AssetManifest;
+}
+
+interface RuntimeUpdateMessage {
+  readonly kind: "update";
+  readonly snapshot: CompiledSnapshot;
+}
+
+interface RuntimeEventMessage {
+  readonly kind: "event";
+  readonly event: RuntimeEvent;
+}
+
 /** One downloadable project asset advertised to runtimes. */
 export interface AssetManifestEntry {
   readonly name: string;
@@ -22,10 +37,7 @@ export interface RuntimeEvent {
 }
 
 /** Setup, snapshot update, or one-shot event sent to a runtime. */
-export type RuntimeMessage =
-  | { readonly kind: "setup"; readonly manifest: AssetManifest }
-  | { readonly kind: "update"; readonly snapshot: CompiledSnapshot }
-  | { readonly kind: "event"; readonly event: RuntimeEvent };
+export type RuntimeMessage = RuntimeSetupMessage | RuntimeUpdateMessage | RuntimeEventMessage;
 
 /** Consumer contract shared by DOM, OBS, and test runtimes. */
 export interface SnapshotRuntime {

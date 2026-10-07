@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { serializeFrameParams } from "./serialization.js";
 
+interface Cyclic {
+  self?: unknown;
+}
+
 describe("frame parameter serialization", () => {
   it("canonicalizes object keys recursively", () => {
     expect(serializeFrameParams({ z: 1, nested: { b: true, a: "first" }, a: 2 })).toBe(
@@ -10,7 +14,7 @@ describe("frame parameter serialization", () => {
   });
 
   it("rejects cycles and non-plain objects", () => {
-    const cyclic: { self?: unknown } = {};
+    const cyclic: Cyclic = {};
     cyclic.self = cyclic;
     expect(() => serializeFrameParams(cyclic)).toThrow(/cycles/u);
     expect(() => serializeFrameParams({ date: new Date() })).toThrow(/plain objects/u);

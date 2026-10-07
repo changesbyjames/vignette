@@ -24,24 +24,24 @@ export interface ObsAssetStoreOptions {
 }
 
 export class ObsAssetStore implements AssetResolver {
-  readonly #fetch: AssetFetcher;
-  readonly #temporaryDirectory: string;
-  #root: string | undefined;
-  #files = new Map<string, string>();
+  private readonly fetch: AssetFetcher;
+  private readonly temporaryDirectory: string;
+  private root: string | undefined;
+  private files = new Map<string, string>();
 
   constructor(options: ObsAssetStoreOptions = {}) {
-    this.#fetch = options.fetch ?? ((url) => fetch(url));
-    this.#temporaryDirectory = options.temporaryDirectory ?? tmpdir();
+    this.fetch = options.fetch ?? ((url) => fetch(url));
+    this.temporaryDirectory = options.temporaryDirectory ?? tmpdir();
   }
 
   async setup(manifest: AssetManifest): Promise<void> {
     validateManifest(manifest);
-    const root = await mkdtemp(join(this.#temporaryDirectory, "vignette-assets-"));
+    const root = await mkdtemp(join(this.temporaryDirectory, "vignette-assets-"));
     const files = new Map<string, string>();
     try {
       const downloads = await Promise.all(
         manifest.assets.map(async (entry) => {
-          const response = await this.#fetch(entry.url);
+          const response = await this.fetch(entry.url);
           if (!response.ok) {
             throw new Error(
               `Asset '${entry.name}' download failed with HTTP ${String(response.status)}.`,
@@ -63,30 +63,33 @@ export class ObsAssetStore implements AssetResolver {
       throw error;
     }
 
-    const previousRoot = this.#root;
-    this.#root = root;
-    this.#files = files;
+    const previousRoot = this.root;
+    this.root = root;
+    this.files = files;
     if (previousRoot !== undefined) await rm(previousRoot, { recursive: true, force: true });
   }
 
   resolve(asset: AssetRef): Promise<ResolvedAsset> {
-    const path = this.#files.get(asset.name);
+    const path = this.files.get(asset.name);
     return path === undefined
       ? Promise.reject(new Error(`Asset '${asset.name}' is absent from the runtime manifest.`))
       : Promise.resolve({ kind: "file", path });
   }
 
   async dispose(): Promise<void> {
-    const root = this.#root;
-    this.#root = undefined;
-    this.#files.clear();
+    const root = this.root;
+    this.root = undefined;
+    this.files.clear();
     if (root !== undefined) await rm(root, { recursive: true, force: true });
   }
 }
 
+/** Reject invalid or repeated asset names and verify each URL can be materialized for OBS. */
 function validateManifest(manifest: AssetManifest): void {
   const names = new Set<string>();
   for (const entry of manifest.assets) {
+    // Reject invalid or repeated asset names and verify each URL can be materialized for OBS.
+
     const error = validateAssetName(entry.name);
     if (error !== undefined) throw new Error(error);
     if (names.has(entry.name)) {

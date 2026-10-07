@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import type { PreviewOptions } from "./types.js";
 
 export const HELP = `Usage:
@@ -39,102 +40,81 @@ export interface ObsCommandOptions {
   readonly url: string;
 }
 
-export function parsePreviewOptions(arguments_: readonly string[]): PreviewOptions {
-  const values = [...arguments_];
-  if (values.shift() !== "preview")
-    throw new Error(`Expected the 'preview' command.\n\n${PREVIEW_HELP}`);
-  let snapshot: string | undefined;
-  let scene: string | undefined;
-  let name: string | undefined;
-  let out: string | undefined;
-  let timeoutMs = 10_000;
-  let allScenes = false;
-  let json = false;
+interface CommandSpec {
+  readonly command: string;
+  readonly help: string;
+  readonly valueFlags: ReadonlySet<string>;
+  readonly switches: ReadonlySet<string>;
+}
 
-  while (values.length > 0) {
-    const flag = values.shift();
-    switch (flag) {
-      case "--snapshot":
-        snapshot = takeValue(flag, values);
-        break;
-      case "--scene":
-        scene = takeValue(flag, values);
-        break;
-      case "--name":
-        name = takeValue(flag, values);
-        break;
-      case "--out":
-        out = takeValue(flag, values);
-        break;
-      case "--timeout": {
-        const raw = takeValue(flag, values);
-        timeoutMs = Number(raw);
-        if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-          throw new Error(`--timeout must be a positive integer; received '${raw}'.`);
-        }
-        break;
-      }
-      case "--all-scenes":
-        allScenes = true;
-        break;
-      case "--json":
-        json = true;
-        break;
-      default:
-        throw new Error(`Unknown option '${flag ?? ""}'.\n\n${PREVIEW_HELP}`);
-    }
-  }
-  if (snapshot === undefined) throw new Error(`--snapshot is required.\n\n${PREVIEW_HELP}`);
+interface ParsedCommand {
+  readonly values: ReadonlyMap<string, string>;
+  readonly switches: ReadonlySet<string>;
+}
+
+/** Require input and timeout options, then reject conflicting single-scene and all-scenes selection. */
+export function parsePreviewOptions(arguments_: readonly string[]): PreviewOptions {
+  const parsed = parseCommand(arguments_, {
+    command: "preview",
+    help: PREVIEW_HELP,
+    valueFlags: new Set(["--snapshot", "--scene", "--name", "--out", "--timeout"]),
+    switches: new Set(["--all-scenes", "--json"]),
+  });
+  const snapshot = requiredFlag(parsed, "--snapshot", PREVIEW_HELP);
+  const scene = parsed.values.get("--scene");
+  const allScenes = parsed.switches.has("--all-scenes");
   if (allScenes && scene !== undefined)
     throw new Error("--scene and --all-scenes cannot be combined.");
-  return {
+  const rawTimeout = parsed.values.get("--timeout");
+  const timeoutMs = rawTimeout === undefined ? 10_000 : Number(rawTimeout);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0)
+    throw new Error(`--timeout must be a positive integer; received '${rawTimeout ?? ""}'.`);
+  return omitUndefined({
     snapshot,
+    scene,
     allScenes,
     timeoutMs,
-    json,
-    ...(scene === undefined ? {} : { scene }),
-    ...(name === undefined ? {} : { name }),
-    ...(out === undefined ? {} : { out }),
-  };
+    json: parsed.switches.has("--json"),
+    name: parsed.values.get("--name"),
+    out: parsed.values.get("--out"),
+  });
 }
 
 export function parseObsOptions(arguments_: readonly string[]): ObsCommandOptions {
-  const values = [...arguments_];
-  if (values.shift() !== "obs") throw new Error(`Expected the 'obs' command.\n\n${OBS_HELP}`);
-  let project: string | undefined;
-  let obsUrl: string | undefined;
-  let password: string | undefined;
-  let url: string | undefined;
+  const parsed = parseCommand(arguments_, {
+    command: "obs",
+    help: OBS_HELP,
+    valueFlags: new Set(["--project", "--obs-url", "--password", "--url"]),
+    switches: new Set<string>(),
+  });
+  return omitUndefined({
+    project: requiredFlag(parsed, "--project", OBS_HELP),
+    obsUrl: requiredFlag(parsed, "--obs-url", OBS_HELP),
+    url: requiredFlag(parsed, "--url", OBS_HELP),
+    password: parsed.values.get("--password"),
+  });
+}
 
-  while (values.length > 0) {
-    const flag = values.shift();
-    switch (flag) {
-      case "--project":
-        project = takeValue(flag, values);
-        break;
-      case "--obs-url":
-        obsUrl = takeValue(flag, values);
-        break;
-      case "--password":
-        password = takeValue(flag, values);
-        break;
-      case "--url":
-        url = takeValue(flag, values);
-        break;
-      default:
-        throw new Error(`Unknown option '${flag ?? ""}'.\n\n${OBS_HELP}`);
-    }
+/** Consume each value immediately so a missing argument cannot be mistaken for the next flag. */
+function parseCommand(arguments_: readonly string[], spec: CommandSpec): ParsedCommand {
+  const remaining = [...arguments_];
+  if (remaining.shift() !== spec.command)
+    throw new Error(`Expected the '${spec.command}' command.\n\n${spec.help}`);
+  const values = new Map<string, string>();
+  const switches = new Set<string>();
+  while (remaining.length > 0) {
+    const flag = remaining.shift() ?? "";
+    if (spec.valueFlags.has(flag)) values.set(flag, takeValue(flag, remaining));
+    else if (spec.switches.has(flag)) switches.add(flag);
+    else throw new Error(`Unknown option '${flag}'.\n\n${spec.help}`);
   }
+  return { values, switches };
+}
 
-  if (project === undefined) throw new Error(`--project is required.\n\n${OBS_HELP}`);
-  if (obsUrl === undefined) throw new Error(`--obs-url is required.\n\n${OBS_HELP}`);
-  if (url === undefined) throw new Error(`--url is required.\n\n${OBS_HELP}`);
-  return {
-    project,
-    obsUrl,
-    url,
-    ...(password === undefined ? {} : { password }),
-  };
+function requiredFlag(parsed: ParsedCommand, flag: string, help: string): string {
+  const value = parsed.values.get(flag);
+  if (value === undefined) throw new Error(`${flag} is required.\n\n${help}`);
+  return value;
 }
 
 function takeValue(flag: string, values: string[]): string {

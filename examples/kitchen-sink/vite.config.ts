@@ -23,5 +23,5 @@ export const viteConfig = defineConfig({
   },
 });
 
-// eslint-disable-next-line no-restricted-syntax -- Vite discovers configuration through a default export.
+// oxlint-disable-next-line import/no-default-export -- Vite discovers configuration through a default export.
 export default viteConfig;

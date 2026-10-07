@@ -1,7 +1,11 @@
+import { z } from "zod";
+interface StoreWithContextGetSnapshot {
+  readonly context: unknown;
+}
 /** Typed references and wire values for state streamed to hydrated frames. */
 
 interface StoreWithContext {
-  getSnapshot(): { readonly context: unknown };
+  getSnapshot(): StoreWithContextGetSnapshot;
 }
 
 declare const storeType: unique symbol;
@@ -31,6 +35,7 @@ export function defineRemoteStore<TStore extends StoreWithContext>(
 ): RemoteStoreRef<TStore> {
   if (options.id.length === 0) throw new TypeError("Remote store ID must not be empty.");
   if (options.url.length === 0) throw new TypeError("Remote store URL must not be empty.");
+  // oxlint-disable-next-line house/no-object-freeze -- The reference carries immutable application-owned routing into a frame.
   return Object.freeze({ id: options.id, url: options.url });
 }
 
@@ -44,13 +49,19 @@ export function encodeRemoteStoreSnapshot(snapshot: RemoteStoreSnapshot<unknown>
   return JSON.stringify(snapshot);
 }
 
-/** Decodes an SSE data field, ignoring malformed or unrelated messages. */
-export function decodeRemoteStoreSnapshot(data: string): RemoteStoreSnapshot<unknown> | undefined {
-  let value: unknown;
+export const RemoteStoreWireSchema = z
+  .object({ context: z.unknown() })
+  .loose()
+  .refine((value) => Object.hasOwn(value, "context"));
+export type RemoteStoreWire = z.output<typeof RemoteStoreWireSchema>;
+
+/** Decode only messages carrying a context field; unrelated or malformed data is ignored. */
+export function decodeRemoteStoreSnapshot(
+  data: string,
+): RemoteStoreSnapshot<RemoteStoreWire["context"]> | undefined {
   try {
-    value = JSON.parse(data) as unknown;
+    return RemoteStoreWireSchema.safeParse(JSON.parse(data)).data;
   } catch {
     return undefined;
   }
-  return typeof value === "object" && value !== null && "context" in value ? value : undefined;
 }

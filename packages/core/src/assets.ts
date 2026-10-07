@@ -1,3 +1,12 @@
+interface ResolvedUrlAsset {
+  readonly kind: "url";
+  readonly url: string;
+}
+
+interface ResolvedFileAsset {
+  readonly kind: "file";
+  readonly path: string;
+}
 /** A project-relative asset reference resolved independently by each target. */
 export interface AssetRef {
   readonly kind: "asset";
@@ -19,8 +28,7 @@ export interface AssetResolutionContext {
 }
 
 /** A target-ready HTTP URL or local file path. */
-export type ResolvedAsset =
-  { readonly kind: "url"; readonly url: string } | { readonly kind: "file"; readonly path: string };
+export type ResolvedAsset = ResolvedUrlAsset | ResolvedFileAsset;
 
 /** Resolves project assets into locations consumable by a specific target. */
 export interface AssetResolver {

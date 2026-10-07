@@ -1,3 +1,4 @@
+import { z } from "zod";
 /** Base class for errors raised by the OBS target. */
 export class ObsTargetError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -44,4 +45,24 @@ export class ObsTargetDisposedError extends ObsTargetError {
     super(`OBS target '${targetId}' is disposed.`);
     this.name = "ObsTargetDisposedError";
   }
+}
+
+export const ObsErrorDetailsSchema = z.object({
+  code: z.number().optional().catch(undefined),
+  cause: z.unknown().optional(),
+});
+export type ObsErrorDetails = z.output<typeof ObsErrorDetailsSchema>;
+
+/** Follow error causes until an OBS code appears; a visited set also handles cyclic error chains. */
+export function readObsErrorCode(cause: unknown): number | undefined {
+  let current: unknown = cause;
+  const visited = new Set<unknown>();
+  while (!visited.has(current)) {
+    const parsed = ObsErrorDetailsSchema.safeParse(current);
+    if (!parsed.success) return undefined;
+    visited.add(current);
+    if (parsed.data.code !== undefined) return parsed.data.code;
+    current = parsed.data.cause;
+  }
+  return undefined;
 }

@@ -43,44 +43,50 @@ export function validateManagedOnlyPlan(
   const errors: string[] = [];
 
   for (const operation of plan.operations) {
-    switch (operation.kind) {
-      case "create-scene": {
-        const parsed = parseManagedName(operation.sceneName);
-        if (parsed?.projectId !== projectId) errors.push(unmanaged(operation));
-        break;
-      }
-      case "create-input": {
-        const parsed = parseManagedName(operation.inputName);
-        if (parsed?.projectId !== projectId || parsed.kind !== "source") {
-          errors.push(unmanaged(operation));
-        }
-        break;
-      }
-      case "set-transform":
-      case "set-order":
-      case "set-enabled":
-        if (
-          operation.placement.kind === "existing" &&
-          !sceneUuids.has(operation.placement.sceneUuid)
-        ) {
-          errors.push(unmanaged(operation));
-        }
-        break;
-      case "remove-placement":
-      case "remove-scene":
-        if (!sceneUuids.has(operation.sceneUuid)) errors.push(unmanaged(operation));
-        break;
-      case "remove-input":
-        if (!inputUuids.has(operation.inputUuid)) errors.push(unmanaged(operation));
-        break;
-      case "create-placement":
-      case "set-input-settings":
-        break;
-    }
+    if (!isManagedOperation(operation, projectId, sceneUuids, inputUuids))
+      errors.push(unmanaged(operation));
   }
   return errors;
 }
 
 function unmanaged(operation: ObsOperation): string {
   return `Operation '${operation.key}' touches a resource outside the managed project namespace.`;
+}
+
+/** Creation names and destructive UUIDs must both belong to the same managed namespace. */
+function isManagedOperation(
+  operation: ObsOperation,
+  projectId: ProjectId,
+  sceneUuids: ReadonlySet<string>,
+  inputUuids: ReadonlySet<string>,
+): boolean {
+  if (operation.kind === "create-scene")
+    return parseManagedName(operation.sceneName)?.projectId === projectId;
+  if (operation.kind === "create-input") {
+    const parsed = parseManagedName(operation.inputName);
+    return parsed?.projectId === projectId && parsed.kind === "source";
+  }
+  return hasManagedAddress(operation, sceneUuids, inputUuids);
+}
+/** Newly created references are safe; observed placement and removal addresses require membership. */
+function hasManagedAddress(
+  operation: ObsOperation,
+  sceneUuids: ReadonlySet<string>,
+  inputUuids: ReadonlySet<string>,
+): boolean {
+  switch (operation.kind) {
+    case "set-transform":
+    case "set-order":
+    case "set-enabled":
+      return (
+        operation.placement.kind !== "existing" || sceneUuids.has(operation.placement.sceneUuid)
+      );
+    case "remove-placement":
+    case "remove-scene":
+      return sceneUuids.has(operation.sceneUuid);
+    case "remove-input":
+      return inputUuids.has(operation.inputUuid);
+    default:
+      return true;
+  }
 }

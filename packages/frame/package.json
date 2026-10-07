@@ -61,7 +61,8 @@
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
     "@strangecyan/vignette": "workspace:^",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "zod": "4.6.5"
   },
   "peerDependencies": {
     "react": "^19.2.0",

@@ -48,7 +48,7 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 
 ## Development
 
-Requires Node 22 or newer and Corepack.
+Requires Node 22.18 or newer and Corepack.
 
 ```sh
 corepack enable
@@ -59,6 +59,14 @@ pnpm test
 pnpm lint
 pnpm format:check
 ```
+
+`pnpm lint` runs Oxlint with type-aware checks and the local `anti-slop` and `house` plugins copied
+from `iroh-http`. `pnpm format` writes Oxfmt formatting; `pnpm format:check` checks it. The copied
+plugin sources in `tools/oxlint` are excluded from linting and formatting so they remain identical
+to the upstream rules.
+
+Browser tests start their own kitchen-sink server. If port 4173 is occupied, run
+`VIGNETTE_TEST_PORT=45073 pnpm test:e2e` to select another port.
 
 To capture the first scene from a running composer or a saved snapshot:
 

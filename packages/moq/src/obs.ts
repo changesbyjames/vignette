@@ -11,6 +11,7 @@ import { DEFAULT_MOQ_LATENCY_MS, type MoqSource } from "./index.js";
 export const moqObsCodec: ObsSourceCodec<MoqSource> = {
   kind: "source:moq",
   inputKinds: ["moq_source"],
+  /** Choose an available MoQ input kind and translate only supported source settings for that codec. */
   compile(source, context) {
     const inputKind = selectInputKind(this.inputKinds, context.availableInputKinds);
     if (inputKind === undefined) {

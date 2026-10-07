@@ -1,3 +1,4 @@
+import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   projectId,
   sceneId,
@@ -10,6 +11,21 @@ import { describe, expect, it } from "vitest";
 
 import { Broadcast, ColorSource, Scene, Sources } from "./primitives.js";
 import { createComposerRoot } from "./root.js";
+
+interface StoreShowProps {
+  readonly store: ReturnType<typeof createStore>;
+}
+
+interface MakeRootAssetsAssets {
+  readonly name: string;
+  readonly url: string;
+  readonly integrity?: `sha256-${string}`;
+}
+
+interface MakeRootAssets {
+  readonly version: 1;
+  readonly assets: readonly MakeRootAssetsAssets[];
+}
 
 describe("ComposerRoot.settled", () => {
   it("flushes external-store changes and resolves the latest synchronous change", async () => {
@@ -62,7 +78,7 @@ describe("ComposerRoot.settled", () => {
   });
 });
 
-function StoreShow(props: { readonly store: ReturnType<typeof createStore> }) {
+function StoreShow(props: StoreShowProps) {
   const color = useSyncExternalStore(props.store.subscribe, props.store.get);
   return (
     <Broadcast>
@@ -90,20 +106,13 @@ function createStore(initial: string) {
   };
 }
 
-function makeRoot(assets?: {
-  readonly version: 1;
-  readonly assets: readonly {
-    readonly name: string;
-    readonly url: string;
-    readonly integrity?: `sha256-${string}`;
-  }[];
-}) {
+function makeRoot(assets?: MakeRootAssets) {
   const layoutEngine: LayoutEngine = { layout: () => [] };
   return createComposerRoot({
     projectId: projectId("settled"),
     canvas: { width: 1280, height: 720 },
     layoutEngine,
-    ...(assets === undefined ? {} : { assets }),
+    ...omitUndefined({ assets: assets }),
   });
 }
 

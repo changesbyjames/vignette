@@ -21,9 +21,15 @@ import { validateManagedOnlyPlan, validateObsPhaseOrder } from "./obs-plan-match
 
 describe("applyFakeObsPlan", () => {
   it("converges and preserves unmanaged resources after every partial boundary", () => {
+    // Interrupt execution at every operation boundary, then verify replanning converges without changing foreign resources.
     const desired = snapshot();
     const initial = emptyObserved();
-    const first = planObsUpdate({ desired, observed: initial, resolvedAssets: new Map(), codecs });
+    const first = planObsUpdate({
+      desired,
+      observed: initial,
+      resolvedAssets: new Map(),
+      codecs,
+    });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     expect(validateObsPhaseOrder(first.plan)).toEqual([]);
@@ -66,6 +72,12 @@ describe("applyFakeObsPlan", () => {
 
 function snapshot(): CompiledSnapshot {
   const source = sourceId("background");
+  const fixtureSource1 = {
+    id: source,
+    kind: "source:color",
+    color: "#112233",
+    size: { width: 1920, height: 1080 },
+  } satisfies ColorSource;
   return {
     revision: 1,
     projectId: projectId("fake-test"),
@@ -74,12 +86,7 @@ function snapshot(): CompiledSnapshot {
     sources: [
       {
         id: source,
-        definition: {
-          id: source,
-          kind: "source:color",
-          color: "#112233",
-          size: { width: 1920, height: 1080 },
-        } as ColorSource,
+        definition: fixtureSource1,
       },
     ],
     scenes: [

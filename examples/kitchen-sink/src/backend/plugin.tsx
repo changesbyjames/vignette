@@ -1,5 +1,7 @@
+import { z } from "zod";
+import { omitUndefined } from "@strangecyan/vignette-core";
 import { getRequestListener } from "@hono/node-server";
-import { toSseEvent, type AssetManifest } from "@strangecyan/vignette-core";
+import { toSseEvent, AssetManifestWireSchema } from "@strangecyan/vignette-core";
 import { createSceneStore, SceneProvider } from "@strangecyan/vignette-frame";
 import { createComposerRoot } from "@strangecyan/vignette";
 import { Hono } from "hono";
@@ -14,12 +16,12 @@ import {
 } from "../server/kitchen-sink.js";
 import { createKitchenSinkObsRuntime } from "../server/kitchen-sink-obs.js";
 
-const DEV_ORIGIN = "http://127.0.0.1:4173";
-
 export function vignetteComposer(): Plugin {
   return {
     name: "vignette-node-composer",
+    /** Bind the composer to this server's origin and release its streams when the server closes. */
     async configureServer(server) {
+      const origin = `http://127.0.0.1:${String(server.config.server.port ?? 4173)}`;
       const reportError = (error: Error) => {
         server.config.logger.error(error.stack ?? error.message);
       };
@@ -27,12 +29,12 @@ export function vignetteComposer(): Plugin {
         server.ssrLoadModule("/src/show.tsx"),
         server.ssrLoadModule("virtual:vignette/assets"),
       ]);
-      const scene = createSceneStore({ origin: DEV_ORIGIN });
+      const scene = createSceneStore({ origin });
       const root = createComposerRoot({
         projectId: KITCHEN_SINK_PROJECT_ID,
         canvas: KITCHEN_SINK_CANVAS,
         extensions: KITCHEN_SINK_EXTENSIONS,
-        assets: (loaded[1] as { assets: AssetManifest }).assets,
+        assets: z.object({ assets: AssetManifestWireSchema }).parse(loaded[1]).assets,
         onError: reportError,
       });
       await root.render(
@@ -56,20 +58,18 @@ export function vignetteComposer(): Plugin {
           next();
           return;
         }
-        void Promise.resolve(handleRuntime(request, response)).catch((error: unknown) => {
-          next(error);
+        void Promise.resolve(handleRuntime(request, response)).catch((cause: unknown) => {
+          next(cause);
         });
       });
 
       const abort = new AbortController();
-      let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined;
-      let consumer: Promise<void> | undefined;
+      let runtime: ReturnType<typeof createKitchenSinkObsRuntime> | undefined = undefined;
+      let consumer: Promise<void> | undefined = undefined;
       if (process.env.VIGNETTE_ENABLE_EMBEDDED === "1") {
         const connectedRuntime = createKitchenSinkObsRuntime({
           url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-          ...(process.env.VIGNETTE_OBS_PASSWORD === undefined
-            ? {}
-            : { password: process.env.VIGNETTE_OBS_PASSWORD }),
+          ...omitUndefined({ password: process.env.VIGNETTE_OBS_PASSWORD }),
           onError: reportError,
         });
         runtime = connectedRuntime;
@@ -87,8 +87,12 @@ export function vignetteComposer(): Plugin {
   };
 }
 
-function readShowExport(module: unknown): ComponentType {
-  const Show = (module as Record<string, unknown> | null)?.Show;
-  if (typeof Show !== "function") throw new Error("The kitchen-sink composer must export Show.");
-  return Show as ComponentType;
+const ShowModuleSchema = z.object({
+  Show: z.custom<ComponentType>((value) => value instanceof Function),
+});
+type ShowModule = z.output<typeof ShowModuleSchema>;
+
+function readShowExport(module: Parameters<typeof ShowModuleSchema.parse>[0]): ComponentType {
+  const parsed: ShowModule = ShowModuleSchema.parse(module);
+  return parsed.Show;
 }

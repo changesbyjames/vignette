@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { projectId, sceneId, type BrowserSource } from "@strangecyan/vignette-core";
 import { Broadcast, Scene, createComposerRoot } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
@@ -5,6 +6,14 @@ import { describe, expect, it } from "vitest";
 import { frame } from "./definition.js";
 import { createSceneStore, SceneProvider } from "./scene.js";
 import { View } from "./view.js";
+
+interface GreetingParams {
+  name: string;
+}
+
+interface ObjectSchemaResult<Params extends object> {
+  parse(input: Parameters<z.ZodType<Params>["parse"]>[0]): Params;
+}
 
 describe("frame View", () => {
   it("accepts supported metadata without a build transform", () => {
@@ -15,7 +24,7 @@ describe("frame View", () => {
     };
     const greeting = frame({
       metadata,
-      params: { parse: (input: unknown) => input as object },
+      params: z.object({}).loose(),
       view: () => <div />,
     });
 
@@ -28,9 +37,8 @@ describe("frame View", () => {
       moduleUrl: "/src/greeting.frame.tsx",
       exportName: "greeting",
     })({
-      params: objectSchema<{ name: string }>((input) => {
-        if (!isRecord(input) || typeof input.name !== "string") throw new Error("name required");
-        return { name: input.name };
+      params: objectSchema<GreetingParams>((input) => {
+        return z.object({ name: z.string({ error: "name required" }) }).parse(input);
       }),
       view: ({ name }) => <div>Hello {name}!</div>,
     });
@@ -57,7 +65,8 @@ describe("frame View", () => {
     const definition = snapshot?.sources[0]?.definition;
     expect(definition?.kind).toBe("source:browser");
     if (definition?.kind !== "source:browser") return;
-    const browserDefinition = definition as BrowserSource;
+    const browserDefinition =
+      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ definition as BrowserSource;
     expect(browserDefinition.url).toContain("/__vignette/frame/greeting-abc123?props=");
     expect(new URL(browserDefinition.url).searchParams.get("props")).toBe('{"name":"James"}');
     expect(snapshot?.scenes[0]?.items[0]?.content).toEqual({
@@ -73,9 +82,8 @@ describe("frame View", () => {
       moduleUrl: "/src/greeting.frame.tsx",
       exportName: "greeting",
     })({
-      params: objectSchema<{ name: string }>((input) => {
-        if (!isRecord(input) || typeof input.name !== "string") throw new Error("name required");
-        return { name: input.name };
+      params: objectSchema<GreetingParams>((input) => {
+        return z.object({ name: z.string({ error: "name required" }) }).parse(input);
       }),
       view: ({ name }) => <div>{name}</div>,
     });
@@ -104,7 +112,7 @@ describe("frame View", () => {
       routeKey: "origin-test",
       moduleUrl: "/src/origin.frame.tsx",
       exportName: "greeting",
-    })({ params: passthroughSchema, view: () => <div /> });
+    })({ params: PassthroughSchema, view: () => <div /> });
     const scene = createSceneStore({ origin: "http://localhost:4173" });
     const root = createComposerRoot({
       projectId: projectId("origin-test"),
@@ -125,19 +133,20 @@ describe("frame View", () => {
     const definition = snapshot.sources[0]?.definition;
     expect(definition?.kind).toBe("source:browser");
     if (definition?.kind !== "source:browser") return;
-    expect((definition as BrowserSource).url).toMatch(/^https:\/\/example\.com\//u);
+    expect(
+      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ (
+        definition as BrowserSource
+      ).url,
+    ).toMatch(/^https:\/\/example\.com\//u);
     await root.dispose();
   });
 });
 
-const passthroughSchema = { parse: (input: unknown) => input as object };
+const PassthroughSchema = z.object({}).loose();
+export type Passthrough = z.output<typeof PassthroughSchema>;
 
 function objectSchema<Params extends object>(
-  parse: (input: unknown) => Params,
-): { parse(input: unknown): Params } {
+  parse: (input: Parameters<z.ZodType<Params>["parse"]>[0]) => Params,
+): ObjectSchemaResult<Params> {
   return { parse };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

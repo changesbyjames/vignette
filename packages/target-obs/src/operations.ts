@@ -1,5 +1,36 @@
 import type { LayerId, SceneId, SourceId } from "@strangecyan/vignette-core";
 
+interface ObsRegistrySceneRef {
+  readonly kind: "registry";
+}
+
+interface ObsManagedSceneRef {
+  readonly kind: "scene";
+  readonly sceneId: SceneId;
+}
+
+interface ObsInputContentRef {
+  readonly kind: "input";
+  readonly sourceId: SourceId;
+}
+
+interface ObsSceneContentRef {
+  readonly kind: "scene";
+  readonly sceneId: SceneId;
+}
+
+interface ObsExistingPlacementRef {
+  readonly kind: "existing";
+  readonly sceneUuid: string;
+  readonly sceneItemId: number;
+}
+
+interface ObsCreatedPlacementRef {
+  readonly kind: "created";
+  readonly layerId: LayerId;
+  readonly scene: ObsSceneRef;
+}
+
 /** JSON primitive accepted by obs-websocket settings. */
 export type ObsJsonPrimitive = string | number | boolean | null;
 /** Recursive JSON value accepted by obs-websocket settings. */
@@ -46,26 +77,13 @@ interface ObsOperationBase {
 }
 
 /** Symbolic reference to the registry or a managed scene. */
-export type ObsSceneRef =
-  { readonly kind: "registry" } | { readonly kind: "scene"; readonly sceneId: SceneId };
+export type ObsSceneRef = ObsRegistrySceneRef | ObsManagedSceneRef;
 
 /** Symbolic reference to managed input or nested-scene content. */
-export type ObsContentRef =
-  | { readonly kind: "input"; readonly sourceId: SourceId }
-  | { readonly kind: "scene"; readonly sceneId: SceneId };
+export type ObsContentRef = ObsInputContentRef | ObsSceneContentRef;
 
 /** Existing or newly-created scene-item placement reference. */
-export type ObsPlacementRef =
-  | {
-      readonly kind: "existing";
-      readonly sceneUuid: string;
-      readonly sceneItemId: number;
-    }
-  | {
-      readonly kind: "created";
-      readonly layerId: LayerId;
-      readonly scene: ObsSceneRef;
-    };
+export type ObsPlacementRef = ObsExistingPlacementRef | ObsCreatedPlacementRef;
 
 /** Non-destructive operation that creates a managed scene. */
 export interface CreateSceneOperation extends ObsOperationBase {
@@ -202,8 +220,47 @@ export function validateOperationDependencies(
   }
 
   const byKey = new Map(operations.map((operation) => [operation.key, operation]));
+  errors.push(...validateDependencyOrder(operations, byKey, phaseIndex, operationIndex));
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const cycles = new Set<string>();
+  const visit =
+    /** Use separate visiting and visited sets to detect dependency cycles without revisiting completed nodes. */
+    (key: string): void => {
+      if (visited.has(key)) return;
+      const operation = byKey.get(key);
+      if (operation === undefined) return;
+      visiting.add(key);
+      for (const dependencyKey of operation.dependsOn) {
+        if (visiting.has(dependencyKey)) {
+          cycles.add(`Dependency cycle detected between '${key}' and '${dependencyKey}'.`);
+        } else {
+          visit(dependencyKey);
+        }
+      }
+      visiting.delete(key);
+      visited.add(key);
+    };
+  for (const operation of operations) visit(operation.key);
+
+  return [...errors, ...cycles];
+}
+
+/** Check presence and execution order separately from graph cycle detection. */
+function validateDependencyOrder(
+  operations: readonly ObsOperation[],
+  byKey: ReadonlyMap<string, ObsOperation>,
+  phaseIndex: ReadonlyMap<ObsPlanPhase, number>,
+  operationIndex: ReadonlyMap<string, number>,
+): readonly string[] {
+  const errors: string[] = [];
   for (const operation of operations) {
+    // Reject missing dependencies and references that execute later, including forward edges within the same phase.
+
     for (const dependencyKey of operation.dependsOn) {
+      // Reject missing dependencies and references that execute later, including forward edges within the same phase.
+
       const dependency = byKey.get(dependencyKey);
       if (dependency === undefined) {
         errors.push(`Operation '${operation.key}' depends on missing '${dependencyKey}'.`);
@@ -215,8 +272,7 @@ export function validateOperationDependencies(
         errors.push(`Operation '${operation.key}' has a forward dependency on '${dependencyKey}'.`);
       } else if (
         dependencyPhase === operationPhase &&
-        (operationIndex.get(dependencyKey) ?? Number.POSITIVE_INFINITY) >=
-          (operationIndex.get(operation.key) ?? -1)
+        isForwardInPhase(dependencyKey, operation.key, operationIndex)
       ) {
         errors.push(
           `Operation '${operation.key}' has a same-phase forward dependency on '${dependencyKey}'.`,
@@ -225,25 +281,14 @@ export function validateOperationDependencies(
     }
   }
 
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const cycles = new Set<string>();
-  const visit = (key: string): void => {
-    if (visited.has(key)) return;
-    const operation = byKey.get(key);
-    if (operation === undefined) return;
-    visiting.add(key);
-    for (const dependencyKey of operation.dependsOn) {
-      if (visiting.has(dependencyKey)) {
-        cycles.add(`Dependency cycle detected between '${key}' and '${dependencyKey}'.`);
-      } else {
-        visit(dependencyKey);
-      }
-    }
-    visiting.delete(key);
-    visited.add(key);
-  };
-  for (const operation of operations) visit(operation.key);
+  return errors;
+}
 
-  return [...errors, ...cycles];
+/** Missing positions count as forward dependencies rather than accidentally passing ordering. */
+function isForwardInPhase(
+  dependency: string,
+  operation: string,
+  indexes: ReadonlyMap<string, number>,
+): boolean {
+  return (indexes.get(dependency) ?? Number.POSITIVE_INFINITY) >= (indexes.get(operation) ?? -1);
 }

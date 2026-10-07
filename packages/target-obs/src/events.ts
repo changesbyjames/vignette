@@ -3,7 +3,7 @@ import type { ObsTransport } from "./transport.js";
 export interface ObsEventHandlers {
   readonly onCollectionChanging: () => void;
   readonly onCollectionChanged: () => void;
-  readonly onConnectionClosed: (error: unknown) => void;
+  readonly onConnectionClosed: (cause: unknown) => void;
   readonly onRemoteStateChanged: () => void;
 }
 
