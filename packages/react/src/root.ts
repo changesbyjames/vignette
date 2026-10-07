@@ -409,7 +409,9 @@ class ComposerRootImpl implements ComposerRoot {
 let defaultLayoutEngine: Promise<LayoutEngine> | undefined = undefined;
 
 function loadDefaultLayoutEngine(): Promise<LayoutEngine> {
-  defaultLayoutEngine ??= import(/* @vite-ignore */ "@strangecyan/vignette-core/layout-yoga").then(
+  // A literal, analyzable specifier: bundlers must include the engine (resolved under the host's
+  // export conditions, e.g. `workerd`) because bundled Workers cannot resolve bare imports at runtime.
+  defaultLayoutEngine ??= import("@strangecyan/vignette-core/layout-yoga").then(
     (module: LoadDefaultLayoutEngineModule) => Promise.resolve(module.yogaLayoutEngine),
   );
   return defaultLayoutEngine;
