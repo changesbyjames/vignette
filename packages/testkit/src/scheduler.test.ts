@@ -1,10 +1,12 @@
 import {
   asset,
+  consumeStream,
   type AssetResolver,
   type BrowserSource,
   type ColorSource,
   type CompiledSnapshot,
   type ImageSource,
+  type StreamMessage,
 } from "@strangecyan/vignette-core";
 import {
   createObsTargetWithTransport,
@@ -21,6 +23,66 @@ import { FakeObsTransport } from "./fake-obs-transport.js";
 import { ManualClock } from "./manual-clock.js";
 
 describe("OBS convergence scheduler", () => {
+  it("settles the preceding snapshot before selecting a scene from the stream", async () => {
+    const transport = new FakeObsTransport();
+    enqueueEmptyObservation(transport);
+    const connected = deferred<undefined>();
+    const createdScene = deferred<ObsJsonObject>();
+    const originalConnect = transport.connect.bind(transport);
+    const connect = vi.spyOn(transport, "connect").mockImplementation(async (options) => {
+      await connected.promise;
+      return originalConnect(options);
+    });
+    transport
+      .enqueue("CreateScene", createdScene.promise, {})
+      .enqueue("CreateInput", { inputUuid: "input-background", sceneItemId: 1 })
+      .enqueue("CreateSceneItem", { sceneItemId: 2 });
+    enqueueConvergedObservation(transport, "scheduler-test");
+    const runtime = new OBSRuntime({ projectId: "scheduler-test", transport });
+    const select = vi.spyOn(runtime, "event");
+    async function* messages(): AsyncIterable<StreamMessage> {
+      yield await Promise.resolve({
+        kind: "setup",
+        projectId: "scheduler-test",
+        manifest: { version: 1, assets: [] },
+        extensions: [],
+      });
+      yield { kind: "update", snapshot: snapshot(1) };
+      yield { kind: "event", event: { id: "select-main", kind: "scene:select", sceneId: "main" } };
+    }
+    const consuming = consumeStream(runtime, messages());
+    // Attach rejection handling before releasing either deliberately blocked operation.
+    const result = consuming.then(
+      () => true,
+      () => false,
+    );
+    try {
+      // Wait through asset setup, then hold the connection open as the stream delivers its event.
+      await expect.poll(() => select.mock.calls.length).toBe(1);
+      expect(connect).toHaveBeenCalledTimes(1);
+      connected.resolve(undefined);
+      await expect
+        .poll(() => transport.requests.some((request) => request.requestType === "CreateScene"))
+        .toBe(true);
+      expect(
+        transport.requests.some((request) => request.requestType === "SetCurrentProgramScene"),
+      ).toBe(false);
+      createdScene.resolve({});
+      expect(await result).toBe(true);
+      expect(runtime.getStatus().phase).toBe("settled");
+      expect(connect).toHaveBeenCalledTimes(1);
+      expect(transport.requests.at(-1)).toEqual({
+        requestType: "SetCurrentProgramScene",
+        requestData: { sceneName: managedSceneName("scheduler-test", "main") },
+      });
+    } finally {
+      connected.resolve(undefined);
+      createdScene.resolve({});
+      await runtime.dispose();
+      await result;
+    }
+  });
+
   it("refuses a project ID that could escape the managed OBS namespace", () => {
     expect(() =>
       createObsTargetWithTransport(
@@ -28,6 +90,115 @@ describe("OBS convergence scheduler", () => {
         new FakeObsTransport(),
       ),
     ).toThrow(/OBS project ID 'show::other' is invalid/u);
+  });
+
+  it("waits for reconvergence before selecting a scene after a connection loss", async () => {
+    const project = "scheduler-test";
+    const transport = new FakeObsTransport();
+    enqueueConvergedObservation(transport, project);
+    enqueueConvergedObservation(transport, project);
+    const clock = new ManualClock();
+    const target = new OBSRuntime({
+      projectId: project,
+      transport,
+      retry: { initialDelayMs: 50, maximumDelayMs: 50, jitterRatio: 0 },
+      schedulerRuntime: {
+        now: () => clock.now,
+        random: () => 0.5,
+        setTimeout: (callback, delay) => clock.setTimeout(callback, delay),
+        clearTimeout: (handle) => {
+          clock.clearTimeout(handle);
+        },
+      },
+    });
+    await target.setup({
+      projectId: project,
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
+    target.update(snapshot(1));
+    await target.whenSettled(1);
+
+    const connected = deferred<undefined>();
+    const originalConnect = transport.connect.bind(transport);
+    const connect = vi.spyOn(transport, "connect").mockImplementation(async (options) => {
+      await connected.promise;
+      return originalConnect(options);
+    });
+    transport.emit("ConnectionClosed", { code: 1006 });
+    clock.advanceBy(50);
+    await eventually(() => connect.mock.calls.length === 1);
+    const selection = target.event({
+      id: "select-after-reconnect",
+      kind: "scene:select",
+      sceneId: "main",
+    });
+    const result = selection.then(
+      () => true,
+      () => false,
+    );
+    try {
+      await Promise.resolve();
+      expect(connect).toHaveBeenCalledTimes(1);
+      expect(
+        transport.requests.some((request) => request.requestType === "SetCurrentProgramScene"),
+      ).toBe(false);
+      connected.resolve(undefined);
+      expect(await result).toBe(true);
+      expect(transport.connections).toHaveLength(2);
+      expect(target.getStatus().phase).toBe("settled");
+      expect(transport.requests.at(-1)?.requestType).toBe("SetCurrentProgramScene");
+    } finally {
+      connected.resolve(undefined);
+      await target.dispose();
+      await result;
+    }
+  });
+
+  it("rejects a waiting scene selection if the target is disposed", async () => {
+    const transport = new FakeObsTransport();
+    enqueueEmptyObservation(transport);
+    const createdScene = deferred<ObsJsonObject>();
+    transport.enqueue("CreateScene", createdScene.promise);
+    const target = new OBSRuntime({ projectId: "scheduler-test", transport });
+    await target.setup({
+      projectId: "scheduler-test",
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
+    target.update(snapshot(1));
+    await eventually(() =>
+      transport.requests.some((request) => request.requestType === "CreateScene"),
+    );
+    const selection = target.event({
+      id: "select-before-disposal",
+      kind: "scene:select",
+      sceneId: "main",
+    });
+    const rejected = expect(selection).rejects.toThrow(/disposed/u);
+    await target.dispose();
+    createdScene.resolve({});
+    await rejected;
+    expect(
+      transport.requests.some((request) => request.requestType === "SetCurrentProgramScene"),
+    ).toBe(false);
+  });
+
+  it("rejects scene selection when the preceding snapshot fails preflight", async () => {
+    const transport = new FakeObsTransport();
+    const target = new OBSRuntime({ projectId: "another-project", transport });
+    await target.setup({
+      projectId: "another-project",
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
+    target.update(snapshot(1));
+    await expect(
+      target.event({ id: "select-invalid-snapshot", kind: "scene:select", sceneId: "main" }),
+    ).rejects.toThrow(/Snapshot is for project/u);
+    expect(transport.connections).toHaveLength(0);
+    expect(transport.requests).toHaveLength(0);
+    await target.dispose();
   });
 
   it("rejects a snapshot for another project before contacting OBS", async () => {
@@ -595,4 +766,14 @@ async function eventually(predicate: () => boolean): Promise<void> {
     await Promise.resolve();
   }
   throw new Error("Condition did not become true.");
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {
+    throw new Error("Promise has not been initialized.");
+  };
+  const promise = new Promise<T>((finish) => {
+    resolve = finish;
+  });
+  return { promise, resolve };
 }

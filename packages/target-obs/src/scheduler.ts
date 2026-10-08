@@ -155,11 +155,18 @@ export class ObsConvergenceScheduler implements RenderTarget {
     this.scheduleDrain();
   }
 
-  /** Resolve completed revisions immediately and reject disposed, terminal, or failed revisions before registering a waiter. */
+  /** Resolve ready revisions and reject disposed, terminal, or failed revisions before registering a waiter. */
   whenSettled(revision: number): Promise<TargetApplyReceipt> {
     if (this.disposed) return Promise.reject(new ObsTargetDisposedError(this.id));
     if (this.terminal) return Promise.reject(new Error(`OBS target '${this.id}' has failed.`));
-    if (this.settledRevision >= revision) return Promise.resolve(this.receipt(revision));
+    // A previous receipt is stale while reconnecting or reconverging the same revision.
+    if (
+      this.settledRevision >= revision &&
+      this.pending === undefined &&
+      this.status.getSnapshot().phase === "settled"
+    ) {
+      return Promise.resolve(this.receipt(revision));
+    }
     if (revision <= this.failedRevision && this.failedError !== undefined) {
       return Promise.reject(this.failedError);
     }
@@ -175,6 +182,10 @@ export class ObsConvergenceScheduler implements RenderTarget {
   }
 
   async event(event: StreamEvent): Promise<void> {
+    this.assertActive();
+    // Updates enqueue asynchronous convergence. A subsequent stream command must wait for
+    // that work so it neither opens a second connection nor selects a scene before creation.
+    if (this.desiredRevision >= 0) await this.whenSettled(this.desiredRevision);
     this.assertActive();
     await this.ensureObserved();
     await this.options.transport.call("SetCurrentProgramScene", {

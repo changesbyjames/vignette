@@ -48,6 +48,10 @@ root-relative browser source fails preflight, putting the target into its `error
 snapshots converge through the scheduler; scene-selection events remain one-shot commands. Use
 `getStatus()` and `whenSettled(revision)` for observability.
 
+A scene-selection event waits for the preceding snapshot to settle before it selects the managed
+scene. This also applies when reconnecting or replaying an already settled revision: the runtime
+first restores its connection and converges again. Publishing snapshots remains asynchronous.
+
 The main entrypoint also exports the pure planner, executor, operation model, naming helpers,
 transport interfaces, and codec extension seam. Supply custom `ObsSourceCodec` values through
 `extensions`. `createObsTargetWithTransport` and an injected transport are intended for controlled
