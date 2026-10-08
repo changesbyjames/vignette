@@ -55,14 +55,19 @@ function patchScene(
   resolvedUrls: ReadonlyMap<string, string>,
   path: string,
 ): void {
-  const desired = new Set<string>();
+  const desired = new Set(scene.items.map((item) => item.id));
   const sources = new Map(snapshot.sources.map((source) => [source.id, source]));
   const scenes = new Map(snapshot.scenes.map((candidate) => [candidate.id, candidate]));
 
   for (const [order, item] of scene.items.entries()) {
-    const key = item.id;
-    desired.add(key);
-    const record = ensureRecord(container.ownerDocument, records, sourceRegistry, item, sources);
+    const record = ensureRecord(
+      container.ownerDocument,
+      records,
+      sourceRegistry,
+      item,
+      sources,
+      desired,
+    );
     applyItemFrame(record.wrapper, item);
     record.wrapper.style.zIndex = String(order);
     record.wrapper.dataset.vignetteLayer = item.id;
@@ -107,6 +112,7 @@ function ensureRecord(
   sourceRegistry: DomSourceRegistry,
   item: CompiledItem,
   sources: ReadonlyMap<string, CompiledSource>,
+  desired: ReadonlySet<string>,
 ): LayerRecord {
   const expectedKind = contentKind(item, sources);
 
@@ -116,6 +122,10 @@ function ensureRecord(
     if (!releaseRecord(existing, sourceRegistry)) sourceRegistry.disposeFrom(existing.contentHost);
     disposeRecord(existing);
   }
+
+  const retained =
+    expectedKind === "source:browser" ? reuseBrowserRecord(records, item, desired) : undefined;
+  if (retained !== undefined) return retained;
 
   const wrapper = document.createElement("div");
   const contentHost = document.createElement("div");
@@ -135,6 +145,29 @@ function ensureRecord(
   const record: LayerRecord = { wrapper, contentHost, contentKind: expectedKind };
   records.set(item.id, record);
   return record;
+}
+
+/** Transfer an obsolete browser placement's connected wrapper without resetting its document. */
+function reuseBrowserRecord(
+  records: Map<string, LayerRecord>,
+  item: CompiledItem,
+  desired: ReadonlySet<string>,
+): LayerRecord | undefined {
+  if (item.content.kind !== "source") return undefined;
+  for (const [previousId, previous] of records) {
+    if (
+      desired.has(previousId) ||
+      previous.contentKind !== "source:browser" ||
+      previous.sourceId !== item.content.sourceId
+    )
+      continue;
+    // append() would reset the iframe in browsers without moveBefore(). Keep its host
+    // connected while changing the layer identity and compiled placement geometry.
+    records.delete(previousId);
+    records.set(item.id, previous);
+    return previous;
+  }
+  return undefined;
 }
 
 /** Release incompatible nested or prior source content before mounting the current source definition. */
