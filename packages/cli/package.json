@@ -38,7 +38,6 @@
   },
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
-    "@strangecyan/vignette-moq": "workspace:^",
     "@strangecyan/vignette-target-dom": "workspace:^",
     "@strangecyan/vignette-target-obs": "workspace:^",
     "playwright": "1.61.1",

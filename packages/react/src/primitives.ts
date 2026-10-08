@@ -5,13 +5,10 @@ import type {
   FitMode,
   ImageSource as ImageSourceDefinition,
   Insets,
-  LayerId,
   LayoutStyle,
   MediaFileSource as MediaSourceDefinition,
-  SceneId,
   Size,
   AnySourceDefinition,
-  SourceId,
 } from "@strangecyan/vignette-core";
 import { createElement, type ReactElement, type ReactNode } from "react";
 
@@ -37,8 +34,8 @@ export function Sources(props: ChildrenProps): ReactElement {
 
 /** Props for a scene with an explicit remote identity. */
 export interface SceneProps extends ChildrenProps {
-  readonly id: SceneId;
-  readonly label?: string;
+  readonly id: string;
+  readonly label?: string | undefined;
 }
 
 /** Declares one independently materialized scene. */
@@ -48,7 +45,7 @@ export function Scene(props: SceneProps): ReactElement {
 
 /** Props for a virtual Yoga layout container. */
 export interface BoxProps extends ChildrenProps {
-  readonly style?: LayoutStyle;
+  readonly style?: LayoutStyle | undefined;
 }
 
 /** Groups children for Yoga layout without creating a target object. */
@@ -58,15 +55,15 @@ export function Box(props: BoxProps): ReactElement {
 
 /** Props for placing a source in a scene. */
 export interface LayerProps {
-  readonly id: LayerId;
-  readonly sourceId: SourceId;
-  readonly style?: LayoutStyle;
-  readonly fit?: FitMode;
-  readonly alignment?: ContentAlignment;
-  readonly crop?: Partial<Insets>;
-  readonly visible?: boolean;
-  readonly opacity?: number;
-  readonly rotation?: number;
+  readonly id: string;
+  readonly sourceId: string;
+  readonly style?: LayoutStyle | undefined;
+  readonly fit?: FitMode | undefined;
+  readonly alignment?: ContentAlignment | undefined;
+  readonly crop?: Partial<Insets> | undefined;
+  readonly visible?: boolean | undefined;
+  readonly opacity?: number | undefined;
+  readonly rotation?: number | undefined;
 }
 
 /** Places one declared source in the current scene. */
@@ -76,12 +73,12 @@ export function Layer(props: LayerProps): ReactElement {
 
 /** Props for placing one scene within another. */
 export interface SceneLayerProps {
-  readonly id: LayerId;
-  readonly sceneId: SceneId;
-  readonly style?: LayoutStyle;
-  readonly visible?: boolean;
-  readonly opacity?: number;
-  readonly rotation?: number;
+  readonly id: string;
+  readonly sceneId: string;
+  readonly style?: LayoutStyle | undefined;
+  readonly visible?: boolean | undefined;
+  readonly opacity?: number | undefined;
+  readonly rotation?: number | undefined;
 }
 
 /** Places a nested scene in the current scene. */
@@ -128,11 +125,12 @@ export function ColorSource(props: ColorSourceProps): ReactElement {
 
 /** Props that declare and place an inline browser source together. */
 export interface BrowserViewProps extends Omit<LayerProps, "sourceId"> {
-  readonly sourceId: SourceId;
+  readonly sourceId: string;
   readonly url: string;
-  readonly viewport: Size;
-  readonly label?: string;
-  readonly shutdownWhenHidden?: boolean;
+  /** Page size in CSS pixels. Defaults to the laid-out size of this layer. */
+  readonly viewport?: Size | undefined;
+  readonly label?: string | undefined;
+  readonly shutdownWhenHidden?: boolean | undefined;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { BroadcastCanvas, ProjectId } from "@strangecyan/vignette-core";
+import type { BroadcastCanvas } from "@strangecyan/vignette-core";
 
 export type HostType =
   | "broadcast"
@@ -44,7 +44,7 @@ export interface HostNode {
 }
 
 export interface HostContainer {
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly canvas: BroadcastCanvas;
   readonly children: HostNode[];
   commitRevision: number;

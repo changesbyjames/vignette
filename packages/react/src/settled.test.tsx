@@ -1,14 +1,9 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import {
-  projectId,
-  sceneId,
-  sourceId,
-  type LayoutEngine,
-  type RuntimeMessage,
-} from "@strangecyan/vignette-core";
+import type { LayoutEngine, StreamMessage } from "@strangecyan/vignette-core";
 import { useSyncExternalStore } from "react";
 import { describe, expect, it } from "vitest";
 
+import { defineComposition } from "./composition.js";
 import { Broadcast, ColorSource, Scene, Sources } from "./primitives.js";
 import { createComposerRoot } from "./root.js";
 
@@ -56,7 +51,7 @@ describe("ComposerRoot.settled", () => {
       assets: [{ name: "logo.png", url: "/logo.png", integrity: "sha256-test" }],
     });
     await root.render(<StoreShow store={createStore("#111111")} />);
-    const event = { id: "select-main", kind: "scene:select", sceneId: sceneId("main") } as const;
+    const event = { id: "select-main", kind: "scene:select", sceneId: "main" } as const;
     root.publishEvent(event);
 
     const controller = new AbortController();
@@ -83,9 +78,9 @@ function StoreShow(props: StoreShowProps) {
   return (
     <Broadcast>
       <Sources>
-        <ColorSource id={sourceId("background")} color={color} />
+        <ColorSource id="background" color={color} />
       </Sources>
-      <Scene id={sceneId("main")} />
+      <Scene id="main" />
     </Broadcast>
   );
 }
@@ -108,16 +103,18 @@ function createStore(initial: string) {
 
 function makeRoot(assets?: MakeRootAssets) {
   const layoutEngine: LayoutEngine = { layout: () => [] };
-  return createComposerRoot({
-    projectId: projectId("settled"),
-    canvas: { width: 1280, height: 720 },
-    layoutEngine,
-    ...omitUndefined({ assets: assets }),
-  });
+  return createComposerRoot(
+    defineComposition({
+      id: "settled",
+      canvas: { width: 1280, height: 720 },
+      component: () => null,
+    }),
+    { layoutEngine, ...omitUndefined({ assets: assets }) },
+  );
 }
 
-async function next(iterator: AsyncIterator<RuntimeMessage>): Promise<RuntimeMessage> {
+async function next(iterator: AsyncIterator<StreamMessage>): Promise<StreamMessage> {
   const result = await iterator.next();
-  if (result.done) throw new Error("Runtime message stream ended unexpectedly.");
+  if (result.done) throw new Error("Composer stream ended unexpectedly.");
   return result.value;
 }

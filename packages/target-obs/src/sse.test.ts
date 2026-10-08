@@ -1,13 +1,9 @@
-import {
-  encodeRuntimeMessageSse,
-  projectId,
-  type RuntimeMessage,
-} from "@strangecyan/vignette-core";
+import { encodeStreamMessageSse, type StreamMessage } from "@strangecyan/vignette-core";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { sseRuntimeSource } from "./sse.js";
+import { sseStream } from "./sse.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -27,13 +23,18 @@ afterEach(async () => {
 
 describe("Node SSE runtime source", () => {
   it("decodes the same named-event wire format as the DOM source", async () => {
-    const messages: RuntimeMessage[] = [
-      { kind: "setup", manifest: { version: 1, assets: [] } },
+    const messages: StreamMessage[] = [
+      {
+        kind: "setup",
+        projectId: "sse-test",
+        manifest: { version: 1, assets: [] },
+        extensions: [],
+      },
       {
         kind: "update",
         snapshot: {
           revision: 4,
-          projectId: projectId("sse-test"),
+          projectId: "sse-test",
           canvas: { width: 1280, height: 720 },
           sources: [],
           scenes: [],
@@ -43,7 +44,7 @@ describe("Node SSE runtime source", () => {
     ];
     const server = createServer((_request, response) => {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
-      for (const message of messages) response.write(encodeRuntimeMessageSse(message));
+      for (const message of messages) response.write(encodeStreamMessageSse(message));
     });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -52,9 +53,9 @@ describe("Node SSE runtime source", () => {
         server.address() as AddressInfo
       ).port;
     const controller = new AbortController();
-    const received: RuntimeMessage[] = [];
+    const received: StreamMessage[] = [];
 
-    for await (const message of sseRuntimeSource(`http://127.0.0.1:${String(port)}/runtime`)(
+    for await (const message of sseStream(`http://127.0.0.1:${String(port)}/stream`)(
       controller.signal,
     )) {
       received.push(message);
@@ -67,7 +68,7 @@ describe("Node SSE runtime source", () => {
   it("retries connection failures until aborted", async () => {
     const onError = vi.fn<(error: Error) => void>();
     const controller = new AbortController();
-    const iterator = sseRuntimeSource("http://127.0.0.1:1/runtime", {
+    const iterator = sseStream("http://127.0.0.1:1/stream", {
       retryDelayMs: 1,
       onError,
     })(controller.signal)[Symbol.asyncIterator]();

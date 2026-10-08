@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { Plugin } from "vite";
+import { createServer, resolveConfig, type InlineConfig, type Plugin } from "vite";
 import { describe, expect, it } from "vitest";
 
 import { vignette } from "./index.js";
@@ -104,6 +105,70 @@ describe("vignette", () => {
     );
   });
 
+  it("contributes Yoga, React, and dev SSR defaults without dropping user configuration", async () => {
+    const userConfig = {
+      configFile: false,
+      logLevel: "silent",
+      root: resolve(fixtures, "project"),
+      plugins: [vignette()],
+      optimizeDeps: { exclude: ["user-dep"] },
+      resolve: { dedupe: ["zod"] },
+      ssr: { external: ["hono"] },
+    } satisfies InlineConfig;
+    const serve = await resolveConfig(userConfig, "serve");
+    const build = await resolveConfig(userConfig, "build");
+
+    expect(serve.optimizeDeps.exclude).toEqual(["user-dep", "yoga-layout"]);
+    expect(serve.resolve.dedupe).toEqual(["zod", "react", "react-dom"]);
+    expect(serve.environments.ssr?.resolve.external).toEqual([
+      "hono",
+      "@strangecyan/vignette",
+      "@strangecyan/vignette-frame",
+    ]);
+    expect(build.resolve.dedupe).toEqual(["zod", "react", "react-dom"]);
+    expect(build.environments.ssr?.resolve.external).toEqual(["hono"]);
+  });
+
+  it("serves the dev composition and replaces the root when its module changes identity", async () => {
+    // Serve a dependency-free composition, then rewrite its project ID: the open stream must close
+    // and a reconnecting client must receive the replacement root's setup.
+    const root = realpathSync(mkdtempSync(resolve(tmpdir(), "vignette-dev-composer-")));
+    const writeComposition = (id: string) => {
+      writeFileSync(
+        resolve(root, "show.js"),
+        `export const composition = { id: ${JSON.stringify(id)}, canvas: { width: 64, height: 36 }, component: () => null };\n`,
+      );
+    };
+    writeComposition("first");
+    const server = await createServer({
+      configFile: false,
+      logLevel: "silent",
+      root,
+      server: { host: "127.0.0.1", port: 0 },
+      plugins: [vignette({ composition: "./show.js", streamPath: "/live" })],
+    });
+    try {
+      await server.listen();
+      const { port } = z.object({ port: z.number() }).parse(server.httpServer?.address());
+      const url = `http://127.0.0.1:${String(port)}/live`;
+
+      const first = await fetch(url);
+      expect(first.headers.get("content-type")).toMatch(/^text\/event-stream/u);
+      const reader = first.body?.getReader();
+      if (reader === undefined) throw new Error("The composer stream has no body.");
+      expect(await readSetupProjectId(reader)).toBe("first");
+
+      writeComposition("second");
+      // Changing the project ID retires the root, which closes the open stream.
+      await expect(drain(reader)).resolves.toBeUndefined();
+      await expect.poll(async () => readSetupProjectId(await openStream(url))).toBe("second");
+      expect((await fetch(url.replace("/live", "/stream"))).status).not.toBe(200);
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("creates stable content-versioned asset manifests", async () => {
     const first = await loadAssets(resolve(fixtures, "assets-a"));
     const repeated = await loadAssets(resolve(fixtures, "assets-a"));
@@ -118,6 +183,37 @@ describe("vignette", () => {
     });
   });
 });
+
+type StreamReader = ReadableStreamDefaultReader<Uint8Array>;
+
+async function openStream(url: string): Promise<StreamReader> {
+  const response = await fetch(url);
+  const reader = response.body?.getReader();
+  if (reader === undefined) throw new Error("The composer stream has no body.");
+  return reader;
+}
+
+/** Reads until the setup event, returns its project ID, and releases the connection. */
+async function readSetupProjectId(reader: StreamReader): Promise<string | undefined> {
+  const decoder = new TextDecoder();
+  let text = "";
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) return undefined;
+    text += decoder.decode(chunk.value, { stream: true });
+    const projectId = /event: setup\ndata: \{"projectId":"([^"]+)"/u.exec(text)?.[1];
+    if (projectId !== undefined) {
+      await reader.cancel();
+      return projectId;
+    }
+  }
+}
+
+async function drain(reader: StreamReader): Promise<undefined> {
+  for (;;) {
+    if ((await reader.read()).done) return undefined;
+  }
+}
 
 async function loadAssets(root: string) {
   const plugin = vignette({ assets: "asset.txt" });

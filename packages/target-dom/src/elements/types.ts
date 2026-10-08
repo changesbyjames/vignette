@@ -9,6 +9,12 @@ export interface DomSourceView {
   dispose(): void;
 }
 
+/** Target-owned values available to a renderer when it creates a view. */
+export interface DomRendererContext {
+  /** Absolute base URL for root-relative URLs in source definitions. */
+  readonly baseUrl: string;
+}
+
 /**
  * Renders one source kind in the DOM target. Extension packages export a renderer and pass it
  * to the runtime through `DOMRuntimeOptions.extensions`.
@@ -17,7 +23,7 @@ export interface DomSourceRenderer<Source extends AnySourceDefinition = AnySourc
   readonly kind: Source["kind"];
   /** One-time document preparation (e.g. registering custom elements) before first render. */
   prepare?(document: Document): Promise<void>;
-  create(document: Document): DomSourceView;
+  create(document: Document, context: DomRendererContext): DomSourceView;
   /** Whether the live element should be parked, not disposed, when it leaves the active scene. */
   retainWhenHidden?(source: Source): boolean;
 }

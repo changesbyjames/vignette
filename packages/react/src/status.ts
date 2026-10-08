@@ -1,11 +1,11 @@
 import type { Diagnostic } from "@strangecyan/vignette-core";
 
 /** Synchronous lifecycle phase of the Node composer root. */
-export type BroadcastRootPhase = "idle" | "compiling" | "ready" | "error" | "disposed";
+export type ComposerPhase = "idle" | "compiling" | "ready" | "error" | "disposed";
 
 /** Current React commit, compilation, and diagnostic state. */
-export interface BroadcastRootStatus {
-  readonly phase: BroadcastRootPhase;
+export interface ComposerStatus {
+  readonly phase: ComposerPhase;
   readonly commitRevision: number;
   readonly compiledRevision?: number;
   readonly diagnostics: readonly Diagnostic[];
@@ -13,19 +13,19 @@ export interface BroadcastRootStatus {
 }
 
 /** Observable external store for composer status. */
-export class RootStatusStore {
+export class ComposerStatusStore {
   private readonly listeners = new Set<() => void>();
-  private status: BroadcastRootStatus = {
+  private status: ComposerStatus = {
     phase: "idle",
     commitRevision: 0,
     diagnostics: [],
   };
 
-  getSnapshot(): BroadcastRootStatus {
+  getSnapshot(): ComposerStatus {
     return this.status;
   }
 
-  set(status: BroadcastRootStatus): void {
+  set(status: ComposerStatus): void {
     this.status = status;
     for (const listener of this.listeners) listener();
   }

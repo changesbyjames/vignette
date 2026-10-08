@@ -1,24 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import { projectId, sceneId } from "./ids.js";
-import type { RuntimeMessage } from "./runtime.js";
-import { decodeRuntimeSseEvent, encodeRuntimeMessageSse, toSseEvent } from "./sse-codec.js";
+import type { StreamMessage } from "./stream.js";
+import { decodeStreamSseEvent, encodeStreamMessageSse, toSseEvent } from "./sse-codec.js";
 
-describe("runtime SSE codec", () => {
-  const messages: readonly RuntimeMessage[] = [
-    { kind: "setup", manifest: { version: 1, assets: [] } },
+describe("stream SSE codec", () => {
+  const messages: readonly StreamMessage[] = [
+    {
+      kind: "setup",
+      projectId: "codec",
+      manifest: { version: 1, assets: [{ name: "logo.png", url: "/assets/logo-abc123.png" }] },
+      extensions: [
+        { kind: "source:moq", entrypoints: { dom: "moq/dom", obs: "moq/obs" } },
+        { kind: "source:custom" },
+      ],
+    },
     {
       kind: "update",
       snapshot: {
         revision: 3,
-        projectId: projectId("codec"),
+        projectId: "codec",
         canvas: { width: 1920, height: 1080 },
         sources: [],
         scenes: [],
         warnings: [],
       },
     },
-    { kind: "event", event: { id: "select-main", kind: "scene:select", sceneId: sceneId("main") } },
+    { kind: "event", event: { id: "select-main", kind: "scene:select", sceneId: "main" } },
   ];
 
   for (const message of messages) {
@@ -26,10 +33,33 @@ describe("runtime SSE codec", () => {
       const fields = toSseEvent(message);
       const framed = `id: ${fields.id}\nevent: ${fields.event}\ndata: ${fields.data}\n\n`;
 
-      expect(framed).toBe(encodeRuntimeMessageSse(message));
-      expect(decodeRuntimeSseEvent(fields.event, parseSseData(framed))).toEqual(message);
+      expect(framed).toBe(encodeStreamMessageSse(message));
+      expect(decodeStreamSseEvent(fields.event, parseSseData(framed))).toEqual(message);
     });
   }
+
+  it("rejects malformed wire IDs with a schema error", () => {
+    const data = JSON.stringify({ id: "select", kind: "scene:select", sceneId: "bad::id" });
+
+    expect(() => decodeStreamSseEvent("event", data)).toThrow(/ID must start/u);
+  });
+
+  it("rejects a setup without project identity", () => {
+    const data = JSON.stringify({ manifest: { version: 1, assets: [] }, extensions: [] });
+
+    expect(() => decodeStreamSseEvent("setup", data)).toThrow(/projectId/u);
+  });
+
+  it("rejects protocol-relative and bare relative manifest URLs", () => {
+    for (const url of ["//cdn.example/logo.png", "assets/logo.png"]) {
+      const data = JSON.stringify({
+        projectId: "codec",
+        manifest: { version: 1, assets: [{ name: "logo.png", url }] },
+        extensions: [],
+      });
+      expect(() => decodeStreamSseEvent("setup", data)).toThrow(/root-relative path/u);
+    }
+  });
 });
 
 function parseSseData(frame: string): string {

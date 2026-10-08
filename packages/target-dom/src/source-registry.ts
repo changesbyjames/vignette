@@ -1,14 +1,9 @@
-import type {
-  AnySourceDefinition,
-  CompiledItem,
-  CompiledSource,
-  SourceId,
-} from "@strangecyan/vignette-core";
+import type { AnySourceDefinition, CompiledItem, CompiledSource } from "@strangecyan/vignette-core";
 
-import type { DomRendererMap, DomSourceView } from "./elements/index.js";
+import type { DomRendererContext, DomRendererMap, DomSourceView } from "./elements/index.js";
 
 interface DomSourceRegistryLocateIn {
-  id: SourceId;
+  id: string;
   record: SourceRecord;
 }
 
@@ -22,12 +17,14 @@ interface SourceRecord {
 export class DomSourceRegistry {
   private readonly document: Document;
   private readonly renderers: DomRendererMap;
+  private readonly context: DomRendererContext;
   private readonly parking: HTMLDivElement;
-  private readonly records = new Map<SourceId, SourceRecord>();
+  private readonly records = new Map<string, SourceRecord>();
 
-  constructor(container: HTMLElement, renderers: DomRendererMap) {
+  constructor(container: HTMLElement, renderers: DomRendererMap, context: DomRendererContext) {
     this.document = container.ownerDocument;
     this.renderers = renderers;
+    this.context = context;
     this.parking = this.document.createElement("div");
     this.parking.dataset.vignetteSourceParking = "";
     this.parking.hidden = true;
@@ -102,7 +99,7 @@ export class DomSourceRegistry {
     if (renderer === undefined) {
       throw new Error(`No DOM renderer is registered for source kind '${source.kind}'.`);
     }
-    return renderer.create(this.document);
+    return renderer.create(this.document, this.context);
   }
 
   private shouldRetain(source: AnySourceDefinition): boolean {
@@ -116,7 +113,7 @@ export class DomSourceRegistry {
     return undefined;
   }
 
-  private disposeRecord(id: SourceId, record: SourceRecord): void {
+  private disposeRecord(id: string, record: SourceRecord): void {
     record.view.dispose();
     record.view.element.remove();
     this.records.delete(id);

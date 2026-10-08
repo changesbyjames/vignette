@@ -4,6 +4,10 @@ The library exclusively owns resources whose names begin with `vignette::<projec
 project has a registry scene, managed scenes, and managed source inputs. The planner never schedules
 an operation against an unmanaged UUID or name.
 
+The runtime's configured project ID (`vignette obs --project`) is the boundary; the stream never
+chooses it. A setup message for a different project puts the runtime in its `error` phase before it
+connects to OBS, and the scheduler rejects any snapshot whose `projectId` differs from its own.
+
 Manual edits to managed transforms are treated as drift and overwritten on the next convergence
 pass. Duplicate same-source placements are ambiguous in V1; they raise a diagnostic and suppress
 destructive work. Reconnects and scene collection changes invalidate cached UUIDs and numeric item

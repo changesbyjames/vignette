@@ -1,4 +1,3 @@
-import { projectId } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { registrySceneName } from "./naming.js";
@@ -31,6 +30,6 @@ function createScene(key: string, dependsOn: readonly string[]): CreateSceneOper
     dependsOn,
     destructive: false,
     scene: { kind: "registry" },
-    sceneName: registrySceneName(projectId("dependency-test")),
+    sceneName: registrySceneName("dependency-test"),
   };
 }

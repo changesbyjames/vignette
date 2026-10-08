@@ -1,9 +1,4 @@
-import {
-  encodeRuntimeMessageSse,
-  projectId,
-  sceneId,
-  type CompiledSnapshot,
-} from "@strangecyan/vignette-core";
+import { encodeStreamMessageSse, type CompiledSnapshot } from "@strangecyan/vignette-core";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -33,19 +28,49 @@ describe("loadSnapshot", () => {
     expect(loaded.localAssetRoot).toBe(directory);
   });
 
-  it("takes setup and the first update from a runtime SSE stream", async () => {
+  it("requires a base URL for root-relative URLs in a local snapshot", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vignette-preview-"));
+    temporaryDirectories.push(directory);
+    const path = join(directory, "snapshot.json");
+    const frameUrl = "/__vignette/frame/label?props=%7B%7D";
+    await writeFile(
+      path,
+      JSON.stringify({
+        ...snapshotFixture,
+        sources: [
+          {
+            id: "label",
+            definition: {
+              id: "label",
+              kind: "source:browser",
+              url: frameUrl,
+              viewport: { width: 320, height: 180 },
+            },
+          },
+        ],
+      }),
+    );
+
+    await expect(loadSnapshot(path, 1_000)).rejects.toThrow(/pass --base-url/u);
+    const loaded = await loadSnapshot(path, 1_000, "http://127.0.0.1:4173/");
+    expect(loaded.baseUrl).toBe("http://127.0.0.1:4173/");
+  });
+
+  it("takes setup and the first update from a composer stream (SSE)", async () => {
     const server = createServer((_request, response) => {
       response.setHeader("content-type", "text/event-stream");
       response.write(
-        encodeRuntimeMessageSse({
+        encodeStreamMessageSse({
           kind: "setup",
+          projectId: "preview-test",
           manifest: {
             version: 1,
             assets: [{ name: "logo.png", url: "/assets/logo.png" }],
           },
+          extensions: [],
         }),
       );
-      response.write(encodeRuntimeMessageSse({ kind: "update", snapshot: snapshotFixture }));
+      response.write(encodeStreamMessageSse({ kind: "update", snapshot: snapshotFixture }));
     });
     await new Promise<void>((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
     const address = server.address();
@@ -53,11 +78,12 @@ describe("loadSnapshot", () => {
       throw new Error("Test server did not bind.");
 
     try {
-      const loaded = await loadSnapshot(`http://127.0.0.1:${String(address.port)}/runtime`, 1_000);
+      const loaded = await loadSnapshot(`http://127.0.0.1:${String(address.port)}/stream`, 1_000);
       expect(loaded.snapshot.revision).toBe(7);
       expect(loaded.assetUrls["logo.png"]).toBe(
         `http://127.0.0.1:${String(address.port)}/assets/logo.png`,
       );
+      expect(loaded.baseUrl).toBe(`http://127.0.0.1:${String(address.port)}/stream`);
     } finally {
       await new Promise<void>((resolvePromise, reject) => {
         server.close((error) => {
@@ -71,12 +97,12 @@ describe("loadSnapshot", () => {
 
 const snapshotFixture: CompiledSnapshot = {
   revision: 7,
-  projectId: projectId("preview-test"),
+  projectId: "preview-test",
   canvas: { width: 320, height: 180 },
   sources: [],
   scenes: [
     {
-      id: sceneId("main"),
+      id: "main",
       items: [],
     },
   ],

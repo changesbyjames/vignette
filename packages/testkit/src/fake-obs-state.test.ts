@@ -1,11 +1,4 @@
-import {
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
-  type ColorSource,
-  type CompiledSnapshot,
-} from "@strangecyan/vignette-core";
+import type { ColorSource, CompiledSnapshot } from "@strangecyan/vignette-core";
 import {
   planObsUpdate,
   REQUIRED_OBS_REQUESTS,
@@ -71,7 +64,7 @@ describe("applyFakeObsPlan", () => {
 });
 
 function snapshot(): CompiledSnapshot {
-  const source = sourceId("background");
+  const source = "background";
   const fixtureSource1 = {
     id: source,
     kind: "source:color",
@@ -80,7 +73,7 @@ function snapshot(): CompiledSnapshot {
   } satisfies ColorSource;
   return {
     revision: 1,
-    projectId: projectId("fake-test"),
+    projectId: "fake-test",
     canvas: { width: 1920, height: 1080 },
     warnings: [],
     sources: [
@@ -91,10 +84,10 @@ function snapshot(): CompiledSnapshot {
     ],
     scenes: [
       {
-        id: sceneId("main"),
+        id: "main",
         items: [
           {
-            id: layerId("background-layer"),
+            id: "background-layer",
             content: { kind: "source", sourceId: source },
             frame: { x: 0, y: 0, width: 1920, height: 1080 },
             visible: true,

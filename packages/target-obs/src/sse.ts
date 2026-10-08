@@ -1,9 +1,9 @@
 import {
-  decodeRuntimeSseEvent,
-  RUNTIME_SSE_EVENTS,
-  type RuntimeMessage,
-  type RuntimeMessageSource,
-  type RuntimeSseEvent,
+  decodeStreamSseEvent,
+  STREAM_SSE_EVENTS,
+  type StreamMessage,
+  type StreamSource,
+  type StreamSseEvent,
 } from "@strangecyan/vignette-core";
 
 interface FindEventBoundary {
@@ -12,35 +12,32 @@ interface FindEventBoundary {
 }
 
 /** Reconnection behavior and error observation for an SSE runtime source. */
-export interface SseRuntimeSourceOptions {
-  readonly retryDelayMs?: number;
-  readonly onError?: (error: Error) => void;
+export interface SseStreamOptions {
+  readonly retryDelayMs?: number | undefined;
+  readonly onError?: ((error: Error) => void) | undefined;
 }
 
 /**
- * A Node runtime message transport backed by `fetch`, matching target-dom's
- * `sseRuntimeSource(url)` API. Connections retry after failures; the server's replay converges a
+ * A Node composer stream source backed by `fetch`, matching target-dom's
+ * `sseStream(url)` API. Connections retry after failures; the server's replay converges a
  * reconnected runtime to the latest setup and snapshot.
  */
-export function sseRuntimeSource(
-  url: string,
-  options: SseRuntimeSourceOptions = {},
-): RuntimeMessageSource {
-  return (signal) => consume(url, options, signal);
+export function sseStream(url: string, options: SseStreamOptions = {}): StreamSource {
+  return Object.assign((signal: AbortSignal) => consume(url, options, signal), { url });
 }
 
 /** Reconnect after stream failure unless the caller aborted, reporting errors before waiting for the retry delay. */
 async function* consume(
   url: string,
-  options: SseRuntimeSourceOptions,
+  options: SseStreamOptions,
   signal: AbortSignal,
-): AsyncIterable<RuntimeMessage> {
+): AsyncIterable<StreamMessage> {
   while (!signal.aborted) {
     // Reconnect after stream failure unless the caller aborted, reporting errors before waiting for the retry delay.
 
     try {
       yield* consumeConnection(url, signal);
-      if (!isAborted(signal)) throw new Error("Runtime SSE connection ended unexpectedly.");
+      if (!isAborted(signal)) throw new Error("Stream SSE connection ended unexpectedly.");
     } catch (cause) {
       if (isAborted(signal)) return;
       options.onError?.(normalizeError(cause));
@@ -50,15 +47,15 @@ async function* consume(
 }
 
 /** Decode complete SSE records from streamed UTF-8 chunks and cancel the reader when consumption ends. */
-async function* consumeConnection(url: string, signal: AbortSignal): AsyncIterable<RuntimeMessage> {
+async function* consumeConnection(url: string, signal: AbortSignal): AsyncIterable<StreamMessage> {
   const response = await fetch(url, {
     headers: { Accept: "text/event-stream" },
     signal,
   });
   if (!response.ok) {
-    throw new Error(`Runtime SSE request failed with HTTP ${String(response.status)}.`);
+    throw new Error(`Stream SSE request failed with HTTP ${String(response.status)}.`);
   }
-  if (response.body === null) throw new Error("Runtime SSE response did not have a body.");
+  if (response.body === null) throw new Error("Stream SSE response did not have a body.");
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -93,12 +90,12 @@ function findEventBoundary(value: string): FindEventBoundary | undefined {
   return match === null ? undefined : { index: match.index, length: match[0].length };
 }
 
-/** Ignore SSE comments, collect data lines, and decode only known runtime message events. */
-function decodeEventBlock(block: string): RuntimeMessage | undefined {
+/** Ignore SSE comments, collect data lines, and decode only known stream message events. */
+function decodeEventBlock(block: string): StreamMessage | undefined {
   let event: string | undefined = undefined;
   const data: string[] = [];
   for (const line of block.split(/\r?\n/u)) {
-    // Ignore SSE comments, collect data lines, and decode only known runtime message events.
+    // Ignore SSE comments, collect data lines, and decode only known stream message events.
 
     if (line.startsWith(":")) continue;
     const separator = line.indexOf(":");
@@ -109,17 +106,17 @@ function decodeEventBlock(block: string): RuntimeMessage | undefined {
     if (field === "data") data.push(value);
   }
   if (event === undefined || !isRuntimeEvent(event)) return undefined;
-  return decodeRuntimeSseEvent(event, data.join("\n"));
+  return decodeStreamSseEvent(event, data.join("\n"));
 }
 
-function isRuntimeEvent(value: string): value is RuntimeSseEvent {
+function isRuntimeEvent(value: string): value is StreamSseEvent {
   return /* SAFETY: The event list contains only strings; widening its lookup input does not alter the closed event vocabulary. */ (
-    RUNTIME_SSE_EVENTS as readonly string[]
+    STREAM_SSE_EVENTS as readonly string[]
   ).includes(value);
 }
 
 function normalizeError(cause: unknown): Error {
-  return cause instanceof Error ? cause : new Error("Runtime SSE connection failed.", { cause });
+  return cause instanceof Error ? cause : new Error("Stream SSE connection failed.", { cause });
 }
 
 function isAborted(signal: AbortSignal): boolean {

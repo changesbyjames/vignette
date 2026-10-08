@@ -1,19 +1,19 @@
 import { moqDomRenderer } from "@strangecyan/vignette-moq/dom";
-import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
+import { sseStream, useStage } from "@strangecyan/vignette-target-dom/react";
 import type { ReactElement } from "react";
 
-const transport = sseRuntimeSource("/runtime");
+const stream = sseStream("/stream");
 const extensions = [moqDomRenderer];
-const reportCompositorError = (error: Error) => {
+const reportStageError = (error: Error) => {
   console.error(error);
 };
 
 export function App(): ReactElement {
-  const [stageRef, compositor] = useCompositor({
+  const [stageRef, stage] = useStage({
     sceneId: "main",
-    transport,
+    stream,
     extensions,
-    onError: reportCompositorError,
+    onError: reportStageError,
   });
 
   return (
@@ -26,11 +26,11 @@ export function App(): ReactElement {
         <div className="status-grid">
           <div className="status">
             <span>Snapshot</span>
-            <strong data-testid="commit-status">{compositor.revision}</strong>
+            <strong data-testid="commit-status">{stage.revision}</strong>
           </div>
           <div className="status">
-            <span>DOM runtime</span>
-            <strong data-testid="dom-status">{compositor.phase}</strong>
+            <span>DOM stage</span>
+            <strong data-testid="dom-status">{stage.phase}</strong>
           </div>
         </div>
       </header>

@@ -1,17 +1,16 @@
 import type { AssetRef } from "./assets.js";
 import type { ContentAlignment, Insets, Rect, Size } from "./geometry.js";
-import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
 import type { AnySourceDefinition } from "./sources.js";
 import type { Diagnostic } from "./diagnostics.js";
 
 interface CompiledSourceContent {
   readonly kind: "source";
-  readonly sourceId: SourceId;
+  readonly sourceId: string;
 }
 
 interface CompiledSceneContent {
   readonly kind: "scene";
-  readonly sceneId: SceneId;
+  readonly sceneId: string;
 }
 
 interface CompiledSnapshotCanvas {
@@ -32,7 +31,7 @@ export interface ContentPlacement {
  * the intrinsic content size and the asset that must be resolved before rendering.
  */
 export interface CompiledSource {
-  readonly id: SourceId;
+  readonly id: string;
   readonly definition: AnySourceDefinition;
   readonly intrinsicSize?: Size;
   readonly asset?: AssetRef;
@@ -43,7 +42,7 @@ export type CompiledItemContent = CompiledSourceContent | CompiledSceneContent;
 
 /** One absolute, target-neutral layer in a compiled scene. */
 export interface CompiledItem {
-  readonly id: LayerId;
+  readonly id: string;
   readonly content: CompiledItemContent;
   readonly frame: Rect;
   readonly clip?: Rect;
@@ -55,7 +54,7 @@ export interface CompiledItem {
 
 /** Compiled scene with its layers in rendering order. */
 export interface CompiledScene {
-  readonly id: SceneId;
+  readonly id: string;
   readonly label?: string;
   readonly items: readonly CompiledItem[];
 }
@@ -63,7 +62,7 @@ export interface CompiledScene {
 /** Complete immutable desired state consumed independently by each target. */
 export interface CompiledSnapshot {
   readonly revision: number;
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly canvas: Readonly<CompiledSnapshotCanvas>;
   readonly sources: readonly CompiledSource[];
   readonly scenes: readonly CompiledScene[];

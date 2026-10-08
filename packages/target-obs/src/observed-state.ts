@@ -1,5 +1,4 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import type { ProjectId, SceneId, SourceId } from "@strangecyan/vignette-core";
 
 import { parseManagedName } from "./naming.js";
 import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
@@ -59,8 +58,8 @@ export interface ObservedObsState {
 /** Managed subset of observed OBS state indexed by Vignette IDs. */
 export interface ManagedObservedIndex {
   readonly registry?: ObservedObsScene;
-  readonly scenes: ReadonlyMap<SceneId, ObservedObsScene>;
-  readonly inputs: ReadonlyMap<SourceId, ObservedObsInput>;
+  readonly scenes: ReadonlyMap<string, ObservedObsScene>;
+  readonly inputs: ReadonlyMap<string, ObservedObsInput>;
   readonly itemsByScene: ReadonlyMap<string, readonly ObservedObsSceneItem[]>;
   readonly duplicatePlacements: readonly ManagedObservedIndexDuplicatePlacements[];
 }
@@ -68,10 +67,10 @@ export interface ManagedObservedIndex {
 /** Indexes only resources belonging to a managed project namespace. */
 export function indexManagedObservedState(
   state: ObservedObsState,
-  project: ProjectId,
+  project: string,
 ): ManagedObservedIndex {
   let registry: ObservedObsScene | undefined = undefined;
-  const scenes = new Map<SceneId, ObservedObsScene>();
+  const scenes = new Map<string, ObservedObsScene>();
   const itemsByScene = new Map<string, ObservedObsSceneItem[]>();
 
   for (const scene of state.scenes) {
@@ -134,9 +133,9 @@ function findDuplicatePlacements(
 /** Foreign and non-source names never enter the managed input index. */
 function indexManagedInputs(
   observed: readonly ObservedObsInput[],
-  project: ProjectId,
-): Map<SourceId, ObservedObsInput> {
-  const inputs = new Map<SourceId, ObservedObsInput>();
+  project: string,
+): Map<string, ObservedObsInput> {
+  const inputs = new Map<string, ObservedObsInput>();
   for (const input of observed) {
     const managed = parseManagedName(input.inputName);
     if (managed?.kind === "source" && managed.projectId === project) {

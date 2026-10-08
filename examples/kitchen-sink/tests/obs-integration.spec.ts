@@ -2,12 +2,8 @@ import { z } from "zod";
 import { omitUndefined } from "@strangecyan/vignette-core";
 import { expect, test } from "@playwright/test";
 import {
-  consumeRuntimeMessages,
-  layerId,
-  projectId,
-  RuntimeMessageHub,
-  sceneId,
-  sourceId,
+  consumeStream,
+  StreamHub,
   type CompiledItem,
   type CompiledSnapshot,
   type CompiledSource,
@@ -20,6 +16,7 @@ import {
   Scene,
   Sources,
   createComposerRoot,
+  defineComposition,
 } from "@strangecyan/vignette";
 import { managedSceneName, managedSourceName, OBSRuntime } from "@strangecyan/vignette-target-obs";
 import { OBSWebSocket } from "obs-websocket-js";
@@ -48,26 +45,34 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
   const url = requiredEnvironment("VIGNETTE_OBS_URL");
   const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
   const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
-  const project = projectId(`integration-${String(Date.now())}`);
+  const project = `integration-${String(Date.now())}`;
   const prefix = `vignette::${project}::`;
-  const sceneName = managedSceneName(project, sceneId("main"));
+  const sceneName = managedSceneName(project, "main");
 
   await assertDisposableCollection(url, password, expectedCollection);
 
-  const hub = new RuntimeMessageHub();
-  hub.publish({ kind: "setup", manifest: { version: 1, assets: [] } });
-  const runtime = new OBSRuntime({ id: "integration-obs", url, password, projectId: project });
-  const consuming = consumeRuntimeMessages(runtime, hub.subscribe());
-  const root = createComposerRoot({
+  const hub = new StreamHub();
+  hub.publish({
+    kind: "setup",
     projectId: project,
-    canvas: { width: 1920, height: 1080, frameRate: 60 },
+    manifest: { version: 1, assets: [] },
+    extensions: [],
   });
+  const runtime = new OBSRuntime({ id: "integration-obs", url, password, projectId: project });
+  const consuming = consumeStream(runtime, hub.subscribe());
+  const root = createComposerRoot(
+    defineComposition({
+      id: project,
+      canvas: { width: 1920, height: 1080, frameRate: 60 },
+      component: () => show("#112233"),
+    }),
+  );
   const unsubscribe = root.subscribe((snapshot) => {
     hub.publish({ kind: "update", snapshot });
   });
 
   try {
-    const first = await root.render(show("#112233"));
+    const first = await root.render();
     await waitForRuntime(runtime, first.compiledRevision, "initial convergence");
     expect(await sceneExists(url, password, sceneName)).toBe(true);
 
@@ -96,26 +101,37 @@ test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
   const url = requiredEnvironment("VIGNETTE_OBS_URL");
   const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
   const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
-  const project = projectId(`frame-parity-${String(Date.now())}`);
+  const project = `frame-parity-${String(Date.now())}`;
   const prefix = `vignette::${project}::`;
 
   await assertDisposableCollection(url, password, expectedCollection);
-  const exampleSnapshot = await readExampleSnapshot(new URL("/runtime", baseURL));
+  const exampleSnapshot = await readExampleSnapshot(new URL("/stream", baseURL));
   const { snapshot, source, item } = isolateFrameSnapshot(exampleSnapshot, project);
   const width = Math.round(item.frame.width);
   const height = Math.round(item.frame.height);
-  const runtime = new OBSRuntime({ id: "frame-parity-obs", url, password, projectId: project });
+  const runtime = new OBSRuntime({
+    id: "frame-parity-obs",
+    url,
+    password,
+    projectId: project,
+    // The snapshot's frame URL is root-relative; OBS loads it from the Playwright web server.
+    baseUrl: new URL("/", baseURL).href,
+  });
   const previousProgramScene = await currentProgramScene(url, password);
 
   try {
-    await runtime.setup({ version: 1, assets: [] });
+    await runtime.setup({
+      projectId: project,
+      manifest: { version: 1, assets: [] },
+      extensions: [],
+    });
     runtime.update(snapshot);
     await waitForRuntime(runtime, snapshot.revision, "frame parity convergence");
 
     const inputName = managedSourceName(project, source.id);
     const settings = await inputSettings(url, password, inputName);
     expect(settings).toMatchObject({ width, height });
-    await setProgramScene(url, password, managedSceneName(project, sceneId("main")));
+    await setProgramScene(url, password, managedSceneName(project, "main"));
 
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/?parity=frame");
@@ -185,17 +201,17 @@ function show(color: string) {
       Sources,
       null,
       createElement(ColorSource, {
-        id: sourceId("background"),
+        id: "background",
         color,
         size: { width: 1920, height: 1080 },
       }),
     ),
     createElement(
       Scene,
-      { id: sceneId("main") },
+      { id: "main" },
       createElement(Layer, {
-        id: layerId("background"),
-        sourceId: sourceId("background"),
+        id: "background",
+        sourceId: "background",
         style: { width: "100%", height: "100%" },
       }),
     ),
@@ -211,7 +227,7 @@ async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
   const response = await fetch(url, { signal: controller.signal });
   if (!response.ok || response.body === null) {
     clearTimeout(timeout);
-    throw new Error(`Kitchen-sink runtime stream returned ${String(response.status)}.`);
+    throw new Error(`Kitchen-sink composer stream returned ${String(response.status)}.`);
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -244,7 +260,7 @@ async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
           data,
         ) as CompiledSnapshot;
       }
-      if (chunk.done) throw new Error("Kitchen-sink runtime stream ended before an update.");
+      if (chunk.done) throw new Error("Kitchen-sink composer stream ended before an update.");
     }
   } finally {
     clearTimeout(timeout);
@@ -255,7 +271,7 @@ async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
 /** Select the frame browser source and its placement, then build an isolated managed project for comparison. */
 function isolateFrameSnapshot(
   example: CompiledSnapshot,
-  project: ReturnType<typeof projectId>,
+  project: string,
 ): Readonly<IsolateFrameSnapshot> {
   const source = example.sources.find(
     (candidate) =>
@@ -274,7 +290,7 @@ function isolateFrameSnapshot(
   if (originalItem === undefined) throw new Error("Kitchen-sink snapshot has no <View> layer.");
   const destination = originalItem.placement?.destination ?? originalItem.frame;
   const item: CompiledItem = {
-    id: layerId("frame-view"),
+    id: "frame-view",
     content: { kind: "source", sourceId: source.id },
     frame: { x: 0, y: 0, width: destination.width, height: destination.height },
     ...omitUndefined({
@@ -298,7 +314,7 @@ function isolateFrameSnapshot(
       projectId: project,
       canvas: { width: destination.width, height: destination.height, frameRate: 60 },
       sources: [source],
-      scenes: [{ id: sceneId("main"), items: [item] }],
+      scenes: [{ id: "main", items: [item] }],
       warnings: [],
     },
   };

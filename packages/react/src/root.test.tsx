@@ -1,17 +1,17 @@
-import {
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
-  type ColorSource as ColorSourceDefinition,
-  type CompiledSnapshot,
-  type LayoutEngine,
+import type {
+  ColorSource as ColorSourceDefinition,
+  CompiledSnapshot,
+  LayoutEngine,
+  StreamMessage,
+  SourceModule,
 } from "@strangecyan/vignette-core";
 import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { defineComposition } from "./composition.js";
+import { fill } from "./presets.js";
 import { Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
-import { createComposerRoot } from "./root.js";
+import { compile, createComposerRoot } from "./root.js";
 
 describe("createComposerRoot", () => {
   it("uses a supplied layout engine without requiring the default Yoga binding", async () => {
@@ -23,13 +23,16 @@ describe("createComposerRoot", () => {
         children: [],
       })),
     );
-    const root = createComposerRoot({
-      projectId: projectId("injected-layout"),
-      canvas: { width: 640, height: 360 },
-      layoutEngine: { layout },
-    });
+    const root = createComposerRoot(
+      defineComposition({
+        id: "injected-layout",
+        canvas: { width: 640, height: 360 },
+        component: () => show("#112233"),
+      }),
+      { layoutEngine: { layout } },
+    );
 
-    await root.render(show("#112233"));
+    await root.render();
 
     expect(layout).toHaveBeenCalledOnce();
     expect(root.snapshot?.scenes[0]?.items[0]?.frame).toEqual({
@@ -38,6 +41,43 @@ describe("createComposerRoot", () => {
       width: 640,
       height: 360,
     });
+    await root.dispose();
+  });
+
+  it("renders the composition's component and advertises its identity and extensions", async () => {
+    const custom: SourceModule = {
+      kind: "source:custom",
+      entrypoints: { dom: "custom/dom", obs: "custom/obs" },
+      intrinsicSize: () => undefined,
+    };
+    const composition = defineComposition({
+      id: "defined-show",
+      canvas: { width: 1280, height: 720 },
+      extensions: [custom],
+      component: () => show("#445566"),
+    });
+    const root = createComposerRoot(composition);
+
+    const receipt = await root.render();
+
+    expect(Object.isFrozen(composition)).toBe(true);
+    expect(root.snapshot).toMatchObject({
+      revision: receipt.compiledRevision,
+      projectId: "defined-show",
+      sources: [{ definition: { color: "#445566" } }],
+    });
+    const controller = new AbortController();
+    const iterator = root.messages(controller.signal)[Symbol.asyncIterator]();
+    const setup: IteratorResult<StreamMessage> = await iterator.next();
+    expect(setup.value).toEqual({
+      kind: "setup",
+      projectId: "defined-show",
+      manifest: { version: 1, assets: [] },
+      extensions: [
+        { kind: "source:custom", entrypoints: { dom: "custom/dom", obs: "custom/obs" } },
+      ],
+    });
+    controller.abort();
     await root.dispose();
   });
 
@@ -103,8 +143,8 @@ describe("createComposerRoot", () => {
     await expect(
       root.render(
         <Broadcast>
-          <Scene id={sceneId("main")}>
-            <Layer id={layerId("missing-layer")} sourceId={sourceId("missing")} />
+          <Scene id="main">
+            <Layer id="missing-layer" sourceId="missing" />
           </Scene>
         </Broadcast>,
       ),
@@ -113,25 +153,86 @@ describe("createComposerRoot", () => {
     expect(root.snapshot?.revision).toBe(first.compiledRevision);
     await root.dispose();
   });
+
+  it("resolves render with the compiled snapshot", async () => {
+    const root = makeRoot();
+
+    const receipt = await root.render(show("#123456"));
+
+    expect(receipt.snapshot).toBe(root.snapshot);
+    expect(receipt.snapshot.revision).toBe(receipt.compiledRevision);
+    await root.dispose();
+  });
+});
+
+describe("compile", () => {
+  it("renders a composition once and resolves to its snapshot", async () => {
+    function OneShotShow() {
+      return (
+        <Broadcast>
+          <Sources>
+            <ColorSource id="background" color="#222222" />
+          </Sources>
+          <Scene id="main">
+            <Layer id="background-layer" sourceId="background" style={fill} />
+          </Scene>
+        </Broadcast>
+      );
+    }
+
+    const snapshot = await compile(
+      defineComposition({
+        id: "one-shot",
+        canvas: { width: 640, height: 360 },
+        component: OneShotShow,
+      }),
+    );
+
+    expect(snapshot.projectId).toBe("one-shot");
+    expect(snapshot.sources[0]?.definition).toMatchObject({
+      color: "#222222",
+      size: { width: 640, height: 360 },
+    });
+    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({ x: 0, y: 0, width: 640, height: 360 });
+  });
+
+  it("rejects when the composition fails to compile", async () => {
+    const composition = defineComposition({
+      id: "broken",
+      canvas: { width: 640, height: 360 },
+      component: () => (
+        <Broadcast>
+          <Scene id="main">
+            <Layer id="missing-layer" sourceId="missing" />
+          </Scene>
+        </Broadcast>
+      ),
+    });
+
+    await expect(compile(composition)).rejects.toThrow(/missing source/u);
+  });
 });
 
 function makeRoot() {
-  return createComposerRoot({
-    projectId: projectId("show"),
-    canvas: { width: 1280, height: 720 },
-  });
+  return createComposerRoot(
+    defineComposition({
+      id: "show",
+      canvas: { width: 1280, height: 720 },
+      component: () => show("#000000"),
+    }),
+  );
 }
 
 function show(color: string) {
   return (
     <Broadcast>
       <Sources>
-        <ColorSource id={sourceId("background")} color={color} />
+        <ColorSource id="background" color={color} />
       </Sources>
-      <Scene id={sceneId("main")}>
+      <Scene id="main">
         <Layer
-          id={layerId("background-layer")}
-          sourceId={sourceId("background")}
+          id="background-layer"
+          sourceId="background"
           style={{ width: "100%", height: "100%" }}
         />
       </Scene>

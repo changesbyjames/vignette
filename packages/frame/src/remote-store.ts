@@ -10,7 +10,10 @@ interface StoreWithContext {
 
 declare const storeType: unique symbol;
 
-/** A typed reference to a server-owned store and its application-owned endpoint. */
+/** Path prefix of conventional remote store endpoints: `/__vignette/store/<id>`. */
+export const REMOTE_STORE_ROUTE_PREFIX = "/__vignette/store";
+
+/** A typed reference to a server-owned store and the SSE endpoint the application serves it at. */
 export interface RemoteStoreRef<TStore extends StoreWithContext> {
   readonly id: string;
   readonly url: string;
@@ -23,20 +26,30 @@ export type RemoteSnapshotOf<TRef extends RemoteStoreRef<StoreWithContext>> =
     ? Pick<ReturnType<TStore["getSnapshot"]>, "context">
     : never;
 
-/** Options identifying a remote store and the SSE endpoint that serves it. */
+/** Options identifying a remote store and, optionally, a non-conventional SSE endpoint. */
 export interface RemoteStoreOptions {
   readonly id: string;
-  readonly url: string;
+  /** SSE endpoint serving the store. Defaults to `/__vignette/store/<id>`. */
+  readonly url?: string | undefined;
 }
 
-/** Defines a typed reference shared by frame and server code. */
+/**
+ * Defines a typed reference shared by frame and server code. The endpoint defaults to
+ * `/__vignette/store/<id>`, so the server registers its route at `ref.url`:
+ *
+ * ```ts
+ * export const titleStore = defineRemoteStore<TitleStore>({ id: "title" });
+ * app.get(titleStore.url, (context) => streamSSE(context, ...));
+ * ```
+ */
 export function defineRemoteStore<TStore extends StoreWithContext>(
   options: RemoteStoreOptions,
 ): RemoteStoreRef<TStore> {
   if (options.id.length === 0) throw new TypeError("Remote store ID must not be empty.");
-  if (options.url.length === 0) throw new TypeError("Remote store URL must not be empty.");
+  const url = options.url ?? `${REMOTE_STORE_ROUTE_PREFIX}/${encodeURIComponent(options.id)}`;
+  if (url.length === 0) throw new TypeError("Remote store URL must not be empty.");
   // oxlint-disable-next-line house/no-object-freeze -- The reference carries immutable application-owned routing into a frame.
-  return Object.freeze({ id: options.id, url: options.url });
+  return Object.freeze({ id: options.id, url });
 }
 
 /** A context snapshot transmitted to a remote frame. */

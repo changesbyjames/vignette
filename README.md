@@ -3,9 +3,11 @@
 Vignette is a scene-authoring runtime for describing fixed-resolution live broadcast scenes once and
 materializing them in both the browser and OBS.
 
-React and Yoga run in a platform-owned composer. It emits one target-neutral immutable snapshot;
-independent DOM and OBS runtimes consume setup, update, and event messages over SSE or an in-memory
-`AsyncIterable`. The composer never waits for or observes runtime convergence.
+The pipeline is **composer → stream → target**. React and Yoga run in a platform-owned composer,
+which compiles each commit into one target-neutral immutable snapshot and publishes a stream of
+setup, update, and event messages. Independent DOM and OBS target runtimes consume that stream over
+SSE or an in-memory `AsyncIterable`. The composer never waits for or observes target convergence.
+See the [vocabulary](docs/architecture.md#vocabulary).
 
 ## Published packages
 
@@ -33,7 +35,8 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `packages/core` — target-neutral graph, validation, layout, snapshots, and stream contracts.
 - `packages/react` — Node-side custom React composer and typed authoring primitives.
 - `packages/frame` — optional typed React DOM frames with Vite SSR and hydration.
-- `packages/vite` — frame discovery, deterministic client entries, and build-derived assets.
+- `packages/vite` — frame discovery, deterministic client entries, build-derived assets, and the dev
+  composer.
 - `packages/target-dom` — manifest asset cache, browser `DOMRuntime`, and optional React hook.
 - `packages/target-obs` — manifest asset cache, `OBSRuntime`, planner, and convergence worker.
 - `packages/moq` — optional Media over QUIC source extension for all three layers.
@@ -45,6 +48,9 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 - `docs` — architecture decisions and supported compatibility contract.
 - `reference` — pinned upstream documentation used to design and maintain the runtime.
 - `plans` — staged implementation handoffs and completion state.
+
+Snapshots carry root-relative frame and asset URLs (`/__vignette/frame/...`, `/assets/...`), so the
+composer never needs its public origin; each target resolves them against its own base URL.
 
 ## Development
 
@@ -71,15 +77,19 @@ Browser tests start their own kitchen-sink server. If port 4173 is occupied, run
 To capture the first scene from a running composer or a saved snapshot:
 
 ```sh
-pnpm exec vignette preview --snapshot http://localhost:4173/runtime --name "test 01"
+pnpm exec vignette preview --snapshot http://localhost:4173/stream --name "test 01"
 ```
 
-To stream a runtime into OBS with the standard codecs:
+To render a composer stream in OBS, with the MoQ extension's codec loaded:
 
 ```sh
 pnpm exec vignette obs --project demo --obs-url ws://localhost:4455 \
-  --password secret --url http://localhost:5173/api/runtime
+  --password secret --url http://localhost:5173/api/stream \
+  --extension @strangecyan/vignette-moq/obs
 ```
+
+`--project` must match the composition's `id` (from `defineComposition`); the stream's setup message
+carries it, and the OBS runtime refuses to manage anything on a mismatch.
 
 The first release intentionally supports a narrow common surface: image, local media, browser, and
 color sources; fixed-canvas Yoga layout; absolute transforms; fit/crop; visibility; and rotation.

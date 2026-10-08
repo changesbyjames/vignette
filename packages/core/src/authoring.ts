@@ -1,5 +1,4 @@
 import type { ContentAlignment, Insets, Size } from "./geometry.js";
-import type { LayerId, ProjectId, SceneId, SourceId } from "./ids.js";
 import type { AnySourceDefinition } from "./sources.js";
 
 /** A CSS-like percentage length. */
@@ -66,7 +65,7 @@ export interface BroadcastCanvas extends Size {
 /** Root node of an authoring graph. */
 export interface BroadcastNode {
   readonly kind: "broadcast";
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly canvas: BroadcastCanvas;
   readonly children: readonly BroadcastChild[];
 }
@@ -83,7 +82,7 @@ export interface SourcesNode {
 /** Authoring scene containing layout nodes. */
 export interface SceneNode {
   readonly kind: "scene";
-  readonly id: SceneId;
+  readonly id: string;
   readonly label?: string;
   readonly children: readonly LayoutNode[];
 }
@@ -104,8 +103,8 @@ export type FitMode = "contain" | "cover" | "fill";
 /** Placement of a source within a scene. */
 export interface LayerNode extends StyledNode {
   readonly kind: "layer";
-  readonly id: LayerId;
-  readonly sourceId: SourceId;
+  readonly id: string;
+  readonly sourceId: string;
   readonly fit?: FitMode;
   readonly alignment?: ContentAlignment;
   readonly crop?: Partial<Insets>;
@@ -117,8 +116,8 @@ export interface LayerNode extends StyledNode {
 /** Placement of one scene within another scene. */
 export interface SceneLayerNode extends StyledNode {
   readonly kind: "scene-layer";
-  readonly id: LayerId;
-  readonly sceneId: SceneId;
+  readonly id: string;
+  readonly sceneId: string;
   readonly visible?: boolean;
   readonly opacity?: number;
   readonly rotation?: number;

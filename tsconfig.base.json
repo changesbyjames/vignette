@@ -7,12 +7,14 @@
       "@strangecyan/vignette-core": ["./packages/core/src/index.ts"],
       "@strangecyan/vignette-core/builders": ["./packages/core/src/builders.ts"],
       "@strangecyan/vignette-core/layout-yoga": ["./packages/core/src/layout/layout-yoga.ts"],
-      "@strangecyan/vignette-core/runtime": ["./packages/core/src/runtime-api.ts"],
+      "@strangecyan/vignette-core/layout-yoga-wasm": [
+        "./packages/core/src/layout/layout-yoga-wasm.ts"
+      ],
+      "@strangecyan/vignette-core/stream": ["./packages/core/src/stream-api.ts"],
       "@strangecyan/vignette-core/sse": ["./packages/core/src/sse-codec.ts"],
       "@strangecyan/vignette-frame": ["./packages/frame/src/index.ts"],
       "@strangecyan/vignette-frame/client": ["./packages/frame/src/client.ts"],
       "@strangecyan/vignette-frame/server": ["./packages/frame/src/server.ts"],
-      "@strangecyan/vignette-frame/server/node": ["./packages/frame/src/node-server.ts"],
       "@strangecyan/vignette-frame/transform": ["./packages/frame/src/transform.ts"],
       "@strangecyan/vignette-vite": ["./packages/vite/src/index.ts"],
       "@strangecyan/vignette-moq": ["./packages/moq/src/index.ts"],

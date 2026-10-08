@@ -1,9 +1,14 @@
 import { z } from "zod";
 
-import { layerId, projectId, sceneId, sourceId } from "./ids.js";
+import { isStableId, STABLE_ID_RULE } from "./ids.js";
 import { omitUndefined } from "./objects.js";
+import { validateResourceUrl } from "./resource-url.js";
 import type { CompiledSnapshot } from "./snapshot.js";
-import type { AssetManifest, RuntimeEvent } from "./runtime.js";
+import type { AssetManifest, StreamEvent, StreamSetup } from "./stream.js";
+
+/** Stable resource identifier; malformed IDs fail decoding instead of throwing. */
+export const StableIdWireSchema = z.string().refine(isStableId, STABLE_ID_RULE);
+export type StableIdWire = z.output<typeof StableIdWireSchema>;
 
 export const SizeWireSchema = z.object({ width: z.number(), height: z.number() });
 export type SizeWire = z.output<typeof SizeWireSchema>;
@@ -33,7 +38,7 @@ export type AssetRefWire = z.output<typeof AssetRefWireSchema>;
 /** Preserve extension-owned settings while decoding the shared source identity. */
 export const SourceDefinitionWireSchema = z
   .object({
-    id: z.string().transform(sourceId),
+    id: StableIdWireSchema,
     kind: z.templateLiteral(["source:", z.string()]),
     label: z.string().optional(),
   })
@@ -42,7 +47,7 @@ export const SourceDefinitionWireSchema = z
 export type SourceDefinitionWire = z.output<typeof SourceDefinitionWireSchema>;
 export const CompiledSourceWireSchema = z
   .object({
-    id: z.string().transform(sourceId),
+    id: StableIdWireSchema,
     definition: SourceDefinitionWireSchema,
     intrinsicSize: SizeWireSchema.optional(),
     asset: AssetRefWireSchema.optional(),
@@ -50,13 +55,13 @@ export const CompiledSourceWireSchema = z
   .transform(omitUndefined);
 export type CompiledSourceWire = z.output<typeof CompiledSourceWireSchema>;
 export const ItemContentWireSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("source"), sourceId: z.string().transform(sourceId) }),
-  z.object({ kind: z.literal("scene"), sceneId: z.string().transform(sceneId) }),
+  z.object({ kind: z.literal("source"), sourceId: StableIdWireSchema }),
+  z.object({ kind: z.literal("scene"), sceneId: StableIdWireSchema }),
 ]);
 export type ItemContentWire = z.output<typeof ItemContentWireSchema>;
 export const CompiledItemWireSchema = z
   .object({
-    id: z.string().transform(layerId),
+    id: StableIdWireSchema,
     content: ItemContentWireSchema,
     frame: RectWireSchema,
     clip: RectWireSchema.optional(),
@@ -69,7 +74,7 @@ export const CompiledItemWireSchema = z
 export type CompiledItemWire = z.output<typeof CompiledItemWireSchema>;
 export const CompiledSceneWireSchema = z
   .object({
-    id: z.string().transform(sceneId),
+    id: StableIdWireSchema,
     label: z.string().optional(),
     items: z.array(CompiledItemWireSchema),
   })
@@ -118,7 +123,7 @@ export const CanvasWireSchema = z
 export type CanvasWire = z.output<typeof CanvasWireSchema>;
 export const CompiledSnapshotWireSchema = z.object({
   revision: z.number(),
-  projectId: z.string().transform(projectId),
+  projectId: StableIdWireSchema,
   canvas: CanvasWireSchema,
   sources: z.array(CompiledSourceWireSchema),
   scenes: z.array(CompiledSceneWireSchema),
@@ -128,7 +133,13 @@ export type CompiledSnapshotWire = z.output<typeof CompiledSnapshotWireSchema>;
 export const ManifestEntryWireSchema = z
   .object({
     name: z.string(),
-    url: z.string(),
+    /** Absolute HTTP(S) or root-relative; targets resolve root-relative URLs against their base. */
+    url: z
+      .string()
+      .refine(
+        (url) => validateResourceUrl(url) === undefined,
+        "Asset URL must be an absolute HTTP(S) URL or a root-relative path starting with a single '/'.",
+      ),
     integrity: z.templateLiteral(["sha256-", z.string()]).optional(),
   })
   .transform(omitUndefined);
@@ -138,9 +149,32 @@ export const AssetManifestWireSchema = z.object({
   assets: z.array(ManifestEntryWireSchema),
 }) satisfies z.ZodType<AssetManifest>;
 export type AssetManifestWire = z.output<typeof AssetManifestWireSchema>;
-export const RuntimeEventWireSchema = z.object({
+/** Target entrypoint hints for one advertised extension source kind. */
+export const SourceModuleEntrypointsWireSchema = z
+  .object({ dom: z.string().optional(), obs: z.string().optional() })
+  .transform(omitUndefined);
+/** Decoded target entrypoint hints. */
+export type SourceModuleEntrypointsWire = z.output<typeof SourceModuleEntrypointsWireSchema>;
+/** One extension source kind advertised by a composer's setup message. */
+export const ExtensionSourceKindWireSchema = z
+  .object({
+    kind: z.templateLiteral(["source:", z.string()]),
+    entrypoints: SourceModuleEntrypointsWireSchema.optional(),
+  })
+  .transform(omitUndefined);
+/** Decoded extension source kind. */
+export type ExtensionSourceKindWire = z.output<typeof ExtensionSourceKindWireSchema>;
+/** Setup payload: project identity, asset manifest, and the extension kinds the stream requires. */
+export const StreamSetupWireSchema = z.object({
+  projectId: StableIdWireSchema,
+  manifest: AssetManifestWireSchema,
+  extensions: z.array(ExtensionSourceKindWireSchema),
+}) satisfies z.ZodType<StreamSetup>;
+/** Decoded setup payload. */
+export type StreamSetupWire = z.output<typeof StreamSetupWireSchema>;
+export const StreamEventWireSchema = z.object({
   id: z.string(),
   kind: z.literal("scene:select"),
-  sceneId: z.string().transform(sceneId),
-}) satisfies z.ZodType<RuntimeEvent>;
-export type RuntimeEventWire = z.output<typeof RuntimeEventWireSchema>;
+  sceneId: StableIdWireSchema,
+}) satisfies z.ZodType<StreamEvent>;
+export type StreamEventWire = z.output<typeof StreamEventWireSchema>;

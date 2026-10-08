@@ -56,6 +56,18 @@ describe("remote store reference", () => {
     expectTypeOf<RemoteSnapshotOf<typeof ref>>().toEqualTypeOf<RemoteStoreContract>();
   });
 
+  it("derives the conventional endpoint from the ID unless one is supplied", () => {
+    expect(defineRemoteStore<TestStore>({ id: "composition" }).url).toBe(
+      "/__vignette/store/composition",
+    );
+    expect(defineRemoteStore<TestStore>({ id: "lower third" }).url).toBe(
+      "/__vignette/store/lower%20third",
+    );
+    expect(defineRemoteStore<TestStore>({ id: "composition", url: undefined }).url).toBe(
+      "/__vignette/store/composition",
+    );
+  });
+
   it("rejects empty identity and routing values", () => {
     expect(() => defineRemoteStore<TestStore>({ id: "", url: "/store" })).toThrow(
       "Remote store ID must not be empty.",

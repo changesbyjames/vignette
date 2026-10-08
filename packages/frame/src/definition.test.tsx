@@ -1,10 +1,9 @@
 import { z } from "zod";
-import { projectId, sceneId, type BrowserSource } from "@strangecyan/vignette-core";
-import { Broadcast, Scene, createComposerRoot } from "@strangecyan/vignette";
+import type { BrowserSource } from "@strangecyan/vignette-core";
+import { Broadcast, Scene, createComposerRoot, defineComposition } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 import { frame } from "./definition.js";
-import { createSceneStore, SceneProvider } from "./scene.js";
 import { View } from "./view.js";
 
 interface GreetingParams {
@@ -42,24 +41,25 @@ describe("frame View", () => {
       }),
       view: ({ name }) => <div>Hello {name}!</div>,
     });
-    const root = createComposerRoot({
-      projectId: projectId("frame-test"),
-      canvas: { width: 1920, height: 1080 },
-    });
-
-    await root.render(
-      <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
-        <Broadcast>
-          <Scene id={sceneId("main")}>
-            <View
-              source={greeting}
-              params={{ name: "James" }}
-              style={{ width: 640, height: 360 }}
-            />
-          </Scene>
-        </Broadcast>
-      </SceneProvider>,
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
+          <Broadcast>
+            <Scene id="main">
+              <View
+                source={greeting}
+                params={{ name: "James" }}
+                style={{ width: 640, height: 360 }}
+              />
+            </Scene>
+          </Broadcast>
+        ),
+      }),
     );
+
+    await root.render();
 
     const snapshot = root.snapshot;
     const definition = snapshot?.sources[0]?.definition;
@@ -67,12 +67,49 @@ describe("frame View", () => {
     if (definition?.kind !== "source:browser") return;
     const browserDefinition =
       /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ definition as BrowserSource;
-    expect(browserDefinition.url).toContain("/__vignette/frame/greeting-abc123?props=");
-    expect(new URL(browserDefinition.url).searchParams.get("props")).toBe('{"name":"James"}');
+    expect(browserDefinition.url).toMatch(/^\/__vignette\/frame\/greeting-abc123\?props=/u);
+    expect(
+      new URL(browserDefinition.url, "http://composer.invalid").searchParams.get("props"),
+    ).toBe('{"name":"James"}');
     expect(snapshot?.scenes[0]?.items[0]?.content).toEqual({
       kind: "source",
       sourceId: browserDefinition.id,
     });
+    // Without an explicit viewport, the page renders at the placement's laid-out size.
+    expect(browserDefinition.viewport).toEqual({ width: 640, height: 360 });
+    await root.dispose();
+  });
+
+  it("places frames without parameters without a params prop", async () => {
+    const banner = frame.withMetadata({
+      routeKey: "banner-abc123",
+      moduleUrl: "/src/banner.frame.tsx",
+      exportName: "banner",
+    })({ view: () => <div>Live</div> });
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
+          <Broadcast>
+            <Scene id="main">
+              <View source={banner} style={{ width: 800, height: 120 }} />
+            </Scene>
+          </Broadcast>
+        ),
+      }),
+    );
+
+    const { snapshot } = await root.render();
+
+    const definition =
+      /* SAFETY: The only source in this composition is the frame's browser source. */ snapshot
+        .sources[0]?.definition as BrowserSource | undefined;
+    expect(
+      new URL(definition?.url ?? "", "http://composer.invalid").searchParams.get("props"),
+    ).toBe("{}");
+    expect(banner.params.parse({})).toEqual({});
+    expect(() => banner.params.parse({ unexpected: true })).toThrow();
     await root.dispose();
   });
 
@@ -87,63 +124,27 @@ describe("frame View", () => {
       }),
       view: ({ name }) => <div>{name}</div>,
     });
-    const root = createComposerRoot({
-      projectId: projectId("frame-test"),
-      canvas: { width: 1920, height: 1080 },
-    });
-
-    await expect(
-      root.render(
-        <SceneProvider scene={createSceneStore({ origin: "http://127.0.0.1:4173" })}>
+    const root = createComposerRoot(
+      defineComposition({
+        id: "frame-test",
+        canvas: { width: 1920, height: 1080 },
+        component: () => (
           <Broadcast>
-            <Scene id={sceneId("main")}>
+            <Scene id="main">
               {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
               <View source={greeting} params={{}} />
+              {/* @ts-expect-error Frames with required parameters require `params`. */}
+              <View id="missing" source={greeting} />
             </Scene>
           </Broadcast>
-        </SceneProvider>,
-      ),
-    ).rejects.toThrow(/name required/u);
-    await root.dispose();
-  });
-
-  it("reactively updates frame origins through the scene store", async () => {
-    const greeting = frame.withMetadata({
-      routeKey: "origin-test",
-      moduleUrl: "/src/origin.frame.tsx",
-      exportName: "greeting",
-    })({ params: PassthroughSchema, view: () => <div /> });
-    const scene = createSceneStore({ origin: "http://localhost:4173" });
-    const root = createComposerRoot({
-      projectId: projectId("origin-test"),
-      canvas: { width: 1920, height: 1080 },
-    });
-    await root.render(
-      <SceneProvider scene={scene}>
-        <Broadcast>
-          <Scene id={sceneId("main")}>
-            <View source={greeting} params={{}} style={{ width: 640, height: 360 }} />
-          </Scene>
-        </Broadcast>
-      </SceneProvider>,
+        ),
+      }),
     );
 
-    scene.set({ origin: "https://example.com" });
-    const snapshot = await root.settled();
-    const definition = snapshot.sources[0]?.definition;
-    expect(definition?.kind).toBe("source:browser");
-    if (definition?.kind !== "source:browser") return;
-    expect(
-      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ (
-        definition as BrowserSource
-      ).url,
-    ).toMatch(/^https:\/\/example\.com\//u);
+    await expect(root.render()).rejects.toThrow(/name required/u);
     await root.dispose();
   });
 });
-
-const PassthroughSchema = z.object({}).loose();
-export type Passthrough = z.output<typeof PassthroughSchema>;
 
 function objectSchema<Params extends object>(
   parse: (input: Parameters<z.ZodType<Params>["parse"]>[0]) => Params,

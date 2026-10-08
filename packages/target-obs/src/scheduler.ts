@@ -1,12 +1,10 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
+import { isStableId, omitUndefined, STABLE_ID_RULE } from "@strangecyan/vignette-core";
 import type {
   AssetResolver,
   Capability,
   CompiledSnapshot,
-  ProjectId,
   RenderTarget,
-  RuntimeEvent,
-  SourceId,
+  StreamEvent,
   TargetApplyReceipt,
   TargetCapabilities,
   TargetStatus,
@@ -44,8 +42,10 @@ export interface ObsConvergenceSchedulerOptions {
   readonly id: string;
   readonly url: string;
   readonly password?: string;
-  readonly projectId: ProjectId;
+  readonly projectId: string;
   readonly assetResolver: AssetResolver;
+  /** Absolute base OBS uses for root-relative URLs it loads itself, such as browser sources. */
+  readonly browserSourceBaseUrl?: string;
   readonly retry?: ObsRetryOptions;
   /** Source codecs contributed by extension packages (built-ins are always registered). */
   readonly extensions?: readonly ObsSourceCodec[];
@@ -94,7 +94,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
   private readonly runtime: ObsSchedulerRuntime;
   private readonly status: ObsStatusStore;
   private readonly waiters = new Set<SettlementWaiter>();
-  private readonly refreshedSources = new Set<SourceId>();
+  private readonly refreshedSources = new Set<string>();
   private readonly unsubscribeEvents: () => void;
   private desired: CompiledSnapshot | undefined;
   private pending: CompiledSnapshot | undefined;
@@ -115,6 +115,10 @@ export class ObsConvergenceScheduler implements RenderTarget {
   private retryTimer: (() => void) | undefined;
 
   constructor(options: ObsConvergenceSchedulerOptions) {
+    // The project ID scopes every managed OBS name, so a malformed one could escape the namespace.
+    if (!isStableId(options.projectId)) {
+      throw new TypeError(`OBS project ID '${options.projectId}' is invalid: ${STABLE_ID_RULE}`);
+    }
     this.options = options;
     this.codecs = resolveObsCodecs(options.extensions);
     this.runtime = options.runtime ?? SYSTEM_RUNTIME;
@@ -170,7 +174,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     return this.status.subscribe(listener);
   }
 
-  async event(event: RuntimeEvent): Promise<void> {
+  async event(event: StreamEvent): Promise<void> {
     this.assertActive();
     await this.ensureObserved();
     await this.options.transport.call("SetCurrentProgramScene", {
@@ -258,6 +262,12 @@ export class ObsConvergenceScheduler implements RenderTarget {
   }
   /** Refresh no-op revisions, execute changed plans, and requeue work invalidated by newer state. */
   private async synchronizeSnapshot(snapshot: CompiledSnapshot): Promise<boolean> {
+    // Planning names resources from the snapshot's project, so a foreign one would escape the namespace.
+    if (snapshot.projectId !== this.options.projectId) {
+      throw new ObsPreflightError(
+        `Snapshot is for project '${snapshot.projectId}' but this OBS target manages project '${this.options.projectId}'.`,
+      );
+    }
     await this.ensureObserved();
     if (this.shouldStop()) return false;
     const observed = this.observed;
@@ -268,6 +278,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
       observed,
       resolvedAssets,
       codecs: this.codecs,
+      ...omitUndefined({ browserSourceBaseUrl: this.options.browserSourceBaseUrl }),
     });
     if (!result.ok) {
       throw new ObsPreflightError(result.diagnostics.map((item) => item.message).join(" "));
@@ -324,8 +335,8 @@ export class ObsConvergenceScheduler implements RenderTarget {
     }
   }
 
-  private async resolveAssets(snapshot: CompiledSnapshot): Promise<ReadonlyMap<SourceId, string>> {
-    const resolved = new Map<SourceId, string>();
+  private async resolveAssets(snapshot: CompiledSnapshot): Promise<ReadonlyMap<string, string>> {
+    const resolved = new Map<string, string>();
     await Promise.all(
       snapshot.sources.map(async ({ id, asset }) => {
         if (asset === undefined) return;
@@ -350,7 +361,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
 
   /** Presses each codec's refresh property button once per connection after first settle. */
   private async refreshSources(snapshot: CompiledSnapshot): Promise<void> {
-    const referencedSources = new Set<SourceId>();
+    const referencedSources = new Set<string>();
     for (const scene of snapshot.scenes) {
       for (const item of scene.items) {
         if (item.content.kind === "source") referencedSources.add(item.content.sourceId);

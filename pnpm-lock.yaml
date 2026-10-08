@@ -108,9 +108,6 @@ importers:
       '@strangecyan/vignette':
         specifier: workspace:^
         version: link:../../packages/react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../../packages/core
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -124,9 +121,6 @@ importers:
       '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
-      '@strangecyan/vignette-moq':
-        specifier: workspace:^
-        version: link:../moq
       '@strangecyan/vignette-target-dom':
         specifier: workspace:^
         version: link:../target-dom
@@ -289,6 +283,9 @@ importers:
 
   packages/vite:
     dependencies:
+      '@strangecyan/vignette':
+        specifier: workspace:^
+        version: link:../react
       '@strangecyan/vignette-core':
         specifier: workspace:^
         version: link:../core
@@ -305,6 +302,12 @@ importers:
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
       vite:
         specifier: 8.1.4
         version: 8.1.4(@types/node@26.1.1)

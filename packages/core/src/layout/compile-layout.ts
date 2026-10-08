@@ -10,7 +10,12 @@ import { diagnostic, type Diagnostic } from "../diagnostics.js";
 import { CENTER_ALIGNMENT, intersectRects, type Rect, type Size } from "../geometry.js";
 import { deepFreeze } from "../objects.js";
 import type { CompiledItem, CompiledScene, CompiledSnapshot, CompiledSource } from "../snapshot.js";
-import { resolveSourceModules, type SourceModuleMap } from "../source-module.js";
+import {
+  resolveSourceModules,
+  type SourceDefaultsResult,
+  type SourceModule,
+  type SourceModuleMap,
+} from "../source-module.js";
 import type { AnySourceDefinition } from "../sources.js";
 import { validateBroadcast } from "../validation.js";
 import { calculateContentPlacement } from "./content-fit.js";
@@ -26,6 +31,19 @@ interface CompileSuccess {
 interface CompileFailure {
   readonly ok: false;
   readonly diagnostics: readonly Diagnostic[];
+}
+
+interface LocatedSource {
+  readonly source: AnySourceDefinition;
+  readonly path: string;
+}
+
+/** A compiled source layer whose content placement is fitted after sources compile. */
+interface PendingLayer {
+  readonly items: CompiledItem[];
+  readonly index: number;
+  readonly node: LayerNode;
+  readonly path: string;
 }
 
 interface LayoutOrigin {
@@ -64,20 +82,27 @@ export function compileBroadcast(root: BroadcastNode, options: CompileOptions): 
     return { ok: false, diagnostics: sortDiagnostics(diagnostics) };
   }
 
-  const compiledSources = collectSources(root).map(compileSource(modules));
-  const sourcesById = new Map(compiledSources.map((source) => [source.id, source]));
+  // Layout runs before sources compile so modules can derive defaults (such as a browser
+  // viewport) from the frames of the layers that place them; placements are fitted afterwards.
+  const pendingLayers: PendingLayer[] = [];
   const compiledScenes: CompiledScene[] = [];
-
   for (const scene of collectScenes(root)) {
     const compiled = compileScene(
       scene,
       root.canvas,
       options.layoutEngine,
-      sourcesById,
+      pendingLayers,
       diagnostics,
     );
     if (compiled !== undefined) compiledScenes.push(compiled);
   }
+
+  const layerSizes = collectLayerSizes(pendingLayers);
+  const compiledSources = collectSources(root).flatMap((located) =>
+    compileSource(located, modules, root.canvas, layerSizes, diagnostics),
+  );
+  const sourcesById = new Map(compiledSources.map((source) => [source.id, source]));
+  for (const pending of pendingLayers) fitPendingLayer(pending, sourcesById, diagnostics);
 
   const sortedDiagnostics = sortDiagnostics(diagnostics);
   if (sortedDiagnostics.some((item) => item.severity === "error")) {
@@ -113,13 +138,13 @@ function compileScene(
   scene: SceneNode,
   canvas: Size,
   engine: LayoutEngine,
-  sourcesById: ReadonlyMap<string, CompiledSource>,
+  pendingLayers: PendingLayer[],
   diagnostics: Diagnostic[],
 ): CompiledScene | undefined {
   try {
     const items: CompiledItem[] = [];
     for (const record of engine.layout(scene.children, canvas))
-      compileRecord(record, { x: 0, y: 0 }, undefined, sourcesById, items, diagnostics);
+      compileRecord(record, { x: 0, y: 0 }, undefined, items, pendingLayers, diagnostics);
     return omitUndefined({ id: scene.id, label: scene.label, items });
   } catch (cause) {
     diagnostics.push(
@@ -140,8 +165,8 @@ function compileRecord(
   record: LayoutRecord,
   parentOrigin: Readonly<LayoutOrigin>,
   inheritedClip: Rect | null | undefined,
-  sourcesById: ReadonlyMap<string, CompiledSource>,
   items: CompiledItem[],
+  pendingLayers: PendingLayer[],
   diagnostics: Diagnostic[],
 ): void {
   const layout = record.frame;
@@ -155,10 +180,13 @@ function compileRecord(
   if (node.kind === "box") {
     const childClip = clipForBox(node.style, rawFrame, inheritedClip);
     for (const child of record.children)
-      compileRecord(child, rawFrame, childClip, sourcesById, items, diagnostics);
+      compileRecord(child, rawFrame, childClip, items, pendingLayers, diagnostics);
     return;
   }
-  items.push(compileLayer(node, record.path, rawFrame, inheritedClip, sourcesById, diagnostics));
+  items.push(compileLayer(node, record.path, rawFrame, inheritedClip, diagnostics));
+  if (node.kind === "layer") {
+    pendingLayers.push({ items, index: items.length - 1, node, path: record.path });
+  }
 }
 
 /** undefined means no clipping, while null means an already-empty inherited clip. */
@@ -190,13 +218,12 @@ function layerVisibility(rawFrame: Rect, inheritedClip: Rect | null | undefined)
   return omitUndefined({ visible: visibleRect !== undefined, clip: isClipped ? clip : undefined });
 }
 
-/** Compute clipping from unrounded layout bounds, then emit either scene content or fitted source content. */
+/** Compute clipping from unrounded layout bounds; source content is fitted once sources compile. */
 function compileLayer(
   node: LayerNode | SceneLayerNode,
   path: string,
   rawFrame: Rect,
   inheritedClip: Rect | null | undefined,
-  sourcesById: ReadonlyMap<string, CompiledSource>,
   diagnostics: Diagnostic[],
 ): CompiledItem {
   const frame = roundRect(rawFrame);
@@ -221,11 +248,38 @@ function compileLayer(
   });
   if (node.kind === "scene-layer")
     return { ...common, content: { kind: "scene", sceneId: node.sceneId } };
-  return {
-    ...common,
-    content: { kind: "source", sourceId: node.sourceId },
-    ...omitUndefined({ placement: fitSourceLayer(node, path, frame, sourcesById, diagnostics) }),
-  };
+  return { ...common, content: { kind: "source", sourceId: node.sourceId } };
+}
+
+/** Fits a compiled source layer's content once source intrinsic sizes are known. */
+function fitPendingLayer(
+  pending: PendingLayer,
+  sourcesById: ReadonlyMap<string, CompiledSource>,
+  diagnostics: Diagnostic[],
+): void {
+  const item = pending.items[pending.index];
+  if (item === undefined) return;
+  const placement = fitSourceLayer(
+    pending.node,
+    pending.path,
+    item.frame,
+    sourcesById,
+    diagnostics,
+  );
+  if (placement !== undefined) pending.items[pending.index] = { ...item, placement };
+}
+
+/** Rounded frame sizes of the layers placing each source, in scene order. */
+function collectLayerSizes(pendingLayers: readonly PendingLayer[]): ReadonlyMap<string, Size[]> {
+  const sizes = new Map<string, Size[]>();
+  for (const pending of pendingLayers) {
+    const frame = pending.items[pending.index]?.frame;
+    if (frame === undefined) continue;
+    const list = sizes.get(pending.node.sourceId) ?? [];
+    list.push({ width: frame.width, height: frame.height });
+    sizes.set(pending.node.sourceId, list);
+  }
+  return sizes;
 }
 
 /** Invalid fitting inputs become diagnostics while the rest of the graph can still be compiled. */
@@ -255,31 +309,65 @@ function fitSourceLayer(
   return undefined;
 }
 
-function collectSources(root: BroadcastNode): AnySourceDefinition[] {
-  return root.children.flatMap((child) => (child.kind === "sources" ? [...child.children] : []));
+function collectSources(root: BroadcastNode): LocatedSource[] {
+  return root.children.flatMap((child, childIndex) =>
+    child.kind === "sources"
+      ? child.children.map((source, sourceIndex) => ({
+          source,
+          path: `broadcast.children[${String(childIndex)}].children[${String(sourceIndex)}]`,
+        }))
+      : [],
+  );
 }
 
 function collectScenes(root: BroadcastNode): SceneNode[] {
   return root.children.filter((child): child is SceneNode => child.kind === "scene");
 }
 
+/**
+ * Applies the module's context-dependent defaults, then records module-derived intrinsic size and
+ * asset metadata. A source whose defaults cannot be derived is omitted with a diagnostic.
+ */
 function compileSource(
+  located: LocatedSource,
   modules: SourceModuleMap,
-): (definition: AnySourceDefinition) => CompiledSource {
-  return (definition) => {
-    // Source modules supply intrinsic dimensions and assets; omit unavailable metadata from the snapshot.
-    const module = modules.get(definition.kind);
-    const intrinsicSize = module?.intrinsicSize(definition);
-    const asset = module?.asset?.(definition);
-    return {
+  canvas: Size,
+  layerSizes: ReadonlyMap<string, readonly Size[]>,
+  diagnostics: Diagnostic[],
+): CompiledSource[] {
+  const module = modules.get(located.source.kind);
+  const defaults = applySourceDefaults(located, module, canvas, layerSizes);
+  if (!defaults.ok) {
+    diagnostics.push(...defaults.diagnostics);
+    return [];
+  }
+  const definition = defaults.source;
+  const intrinsicSize = module?.intrinsicSize(definition);
+  const asset = module?.asset?.(definition);
+  return [
+    {
       id: definition.id,
       definition: structuredClone(definition),
       ...omitUndefined({
         intrinsicSize: intrinsicSize === undefined ? undefined : { ...intrinsicSize },
       }),
       ...omitUndefined({ asset: asset === undefined ? undefined : { ...asset } }),
-    };
-  };
+    },
+  ];
+}
+
+function applySourceDefaults(
+  located: LocatedSource,
+  module: SourceModule | undefined,
+  canvas: Size,
+  layerSizes: ReadonlyMap<string, readonly Size[]>,
+): SourceDefaultsResult<AnySourceDefinition> {
+  if (module?.applyDefaults === undefined) return { ok: true, source: located.source };
+  return module.applyDefaults(located.source, {
+    canvas: { width: canvas.width, height: canvas.height },
+    layerSizes: layerSizes.get(located.source.id) ?? [],
+    path: located.path,
+  });
 }
 
 function rectEquals(left: Rect, right: Rect): boolean {

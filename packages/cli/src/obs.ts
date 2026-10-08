@@ -1,24 +1,26 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import { consumeRuntimeMessages, projectId } from "@strangecyan/vignette-core";
-import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
-import { OBSRuntime, sseRuntimeSource } from "@strangecyan/vignette-target-obs";
+import { consumeStream } from "@strangecyan/vignette-core";
+import { OBSRuntime, sseStream, type ObsSourceCodec } from "@strangecyan/vignette-target-obs";
 
 import type { ObsCommandOptions } from "./cli-options.js";
 
 export async function runObs(
   options: ObsCommandOptions,
+  extensions: readonly ObsSourceCodec[],
   signal: AbortSignal,
   onError: (error: Error) => void,
 ): Promise<void> {
   const runtime = new OBSRuntime({
-    projectId: projectId(options.project),
+    projectId: options.project,
     url: options.obsUrl,
-    extensions: [moqObsCodec],
+    baseUrl: options.url,
+    extensions,
     onError,
     ...omitUndefined({ password: options.password }),
+    ...omitUndefined({ browserSourceBaseUrl: options.browserSourceBaseUrl }),
   });
   try {
-    await consumeRuntimeMessages(runtime, sseRuntimeSource(options.url, { onError })(signal));
+    await consumeStream(runtime, sseStream(options.url, { onError })(signal));
   } finally {
     await runtime.dispose();
   }

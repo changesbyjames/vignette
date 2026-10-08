@@ -3,11 +3,14 @@ import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { frame, type FrameMetadata } from "./definition.js";
+import { useRemoteStore } from "./remote-store-client.js";
+import { defineRemoteStore } from "./remote-store.js";
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
   renderFrameHtml,
   renderHydrationModule,
+  resolveFrame,
   type FrameRequestHandler,
   type FrameModuleHost,
 } from "./server.js";
@@ -26,6 +29,18 @@ const metadata: FrameMetadata = {
 
 interface GreetingParams {
   name: string;
+}
+
+interface LiveStoreContext {
+  readonly title: string;
+}
+
+interface LiveStoreSnapshot {
+  readonly context: LiveStoreContext;
+}
+
+interface LiveStore {
+  getSnapshot(): LiveStoreSnapshot;
 }
 
 const greeting = frame.withMetadata(metadata)({
@@ -106,6 +121,32 @@ describe("frame request handler", () => {
     expect(response.text).toContain("<strong>Hello Ada</strong>");
   });
 
+  it("resolves request targets to plain results without Fetch objects", () => {
+    // Covers a page, its hydration module, a missing payload, an unknown frame, and a foreign path.
+    const registry = new FrameRouteRegistry();
+    registry.registerDefinition(greeting);
+    const frames = { modules: createHost(), registry };
+
+    const page = resolveFrame(
+      frames,
+      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
+    );
+    expect(page?.status).toBe(200);
+    expect(page?.headers["Content-Type"]).toBe("text/html; charset=utf-8");
+    expect(page?.body).toContain("<strong>Hello Ada</strong>");
+
+    expect(resolveFrame(frames, "/__vignette/frame/greeting-test/hydrate.js")?.headers).toEqual({
+      "Cache-Control": "no-store",
+      "Content-Type": "text/javascript; charset=utf-8",
+    });
+    expect(resolveFrame(frames, "/__vignette/frame/greeting-test")).toMatchObject({
+      status: 400,
+      body: "Frame request is missing its props payload.",
+    });
+    expect(resolveFrame(frames, "/__vignette/frame/unknown?props=%7B%7D")?.status).toBe(404);
+    expect(resolveFrame(frames, "/health?props=%7B%7D")).toBeUndefined();
+  });
+
   it("exports pure render kernels for platform routers", () => {
     expect(renderFrameHtml(greeting, metadata, { name: "Ada" })).toContain(
       "<strong>Hello Ada</strong>",
@@ -113,6 +154,24 @@ describe("frame request handler", () => {
     expect(renderHydrationModule(createHost(), metadata)).toContain(
       'from "https://assets.test/frames/greeting.js"',
     );
+  });
+
+  it("renders views that suspend on the server without their own Suspense boundary", () => {
+    const liveStore = defineRemoteStore<LiveStore>({ id: "live" });
+    const liveMetadata: FrameMetadata = { ...metadata, routeKey: "live-test", exportName: "live" };
+    const live = frame.withMetadata(liveMetadata)({
+      view: () =>
+        createElement(
+          "em",
+          null,
+          useRemoteStore(liveStore, (state) => state.context.title),
+        ),
+    });
+
+    const html = renderFrameHtml(live, liveMetadata, {});
+
+    expect(html).toContain("<div data-vignette-frame-root>");
+    expect(html).not.toContain("<em>");
   });
 });
 
@@ -175,7 +234,7 @@ function createHost(): FrameModuleHost {
 
 async function request(handler: FrameRequestHandler, path: string): Promise<FrameResponse> {
   const response =
-    (await handler(new Request(`https://vignette.test${path}`))) ??
+    handler(new Request(`https://vignette.test${path}`)) ??
     new Response("Not handled.", { status: 404 });
   return { status: response.status, headers: response.headers, text: await response.text() };
 }

@@ -18,6 +18,7 @@
     "pnpm-lock.yaml",
     "playwright-report/",
     "test-results/",
-    "tools/"
+    "tools/",
+    "packages/core/vendor/"
   ]
 }

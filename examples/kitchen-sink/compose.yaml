@@ -5,8 +5,6 @@ services:
       dockerfile: examples/kitchen-sink/Dockerfile.host
     ports:
       - "4173:4173"
-    environment:
-      VIGNETTE_ORIGIN: ${VIGNETTE_ORIGIN:-http://127.0.0.1:4173}
 
   vignette-worker:
     build:
@@ -16,8 +14,10 @@ services:
       vignette-host:
         condition: service_healthy
     environment:
-      VIGNETTE_RUNTIME_URL: http://vignette-host:4173/runtime
-      VIGNETTE_ASSET_ORIGIN: http://vignette-host:4173
+      # The worker downloads assets through the runtime URL's host; OBS runs on the Docker host
+      # and loads browser-source frames through the published port instead.
+      VIGNETTE_STREAM_URL: http://vignette-host:4173/stream
+      VIGNETTE_BROWSER_SOURCE_BASE_URL: ${VIGNETTE_BROWSER_SOURCE_BASE_URL:-http://127.0.0.1:4173/}
       VIGNETTE_OBS_URL: ${VIGNETTE_OBS_URL:-ws://host.docker.internal:4455}
       VIGNETTE_OBS_PASSWORD: ${VIGNETTE_OBS_PASSWORD:-runtime-only}
     extra_hosts:

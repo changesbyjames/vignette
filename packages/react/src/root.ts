@@ -2,25 +2,24 @@ import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   compileBroadcast,
   deepFreeze,
+  extensionSourceKinds,
   resolveSourceModules,
-  RuntimeMessageHub,
+  StreamHub,
   type AssetManifest,
-  type BroadcastCanvas,
   type CompiledSnapshot,
   type Diagnostic,
   type LayoutEngine,
-  type ProjectId,
-  type RuntimeEvent,
-  type RuntimeMessage,
-  type SourceModule,
+  type StreamEvent,
+  type StreamMessage,
   type SourceModuleMap,
 } from "@strangecyan/vignette-core";
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 
+import type { CompositionDefinition } from "./composition.js";
 import { hostTreeToBroadcast } from "./host-tree.js";
 import type { HostContainer } from "./host-types.js";
 import { reconciler } from "./reconciler.js";
-import { RootStatusStore, type BroadcastRootStatus } from "./status.js";
+import { ComposerStatusStore, type ComposerStatus } from "./status.js";
 
 interface ComposerRootImplCompileFailure {
   readonly revision: number;
@@ -31,36 +30,41 @@ interface LoadDefaultLayoutEngineModule {
   yogaLayoutEngine: LayoutEngine;
 }
 
-/** Identity, canvas, extensions, and error handling for a composer root. */
+/** Host-owned settings for a composer root; identity comes from the composition. */
 export interface ComposerRootOptions {
-  readonly projectId: ProjectId;
-  readonly canvas: BroadcastCanvas;
-  readonly strictMode?: boolean;
-  /** Source modules contributed by extension packages (built-ins are always registered). */
-  readonly extensions?: readonly SourceModule[];
+  readonly strictMode?: boolean | undefined;
   /** Layout implementation. Defaults to the yoga-layout binding when omitted. */
-  readonly layoutEngine?: LayoutEngine;
+  readonly layoutEngine?: LayoutEngine | undefined;
   /** Assets required by this composition. Fixed for the root's lifetime. */
-  readonly assets?: AssetManifest;
-  readonly onError?: (error: Error) => void;
+  readonly assets?: AssetManifest | undefined;
+  readonly onError?: ((error: Error) => void) | undefined;
 }
 
-/** Revisions associated with one completed React commit and compilation. */
+/** Revisions and the compiled snapshot associated with one completed React commit. */
 export interface CommitReceipt {
   readonly requestedRevision: number;
   readonly compiledRevision: number;
   readonly compiledAt: number;
+  /** The snapshot compiled for this commit (or a newer one that superseded it). */
+  readonly snapshot: CompiledSnapshot;
 }
 
-/** Persistent Node-side React root that publishes compiled snapshots. */
+/** Persistent Node-side React root that compiles a composition and publishes its stream. */
 export interface ComposerRoot {
-  render(element: ReactNode): Promise<CommitReceipt>;
+  /**
+   * Renders the composition's component, or `element` when supplied (for hosts that wrap the
+   * component in providers, or tests that render ad hoc trees). Resolves once the commit is
+   * compiled, so `(await root.render()).snapshot` and `root.snapshot` are current.
+   */
+  render(element?: ReactNode): Promise<CommitReceipt>;
+  /** The latest compiled snapshot, or undefined before the first successful compile. */
   readonly snapshot: CompiledSnapshot | undefined;
   settled(): Promise<CompiledSnapshot>;
-  messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage>;
+  /** The composer stream: replays setup and the latest update, then follows live messages. */
+  messages(signal?: AbortSignal): AsyncIterable<StreamMessage>;
   snapshots(signal?: AbortSignal): AsyncIterable<CompiledSnapshot>;
-  publishEvent(event: RuntimeEvent): void;
-  getStatus(): BroadcastRootStatus;
+  publishEvent(event: StreamEvent): void;
+  getStatus(): ComposerStatus;
   subscribe(listener: (snapshot: CompiledSnapshot) => void): () => void;
   subscribeStatus(listener: () => void): () => void;
   unmount(): Promise<CommitReceipt>;
@@ -73,12 +77,46 @@ interface CompileWaiter {
   readonly reject: (error: Error) => void;
 }
 
-/** Creates a persistent React composer for one Vignette project. */
-export function createComposerRoot(options: ComposerRootOptions): ComposerRoot {
-  return new ComposerRootImpl(options);
+/** Creates a persistent React composer for one composition. */
+export function createComposerRoot(
+  composition: CompositionDefinition,
+  options: ComposerRootOptions = {},
+): ComposerRoot {
+  return new ComposerRootImpl(composition, options);
+}
+
+/** Options for a one-shot {@link compile}. */
+export interface CompileCompositionOptions extends ComposerRootOptions {
+  /** Element to render instead of the composition's component, e.g. one wrapped in providers. */
+  readonly element?: ReactNode | undefined;
+}
+
+/**
+ * Renders a composition once and resolves to its settled snapshot, disposing the root afterwards.
+ * Useful for tests, scripts, and static exports; rejects when rendering or compilation fails.
+ * State updates scheduled later by effects (timers, fetches) are not awaited; use a persistent
+ * `createComposerRoot` for live compositions.
+ *
+ * ```ts
+ * const snapshot = await compile(composition);
+ * ```
+ */
+export async function compile(
+  composition: CompositionDefinition,
+  options: CompileCompositionOptions = {},
+): Promise<CompiledSnapshot> {
+  const { element, ...rootOptions } = options;
+  const root = createComposerRoot(composition, rootOptions);
+  try {
+    await (element === undefined ? root.render() : root.render(element));
+    return await root.settled();
+  } finally {
+    await root.dispose();
+  }
 }
 
 class ComposerRootImpl implements ComposerRoot {
+  private readonly composition: CompositionDefinition;
   private readonly options: ComposerRootOptions;
   private readonly modules: SourceModuleMap;
   private readonly container: HostContainer;
@@ -87,25 +125,33 @@ class ComposerRootImpl implements ComposerRoot {
   private readonly renderRejectors = new Set<(error: Error) => void>();
   private readonly renderFailures = new Map<number, Error>();
   private readonly snapshotListeners = new Set<(snapshot: CompiledSnapshot) => void>();
-  private readonly status = new RootStatusStore();
-  private readonly messageHub = new RuntimeMessageHub();
+  private readonly status = new ComposerStatusStore();
+  private readonly messageHub = new StreamHub();
   private currentSnapshot: CompiledSnapshot | undefined;
   private compileScheduled = false;
   private compiledRevision = -1;
   private disposed = false;
   private compileFailure: ComposerRootImplCompileFailure | undefined;
 
-  constructor(options: ComposerRootOptions) {
+  constructor(composition: CompositionDefinition, options: ComposerRootOptions) {
+    this.composition = composition;
     this.options = options;
-    const manifest = deepFreeze<AssetManifest>({
+    const manifest: AssetManifest = {
       version: options.assets?.version ?? 1,
       assets: (options.assets?.assets ?? []).map((asset) => ({ ...asset })),
-    });
-    this.messageHub.publish({ kind: "setup", manifest });
-    this.modules = resolveSourceModules(options.extensions);
+    };
+    this.messageHub.publish(
+      deepFreeze({
+        kind: "setup",
+        projectId: composition.id,
+        manifest,
+        extensions: extensionSourceKinds(composition.extensions),
+      }),
+    );
+    this.modules = resolveSourceModules(composition.extensions);
     this.container = {
-      projectId: options.projectId,
-      canvas: options.canvas,
+      projectId: composition.id,
+      canvas: composition.canvas,
       children: [],
       commitRevision: 0,
       commitActive: false,
@@ -134,7 +180,7 @@ class ComposerRootImpl implements ComposerRoot {
       ) as unknown;
   }
 
-  render(element: ReactNode): Promise<CommitReceipt> {
+  render(element: ReactNode = createElement(this.composition.component)): Promise<CommitReceipt> {
     this.assertActive();
     return new Promise<CommitReceipt>((resolve, reject) => {
       let renderFailed = false;
@@ -169,7 +215,7 @@ class ComposerRootImpl implements ComposerRoot {
     return this.currentSnapshot;
   }
 
-  messages(signal?: AbortSignal): AsyncIterable<RuntimeMessage> {
+  messages(signal?: AbortSignal): AsyncIterable<StreamMessage> {
     this.assertActive();
     return this.messageHub.subscribe(signal);
   }
@@ -180,12 +226,12 @@ class ComposerRootImpl implements ComposerRoot {
     }
   }
 
-  publishEvent(event: RuntimeEvent): void {
+  publishEvent(event: StreamEvent): void {
     this.assertActive();
     this.messageHub.publish({ kind: "event", event });
   }
 
-  getStatus(): BroadcastRootStatus {
+  getStatus(): ComposerStatus {
     return this.status.getSnapshot();
   }
 
@@ -257,7 +303,7 @@ class ComposerRootImpl implements ComposerRoot {
     }
 
     if (this.container.children.length === 0) {
-      this.publish(emptySnapshot(this.options, revision), []);
+      this.publish(emptySnapshot(this.composition, revision), []);
       return;
     }
 
@@ -291,7 +337,7 @@ class ComposerRootImpl implements ComposerRoot {
     for (const listener of this.snapshotListeners) listener(snapshot);
     for (const waiter of this.compileWaiters) {
       if (waiter.revision > snapshot.revision) continue;
-      waiter.resolve(this.receipt(waiter.revision));
+      waiter.resolve(this.receipt(waiter.revision, snapshot));
       this.compileWaiters.delete(waiter);
     }
   }
@@ -311,8 +357,12 @@ class ComposerRootImpl implements ComposerRoot {
     this.rejectCompileWaiters(error, revision);
   }
 
+  /** Resolve from the current snapshot, reject a recorded failure, or wait for the revision to compile. */
   private waitForCompile(revision: number): Promise<CommitReceipt> {
-    if (this.compiledRevision >= revision) return Promise.resolve(this.receipt(revision));
+    if (this.disposed) return Promise.reject(new Error("Composer root is disposed."));
+    if (this.compiledRevision >= revision && this.currentSnapshot !== undefined) {
+      return Promise.resolve(this.receipt(revision, this.currentSnapshot));
+    }
     if (this.compileFailure !== undefined && this.compileFailure.revision >= revision) {
       return Promise.reject(this.compileFailure.error);
     }
@@ -321,11 +371,12 @@ class ComposerRootImpl implements ComposerRoot {
     });
   }
 
-  private receipt(requestedRevision: number): CommitReceipt {
+  private receipt(requestedRevision: number, snapshot: CompiledSnapshot): CommitReceipt {
     return {
       requestedRevision,
       compiledRevision: this.compiledRevision,
       compiledAt: Date.now(),
+      snapshot,
     };
   }
 
@@ -358,7 +409,9 @@ class ComposerRootImpl implements ComposerRoot {
 let defaultLayoutEngine: Promise<LayoutEngine> | undefined = undefined;
 
 function loadDefaultLayoutEngine(): Promise<LayoutEngine> {
-  defaultLayoutEngine ??= import(/* @vite-ignore */ "@strangecyan/vignette-core/layout-yoga").then(
+  // A literal, analyzable specifier: bundlers must include the engine (resolved under the host's
+  // export conditions, e.g. `workerd`) because bundled Workers cannot resolve bare imports at runtime.
+  defaultLayoutEngine ??= import("@strangecyan/vignette-core/layout-yoga").then(
     (module: LoadDefaultLayoutEngineModule) => Promise.resolve(module.yogaLayoutEngine),
   );
   return defaultLayoutEngine;
@@ -374,11 +427,11 @@ class CompileFailure extends Error {
   }
 }
 
-function emptySnapshot(options: ComposerRootOptions, revision: number): CompiledSnapshot {
+function emptySnapshot(composition: CompositionDefinition, revision: number): CompiledSnapshot {
   return {
     revision,
-    projectId: options.projectId,
-    canvas: { ...options.canvas },
+    projectId: composition.id,
+    canvas: { ...composition.canvas },
     sources: [],
     scenes: [],
     warnings: [],

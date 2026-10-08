@@ -45,10 +45,7 @@ describe("useRemoteStore", () => {
   it("ignores malformed messages while waiting for a snapshot", () => {
     vi.stubGlobal("window", {});
     vi.stubGlobal("EventSource", FakeEventSource);
-    const ref = defineRemoteStore<TestStore>({
-      id: "composition",
-      url: `/api/store/malformed-test-${crypto.randomUUID()}`,
-    });
+    const ref = defineRemoteStore<TestStore>({ id: `malformed-test-${crypto.randomUUID()}` });
 
     render(ref);
     FakeEventSource.instances[0]?.emit("not json");

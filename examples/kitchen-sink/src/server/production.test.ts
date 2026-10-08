@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import type { RuntimeMessage } from "@strangecyan/vignette-core";
-import { sseRuntimeSource } from "@strangecyan/vignette-target-obs";
+import type { StreamMessage } from "@strangecyan/vignette-core";
+import { sseStream } from "@strangecyan/vignette-target-obs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ const workspaceRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const exampleRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 describe("production kitchen-sink server", () => {
-  it("builds and serves runtime SSE, frame SSR, and manifest-resolved hydration modules", async () => {
+  it("builds and serves stream SSE, frame SSR, and manifest-resolved hydration modules", async () => {
     // Set VIGNETTE_SKIP_BUILD=1 to reuse an existing dist/ when iterating locally.
     if (process.env.VIGNETTE_SKIP_BUILD !== "1") {
       await execFileAsync("pnpm", ["build"], {
@@ -30,7 +30,6 @@ describe("production kitchen-sink server", () => {
       env: {
         ...process.env,
         PORT: String(port),
-        VIGNETTE_ORIGIN: origin,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -46,18 +45,19 @@ describe("production kitchen-sink server", () => {
       // Wait for the launched server, inspect its runtime replay and frame routes, and always stop the child process.
 
       await waitForServer(origin, child, () => output);
-      const messages = await readRuntimeReplay(`${origin}/runtime`);
+      const messages = await readRuntimeReplay(`${origin}/stream`);
       expect(messages.map((message) => message.kind)).toEqual(["setup", "update"]);
 
       const update = messages.find((message) => message.kind === "update");
       const frameUrl = findFrameUrl(update?.snapshot);
-      expect(frameUrl).toBeDefined();
-      const frameResponse = await fetch(frameUrl ?? "");
+      // Snapshots carry root-relative frame URLs; consumers resolve them against their own base.
+      expect(frameUrl).toMatch(/^\/__vignette\/frame\//u);
+      const frameResponse = await fetch(new URL(frameUrl ?? "", origin));
       expect(frameResponse.status).toBe(200);
       const frameHtml = await frameResponse.text();
       expect(frameHtml).toContain("<!doctype html>");
 
-      const routeKey = new URL(frameUrl ?? "").pathname.split("/").at(-1);
+      const routeKey = new URL(frameUrl ?? "", origin).pathname.split("/").at(-1);
       const hydrationPath = /src="([^"]+\/hydrate\.js)"/u.exec(frameHtml)?.[1];
       expect(routeKey).toBeDefined();
       expect(hydrationPath).toBeDefined();
@@ -118,10 +118,10 @@ async function waitForServer(
   throw new Error(`Production server did not start.\n${readOutput()}`);
 }
 
-async function readRuntimeReplay(url: string): Promise<readonly RuntimeMessage[]> {
+async function readRuntimeReplay(url: string): Promise<readonly StreamMessage[]> {
   const controller = new AbortController();
-  const messages: RuntimeMessage[] = [];
-  for await (const message of sseRuntimeSource(url)(controller.signal)) {
+  const messages: StreamMessage[] = [];
+  for await (const message of sseStream(url)(controller.signal)) {
     messages.push(message);
     if (message.kind === "update") controller.abort();
   }

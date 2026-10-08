@@ -19,5 +19,5 @@ export * from "./operations.js";
 export type * from "./plan.js";
 export * from "./planner.js";
 export type { ObsRetryOptions, ObsSchedulerRuntime } from "./scheduler.js";
-export { sseRuntimeSource, type SseRuntimeSourceOptions } from "./sse.js";
+export { sseStream, type SseStreamOptions } from "./sse.js";
 export type * from "./transport.js";

@@ -6,16 +6,12 @@
 export {
   frame,
   isFrameDefinition,
+  type FrameBuilder,
   type FrameDefinition,
   type FrameMetadata,
   type FrameOptions,
   type FrameParamsSchema,
+  type NoFrameParams,
+  type ParameterlessFrameOptions,
 } from "./definition.js";
-export {
-  createSceneStore,
-  SceneProvider,
-  type SceneProviderProps,
-  type SceneState,
-  type SceneStore,
-} from "./scene.js";
 export { View, type ViewProps } from "./view.js";

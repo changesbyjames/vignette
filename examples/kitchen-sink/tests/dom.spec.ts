@@ -73,7 +73,7 @@ test("captures an exact-canvas static CLI preview", async ({ baseURL }) => {
         resolve("packages/cli/bin/vignette.js"),
         "preview",
         "--snapshot",
-        new URL("/runtime", baseURL).href,
+        new URL("/stream", baseURL).href,
         "--scene",
         "main",
         "--out",

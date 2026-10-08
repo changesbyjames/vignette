@@ -1,5 +1,7 @@
 import {
+  resolveResourceUrl,
   validateAssetName,
+  validateResourceUrl,
   type AssetManifest,
   type AssetRef,
   type AssetResolver,
@@ -7,19 +9,24 @@ import {
 } from "@strangecyan/vignette-core";
 
 export interface DomAssetStoreOptions {
-  readonly fetch?: typeof globalThis.fetch;
-  readonly createObjectURL?: (blob: Blob) => string;
-  readonly revokeObjectURL?: (url: string) => void;
+  readonly fetch?: typeof globalThis.fetch | undefined;
+  readonly createObjectURL?: ((blob: Blob) => string) | undefined;
+  readonly revokeObjectURL?: ((url: string) => void) | undefined;
 }
 
 export class DomAssetStore implements AssetResolver {
+  private readonly baseUrl: string;
   private readonly fetch: typeof globalThis.fetch;
   private readonly createObjectURL: (blob: Blob) => string;
   private readonly revokeObjectURL: (url: string) => void;
   private urls = new Map<string, string>();
 
-  /** Use injected I/O or bind the platform fetch and object-URL implementations. */
-  constructor(options: DomAssetStoreOptions = {}) {
+  /**
+   * Use injected I/O or bind the platform fetch and object-URL implementations. `baseUrl` is the
+   * absolute base for root-relative manifest URLs.
+   */
+  constructor(baseUrl: string, options: DomAssetStoreOptions = {}) {
+    this.baseUrl = baseUrl;
     this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.createObjectURL = options.createObjectURL ?? URL.createObjectURL.bind(URL);
     this.revokeObjectURL = options.revokeObjectURL ?? URL.revokeObjectURL.bind(URL);
@@ -32,7 +39,7 @@ export class DomAssetStore implements AssetResolver {
     try {
       const downloads = await Promise.all(
         manifest.assets.map(async (entry) => {
-          const response = await this.fetch(entry.url);
+          const response = await this.fetch(resolveResourceUrl(entry.url, this.baseUrl));
           if (!response.ok) {
             throw new Error(
               `Asset '${entry.name}' download failed with HTTP ${String(response.status)}.`,
@@ -69,11 +76,11 @@ export class DomAssetStore implements AssetResolver {
   }
 }
 
-/** Reject invalid or repeated asset names and require HTTP asset URLs before starting downloads. */
+/** Reject invalid or repeated asset names and require HTTP(S) or root-relative URLs before starting downloads. */
 function validateManifest(manifest: AssetManifest): void {
   const names = new Set<string>();
   for (const entry of manifest.assets) {
-    // Reject invalid or repeated asset names and require HTTP asset URLs before starting downloads.
+    // Reject invalid or repeated asset names and require HTTP(S) or root-relative URLs before starting downloads.
 
     const error = validateAssetName(entry.name);
     if (error !== undefined) throw new Error(error);
@@ -81,10 +88,8 @@ function validateManifest(manifest: AssetManifest): void {
       throw new Error(`Asset manifest contains duplicate name '${entry.name}'.`);
     }
     names.add(entry.name);
-    const parsed = new URL(entry.url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error(`Asset '${entry.name}' URL must use HTTP(S).`);
-    }
+    const urlError = validateResourceUrl(entry.url);
+    if (urlError !== undefined) throw new Error(`Asset '${entry.name}' ${urlError}`);
   }
 }
 

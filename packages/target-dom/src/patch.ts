@@ -5,10 +5,9 @@ import type {
   CompiledSource,
   Size,
   AnySourceDefinition,
-  SourceId,
 } from "@strangecyan/vignette-core";
 
-import type { DomRendererMap } from "./elements/index.js";
+import type { DomRendererContext, DomRendererMap } from "./elements/index.js";
 import { DomSourceRegistry } from "./source-registry.js";
 import { applyItemFrame, px } from "./styles.js";
 
@@ -16,7 +15,7 @@ interface LayerRecord {
   readonly wrapper: HTMLDivElement;
   readonly contentHost: HTMLDivElement;
   contentKind: AnySourceDefinition["kind"] | "scene";
-  sourceId?: SourceId;
+  sourceId?: string;
   nestedRecords?: Map<string, LayerRecord>;
 }
 
@@ -25,9 +24,9 @@ export class DomScenePatcher {
   private readonly records = new Map<string, LayerRecord>();
   private readonly sources: DomSourceRegistry;
 
-  constructor(container: HTMLElement, renderers: DomRendererMap) {
+  constructor(container: HTMLElement, renderers: DomRendererMap, context: DomRendererContext) {
     this.container = container;
-    this.sources = new DomSourceRegistry(container, renderers);
+    this.sources = new DomSourceRegistry(container, renderers, context);
   }
 
   patch(

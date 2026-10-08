@@ -1,7 +1,7 @@
 {
   "name": "@strangecyan/vignette-vite",
   "version": "0.4.1",
-  "description": "Vite build integration for Vignette frames and composition assets.",
+  "description": "Vite integration for Vignette frames, composition assets, and the dev composer.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,16 +39,20 @@
     "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
+    "@strangecyan/vignette": "workspace:^",
     "@strangecyan/vignette-core": "workspace:^",
     "@strangecyan/vignette-frame": "workspace:^",
     "tinyglobby": "0.2.17",
     "zod": "4.6.5"
   },
   "peerDependencies": {
+    "react": "^19.2.0",
     "vite": "^8.1.0"
   },
   "devDependencies": {
     "@types/node": "26.1.1",
-    "vite": "8.1.4"
+    "vite": "8.1.4",
+    "react": "19.2.7",
+    "@types/react": "19.2.17"
   }
 }

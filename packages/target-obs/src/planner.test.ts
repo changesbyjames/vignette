@@ -1,13 +1,5 @@
 import { omitUndefined } from "@strangecyan/vignette-core";
-import {
-  layerId,
-  projectId,
-  sceneId,
-  sourceId,
-  type BrowserSource,
-  type ColorSource,
-  type CompiledSnapshot,
-} from "@strangecyan/vignette-core";
+import type { BrowserSource, ColorSource, CompiledSnapshot } from "@strangecyan/vignette-core";
 import { describe, expect, it } from "vitest";
 
 import { REQUIRED_OBS_REQUESTS } from "./capabilities.js";
@@ -17,10 +9,10 @@ import { resolveObsCodecs } from "./codecs/index.js";
 import { planObsUpdate } from "./planner.js";
 
 const codecs = resolveObsCodecs();
-const project = projectId("show");
-const scene = sceneId("main");
-const source = sourceId("background");
-const layer = layerId("background-layer");
+const project = "show";
+const scene = "main";
+const source = "background";
+const layer = "background-layer";
 
 describe("planObsUpdate", () => {
   it("builds resources in dependency order and enables placements last", () => {
@@ -311,11 +303,11 @@ describe("planObsUpdate", () => {
         scenes: [
           firstScene,
           {
-            id: sceneId("secondary"),
+            id: "secondary",
             items: [
               {
                 ...firstItem,
-                id: layerId("secondary-browser-layer"),
+                id: "secondary-browser-layer",
                 frame: { x: 0, y: 0, width: 640, height: 360 },
                 placement: {
                   destination: { x: 0, y: 0, width: 640, height: 360 },
@@ -381,7 +373,7 @@ function snapshot(): CompiledSnapshot {
 }
 
 function browserSnapshot(width: number, height: number): CompiledSnapshot {
-  const browser = sourceId("browser");
+  const browser = "browser";
   const fixtureSource4 = {
     id: browser,
     kind: "source:browser",
@@ -404,7 +396,7 @@ function browserSnapshot(width: number, height: number): CompiledSnapshot {
         id: scene,
         items: [
           {
-            id: layerId("browser-layer"),
+            id: "browser-layer",
             content: { kind: "source", sourceId: browser },
             frame: { x: 0, y: 0, width, height },
             placement: {

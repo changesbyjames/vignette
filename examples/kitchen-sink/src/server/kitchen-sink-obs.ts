@@ -1,47 +1,26 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
 import { moqObsCodec } from "@strangecyan/vignette-moq/obs";
 import { OBSRuntime } from "@strangecyan/vignette-target-obs";
 
-import { KITCHEN_SINK_PROJECT_ID } from "./kitchen-sink.js";
-
 export interface KitchenSinkObsRuntimeOptions {
-  readonly url?: string;
-  readonly password?: string;
-  /** Internal origin used only when the worker downloads manifest assets. */
-  readonly assetOrigin?: string;
+  /** The composition's `id`; the runtime refuses a stream for any other project. */
+  readonly projectId: string;
+  readonly url?: string | undefined;
+  readonly password?: string | undefined;
+  /** How this process reaches the composer; resolves root-relative asset and frame URLs. */
+  readonly baseUrl: string;
+  /** How OBS reaches the composer when it differs from `baseUrl` (e.g. a Docker worker). */
+  readonly browserSourceBaseUrl?: string | undefined;
   readonly onError: (error: Error) => void;
 }
 
 export function createKitchenSinkObsRuntime(options: KitchenSinkObsRuntimeOptions): OBSRuntime {
-  const assetOrigin = options.assetOrigin;
   return new OBSRuntime({
-    projectId: KITCHEN_SINK_PROJECT_ID,
+    projectId: options.projectId,
     url: options.url ?? "ws://127.0.0.1:4455",
     extensions: [moqObsCodec],
-    ...omitUndefined({ password: options.password }),
-    ...omitUndefined({
-      fetch:
-        assetOrigin === undefined
-          ? undefined
-          : (url: string) => fetch(rewriteAssetOrigin(url, assetOrigin)),
-    }),
+    baseUrl: options.baseUrl,
+    browserSourceBaseUrl: options.browserSourceBaseUrl,
+    password: options.password,
     onError: options.onError,
   });
-}
-
-/** Accept a bare HTTP origin and preserve the asset path, query, and fragment when rewriting its host. */
-export function rewriteAssetOrigin(url: string, origin: string): string {
-  const source = new URL(url);
-  const target = new URL(origin);
-  if (
-    (target.protocol !== "http:" && target.protocol !== "https:") ||
-    target.pathname !== "/" ||
-    target.search !== "" ||
-    target.hash !== ""
-  ) {
-    throw new Error("VIGNETTE_ASSET_ORIGIN must be an HTTP(S) origin without a path.");
-  }
-  target.pathname = source.pathname;
-  target.search = source.search;
-  return target.href;
 }

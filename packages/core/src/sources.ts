@@ -1,6 +1,5 @@
 import type { AssetRef } from "./assets.js";
 import type { Size } from "./geometry.js";
-import type { SourceId } from "./ids.js";
 
 /** CSS injected into browser sources to create a transparent fixed viewport. */
 export const DEFAULT_BROWSER_SOURCE_CSS =
@@ -8,7 +7,7 @@ export const DEFAULT_BROWSER_SOURCE_CSS =
 
 /** Identity and optional label shared by every source definition. */
 export interface SourceBase {
-  readonly id: SourceId;
+  readonly id: string;
   readonly label?: string;
 }
 
@@ -40,7 +39,11 @@ export interface MediaFileSource extends AnySourceDefinition {
 export interface BrowserSource extends AnySourceDefinition {
   readonly kind: "source:browser";
   readonly url: string;
-  readonly viewport: Size;
+  /**
+   * Page size in CSS pixels. When omitted it defaults to the frame size of the layers placing the
+   * source (or the canvas when unplaced); compiled snapshots always carry the resolved viewport.
+   */
+  readonly viewport?: Size;
   readonly shutdownWhenHidden?: boolean;
 }
 
@@ -48,6 +51,7 @@ export interface BrowserSource extends AnySourceDefinition {
 export interface ColorSource extends AnySourceDefinition {
   readonly kind: "source:color";
   readonly color: string;
+  /** Intrinsic size; defaults to the canvas size. Compiled snapshots always carry it. */
   readonly size?: Size;
 }
 

@@ -6,11 +6,6 @@
     "outDir": "dist",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo"
   },
-  "references": [
-    { "path": "../core" },
-    { "path": "../target-dom" },
-    { "path": "../target-obs" },
-    { "path": "../moq" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../target-dom" }, { "path": "../target-obs" }],
   "include": ["src/**/*.ts"]
 }

@@ -1,4 +1,9 @@
-import { DEFAULT_BROWSER_SOURCE_CSS, type BrowserSource } from "@strangecyan/vignette-core";
+import {
+  DEFAULT_BROWSER_SOURCE_CSS,
+  resolveResourceUrl,
+  type BrowserSource,
+  type Size,
+} from "@strangecyan/vignette-core";
 
 import type { DomSourceRenderer } from "./types.js";
 
@@ -8,7 +13,7 @@ export const browserRenderer: DomSourceRenderer<BrowserSource> = {
   retainWhenHidden(source) {
     return !(source.shutdownWhenHidden ?? false);
   },
-  create(document) {
+  create(document, context) {
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
     frame.setAttribute("referrerpolicy", "no-referrer");
@@ -21,13 +26,15 @@ export const browserRenderer: DomSourceRenderer<BrowserSource> = {
 
     return {
       element: frame,
-      update(source) {
+      update(source, item) {
         if (source.kind !== "source:browser") {
           throw new TypeError("Browser renderer received another source kind.");
         }
         updateBrowser(
           frame,
           /* SAFETY: The source registry selects this module by its source kind after core validation of that definition. */ source as BrowserSource,
+          context.baseUrl,
+          item.frame,
         );
         applyDefaultCss();
       },
@@ -61,8 +68,16 @@ function applyBrowserCss(frame: HTMLIFrameElement, css: string): void {
   }
 }
 
-function updateBrowser(frame: HTMLIFrameElement, source: BrowserSource): void {
-  if (frame.src !== source.url) frame.src = source.url;
-  frame.width = String(source.viewport.width);
-  frame.height = String(source.viewport.height);
+/** Compiled snapshots carry a resolved viewport; the layer frame is the same default core applies. */
+function updateBrowser(
+  frame: HTMLIFrameElement,
+  source: BrowserSource,
+  baseUrl: string,
+  layerFrame: Size,
+): void {
+  const url = resolveResourceUrl(source.url, baseUrl);
+  if (frame.src !== url) frame.src = url;
+  const viewport = source.viewport ?? layerFrame;
+  frame.width = String(viewport.width);
+  frame.height = String(viewport.height);
 }

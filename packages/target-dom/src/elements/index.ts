@@ -25,4 +25,4 @@ export function resolveDomRenderers(extensions: readonly DomSourceRenderer[] = [
 }
 
 export { browserRenderer, colorRenderer, imageRenderer, mediaRenderer };
-export type { DomSourceRenderer, DomSourceView } from "./types.js";
+export type { DomRendererContext, DomSourceRenderer, DomSourceView } from "./types.js";
