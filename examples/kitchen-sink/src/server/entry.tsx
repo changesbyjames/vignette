@@ -35,10 +35,7 @@ app.get("/stream", (context) =>
     }
   }),
 );
-app.all(
-  "/__vignette/*",
-  async (context) => (await handleFrame(context.req.raw)) ?? context.notFound(),
-);
+app.all("/__vignette/*", (context) => handleFrame(context.req.raw) ?? context.notFound());
 app.use("/*", serveStatic({ root: clientDirectory }));
 
 const server = serve({ fetch: app.fetch, port, hostname });

@@ -45,9 +45,11 @@ import { defineConfig } from "vite";
 export default defineConfig({ plugins: [vignette()] });
 ```
 
-`./server` provides `FrameRouteRegistry`, pure rendering kernels, and a Fetch API handler over a
-static frame bundle. `./server/node` adds a Node HTTP adapter. `./transform` exposes the source
-transform and `./client` exports the hydration helper. Applications own routing and transport.
+`./server` provides `FrameRouteRegistry`, pure rendering kernels, and `resolveFrame`, which maps a
+request target (path plus query) to a plain `{ status, headers, body }` result that any HTTP
+framework can send. `createFrameRequestHandler` wraps it for Fetch API hosts. `./transform` exposes
+the source transform and `./client` exports the hydration helper. Applications own routing and
+transport.
 
 ## Stream live state to a frame
 

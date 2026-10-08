@@ -41,10 +41,6 @@
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
     },
-    "./server/node": {
-      "types": "./dist/node-server.d.ts",
-      "default": "./dist/node-server.js"
-    },
     "./transform": {
       "types": "./dist/transform.d.ts",
       "default": "./dist/transform.js"

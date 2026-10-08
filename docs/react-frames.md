@@ -43,9 +43,22 @@ export default defineConfig({ plugins: [vignette()] });
 
 The plugin transforms exported `frame()` definitions, statically imports every discovered
 `src/**/*.frame.{tsx,jsx}` module into `virtual:vignette/frames`, and emits deterministic browser
-entries. Hosts import `frames` and pass it to `createFrameRequestHandler(frames)`, or call
+entries. Hosts import `frames` and either pass it with the request target to
+`resolveFrame(frames, req.url)`, which returns a plain `{ status, headers, body }` result for any
+HTTP framework, or to `createFrameRequestHandler(frames)` for Fetch API hosts. Hosts can also call
 `renderFrameHtml` and `renderHydrationModule` from their own router. No dynamic module loading or
 client manifest is required.
+
+```ts
+// Express, Fastify, Koa, node:http, ...: no Request/Response round trip
+const frame = resolveFrame(frames, req.url);
+if (frame === undefined) return next();
+res.writeHead(frame.status, frame.headers).end(frame.body);
+
+// Hono, Workers, Deno, Bun
+const handleFrame = createFrameRequestHandler(frames);
+app.all("/__vignette/*", (c) => handleFrame(c.req.raw) ?? c.notFound());
+```
 
 Frame modules must remain browser-safe. The same module is imported for server rendering and in the
 iframe browser. Frame HTML and deterministic client entries should use `Cache-Control: no-store`.

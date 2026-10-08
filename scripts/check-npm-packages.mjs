@@ -40,7 +40,6 @@ const packages = [
       "./remote-store/client",
       "./remote-store/server",
       "./server",
-      "./server/node",
       "./transform",
     ],
     ["@strangecyan/vignette-core", "@strangecyan/vignette"],

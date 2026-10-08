@@ -15,7 +15,6 @@
       "@strangecyan/vignette-frame": ["./packages/frame/src/index.ts"],
       "@strangecyan/vignette-frame/client": ["./packages/frame/src/client.ts"],
       "@strangecyan/vignette-frame/server": ["./packages/frame/src/server.ts"],
-      "@strangecyan/vignette-frame/server/node": ["./packages/frame/src/node-server.ts"],
       "@strangecyan/vignette-frame/transform": ["./packages/frame/src/transform.ts"],
       "@strangecyan/vignette-vite": ["./packages/vite/src/index.ts"],
       "@strangecyan/vignette-moq": ["./packages/moq/src/index.ts"],

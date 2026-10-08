@@ -20,9 +20,14 @@ export interface FrameBundle {
 }
 
 /** Fetch handler that leaves unrelated requests unhandled. */
-export type FrameRequestHandler = (
-  request: Request,
-) => Response | Promise<Response | undefined> | undefined;
+export type FrameRequestHandler = (request: Request) => Response | undefined;
+
+/** One resolved frame route as plain data, so any HTTP framework can send it directly. */
+export interface FrameResult {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
 
 /** One live frame definition and its build-derived route metadata. */
 export interface FrameRouteEntry {
@@ -113,41 +118,67 @@ hydrateFrame(definition, JSON.parse(element.textContent));
 `;
 }
 
-/** Creates a Fetch handler over a static frame bundle. */
+/**
+ * Resolves a request target (path plus query string, such as Node's `req.url`) against a static
+ * frame bundle. Returns undefined outside the frame route prefix so hosts can fall through:
+ *
+ * ```ts
+ * const frame = resolveFrame(frames, req.url);
+ * if (frame === undefined) return next();
+ * res.writeHead(frame.status, frame.headers).end(frame.body);
+ * ```
+ */
+export function resolveFrame(frames: FrameBundle, target: string): FrameResult | undefined {
+  const queryStart = target.indexOf("?");
+  const pathname = queryStart === -1 ? target : target.slice(0, queryStart);
+  if (!pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return undefined;
+  const query = queryStart === -1 ? "" : target.slice(queryStart + 1);
+  try {
+    return renderFrameRoute(frames, pathname, new URLSearchParams(query));
+  } catch (error: unknown) {
+    // Request errors carry their HTTP status; anything else is a server-side rendering failure.
+    return {
+      status: error instanceof FrameRequestError ? error.statusCode : 500,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body: error instanceof Error ? error.message : "Frame request failed.",
+    };
+  }
+}
+
+/** Serves a registered frame's page, or its hydration module at `<key>/hydrate.js`; throws request errors. */
+function renderFrameRoute(
+  frames: FrameBundle,
+  pathname: string,
+  query: URLSearchParams,
+): FrameResult {
+  const route = pathname.slice(FRAME_ROUTE_PREFIX.length + 1).split("/");
+  const routeKey = route[0];
+  if (!isFrameRoute(route, routeKey)) throw new FrameRequestError(404, "Frame route not found.");
+  const entry = frames.registry.get(routeKey);
+  if (entry === undefined) throw new FrameRequestError(404, "Frame route not found.");
+  if (route.length === 2) {
+    if (route[1] !== "hydrate.js") throw new FrameRequestError(404, "Frame route not found.");
+    return {
+      status: 200,
+      headers: { "Cache-Control": "no-store", "Content-Type": "text/javascript; charset=utf-8" },
+      body: renderHydrationModule(frames.modules, entry.metadata),
+    };
+  }
+  return {
+    status: 200,
+    headers: { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8" },
+    body: entry.render(readFrameProps(query)),
+  };
+}
+
+/** Creates a Fetch handler over a static frame bundle; a thin adapter over {@link resolveFrame}. */
 export function createFrameRequestHandler(frames: FrameBundle): FrameRequestHandler {
   return (request) => {
-    // Resolve registered frame routes, serve hydration modules separately, and map request errors to their HTTP status.
     const url = new URL(request.url);
-    if (!url.pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return undefined;
-    try {
-      // Resolve registered frame routes, serve hydration modules separately, and map request errors to their HTTP status.
-
-      const route = url.pathname.slice(FRAME_ROUTE_PREFIX.length + 1).split("/");
-      const routeKey = route[0];
-      if (!isFrameRoute(route, routeKey)) {
-        throw new FrameRequestError(404, "Frame route not found.");
-      }
-      const entry = frames.registry.get(routeKey);
-      if (entry === undefined) throw new FrameRequestError(404, "Frame route not found.");
-      if (route.length === 2) {
-        if (route[1] !== "hydrate.js") throw new FrameRequestError(404, "Frame route not found.");
-        return new Response(renderHydrationModule(frames.modules, entry.metadata), {
-          headers: {
-            "Cache-Control": "no-store",
-            "Content-Type": "text/javascript; charset=utf-8",
-          },
-        });
-      }
-      const input = readFrameProps(url);
-      return new Response(entry.render(input), {
-        headers: { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8" },
-      });
-    } catch (error: unknown) {
-      return new Response(error instanceof Error ? error.message : "Frame request failed.", {
-        status: error instanceof FrameRequestError ? error.statusCode : 500,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      });
-    }
+    const frame = resolveFrame(frames, url.pathname + url.search);
+    return frame === undefined
+      ? undefined
+      : new Response(frame.body, { status: frame.status, headers: frame.headers });
   };
 }
 
@@ -165,8 +196,8 @@ class FrameRequestError extends Error {
 }
 
 /** Preserve request-specific errors for missing and syntactically invalid JSON payloads. */
-function readFrameProps(url: URL): FrameParamsInput<object> {
-  const raw = url.searchParams.get("props");
+function readFrameProps(query: URLSearchParams): FrameParamsInput<object> {
+  const raw = query.get("props");
   if (raw === null) throw new FrameRequestError(400, "Frame request is missing its props payload.");
   try {
     return JSON.parse(raw);

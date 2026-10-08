@@ -6,8 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import type { AssetManifest, AssetManifestEntry } from "@strangecyan/vignette-core";
 import type { FrameMetadata } from "@strangecyan/vignette-frame";
-import { createFrameRequestHandler, type FrameBundle } from "@strangecyan/vignette-frame/server";
-import { createNodeFrameRequestHandler } from "@strangecyan/vignette-frame/server/node";
+import { resolveFrame, type FrameBundle } from "@strangecyan/vignette-frame/server";
 import { transformFrameDefinitions } from "@strangecyan/vignette-frame/transform";
 import { globSync } from "tinyglobby";
 import type { Plugin, UserConfig } from "vite";
@@ -184,31 +183,31 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
         });
       }
 
-      let handler: Promise<ReturnType<typeof createNodeFrameRequestHandler>> | undefined =
-        undefined;
-      const getHandler = () => {
-        handler ??= server.ssrLoadModule(FRAMES_ID).then((loaded: FrameModuleExports) => {
-          const bundle = loaded.frames;
-          if (bundle === undefined) throw new Error("The Vignette frame registry did not load.");
-          return createNodeFrameRequestHandler(createFrameRequestHandler(bundle));
+      let bundle: Promise<FrameBundle> | undefined = undefined;
+      const getBundle = () => {
+        bundle ??= server.ssrLoadModule(FRAMES_ID).then((loaded: FrameModuleExports) => {
+          if (loaded.frames === undefined) {
+            throw new Error("The Vignette frame registry did not load.");
+          }
+          return loaded.frames;
         });
-        return handler;
+        return bundle;
       };
       server.middlewares.use((request, response, next) => {
-        void getHandler()
-          .then((handle) => handle(request, response))
-          .then(
-            (handled) => {
-              if (!handled) next();
-            },
-            (cause: unknown) => {
-              next(cause);
-            },
-          );
+        getBundle().then(
+          (frames) => {
+            const frame = resolveFrame(frames, request.url ?? "/");
+            if (frame === undefined) next();
+            else response.writeHead(frame.status, frame.headers).end(frame.body);
+          },
+          (cause: unknown) => {
+            next(cause);
+          },
+        );
       });
       const rediscover = () => {
         discover();
-        handler = undefined;
+        bundle = undefined;
         composer?.assetsChanged();
       };
       server.watcher.on("add", rediscover);
