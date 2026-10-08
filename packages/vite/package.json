@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-vite",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Vite integration for Vignette frames, composition assets, and the dev composer.",
   "license": "MIT",
   "repository": {

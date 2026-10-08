@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Command-line helpers for Vignette projects.",
   "license": "MIT",
   "repository": {
