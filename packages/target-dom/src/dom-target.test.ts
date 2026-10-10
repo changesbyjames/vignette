@@ -106,6 +106,9 @@ describe("DomTarget", () => {
       "[data-vignette-layer='programme.browser'] iframe",
     );
     expect(initialFrame).not.toBeNull();
+    if (initialFrame === null) throw new Error("Fixture frame is missing.");
+    const initialHost = initialFrame.parentNode;
+    const initialDocument = initialFrame.contentDocument;
 
     await target.setScene("preview");
 
@@ -113,6 +116,8 @@ describe("DomTarget", () => {
       "[data-vignette-layer='preview.browser'] iframe",
     );
     expect(movedFrame).toBe(initialFrame);
+    expect(initialFrame.parentNode).toBe(initialHost);
+    expect(initialFrame.contentDocument).toBe(initialDocument);
     expect(container.querySelector("[data-vignette-layer='programme.browser']")).toBeNull();
 
     await target.dispose();
