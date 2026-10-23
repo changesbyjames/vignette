@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { validateAssetName, type AssetRef } from "./assets.js";
 import { diagnostic, type Diagnostic } from "./diagnostics.js";
 import { isFiniteNumber, isPositiveSize, type Size } from "./geometry.js";
@@ -200,6 +201,14 @@ export const browserSourceModule: SourceModule<SourceKinds["source:browser"]> = 
       source.viewport === undefined
         ? undefined
         : invalidSourceSize(source.viewport, `${path}.viewport`),
+      source.props === undefined || z.record(z.string(), z.json()).safeParse(source.props).success
+        ? undefined
+        : diagnostic(
+            "INVALID_SOURCE_SETTING",
+            "error",
+            `${path}.props`,
+            "Browser source props must be a JSON object.",
+          ),
     ),
 };
 

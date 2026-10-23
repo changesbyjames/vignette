@@ -1,6 +1,8 @@
+import { deepFreeze, omitUndefined } from "@strangecyan/vignette-core";
 import type {
   ContentAlignment,
   BrowserSource as BrowserSourceDefinition,
+  BrowserPageProps,
   ColorSource as ColorSourceDefinition,
   FitMode,
   ImageSource as ImageSourceDefinition,
@@ -123,20 +125,45 @@ export function ColorSource(props: ColorSourceProps): ReactElement {
   return sourceElement<ColorSourceDefinition>("source:color", props);
 }
 
-/** Props that declare and place an inline browser source together. */
+/** Props that declare one source and place it in the current scene. */
+export interface InlineSourceProps extends Omit<LayerProps, "sourceId"> {
+  /** The source to declare. The layer places it under the layer's own `id`. */
+  readonly definition: AnySourceDefinition;
+}
+
+/**
+ * Declares a source and places it in one node. Use it for sources that only this placement
+ * needs. Sources placed in several scenes, or kept warm while unplaced, belong in `<Sources>`.
+ */
+export function InlineSource(props: InlineSourceProps): ReactElement {
+  const { definition, ...layer } = props;
+  return createElement("inline-source", {
+    ...layer,
+    definition: deepFreeze(structuredClone(omitUndefined({ ...definition }))),
+  });
+}
+
+/** Props that declare and place a browser source together. */
 export interface BrowserViewProps extends Omit<LayerProps, "sourceId"> {
-  readonly sourceId: string;
+  /** Source ID. Defaults to the layer `id`. */
+  readonly sourceId?: string | undefined;
   readonly url: string;
   /** Page size in CSS pixels. Defaults to the laid-out size of this layer. */
   readonly viewport?: Size | undefined;
   readonly label?: string | undefined;
   readonly shutdownWhenHidden?: boolean | undefined;
+  /** Live JSON data for the page. Changing it updates the page without reloading it. */
+  readonly props?: BrowserPageProps | undefined;
 }
 
-/**
- * Declares and places one browser source in a single layout node. Higher-level optional packages
- * can use this without adding target-specific data to core snapshots.
- */
+/** Declares and places one browser source in a single layout node. */
 export function BrowserView(props: BrowserViewProps): ReactElement {
-  return createElement("browser-view", props);
+  const { sourceId, url, viewport, label, shutdownWhenHidden, props: pageProps, ...layer } = props;
+  const definition: BrowserSourceDefinition = {
+    kind: "source:browser",
+    id: sourceId ?? layer.id,
+    url,
+    ...omitUndefined({ viewport, label, shutdownWhenHidden, props: pageProps }),
+  };
+  return createElement(InlineSource, { ...layer, definition });
 }

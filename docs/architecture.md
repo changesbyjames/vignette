@@ -93,11 +93,13 @@ Neither runtime inspects React fibers or authoring nodes.
 
 ## Optional React DOM frames
 
-`@strangecyan/vignette-frame` can lower a typed `<View>` into a normal browser source plus layer.
-Its Vite adapter owns module metadata, parameter validation, server-rendered HTML, and browser
-hydration. Core, snapshots, and runtimes see only the resulting root-relative URL, viewport, IDs,
-and geometry. This keeps DOM React content composable without making React DOM or a bundler part of
-the common scene protocol. See [`react-frames.md`](react-frames.md).
+`@strangecyan/vignette-frame` lowers a typed `<View>` into a normal browser source plus layer. The
+source's URL names only the frame and the placement, and its params travel as the browser source's
+`props`. The frame page reads them from the same composer stream the targets consume, so a params
+change re-renders the page in place. Core, snapshots, and runtimes see only a stable root-relative
+URL, opaque JSON props, viewport, IDs, and geometry. This keeps DOM React content composable without
+making React DOM or a bundler part of the common scene protocol. See
+[`react-frames.md`](react-frames.md).
 
 ## Package ownership
 
@@ -107,8 +109,8 @@ the common scene protocol. See [`react-frames.md`](react-frames.md).
   and re-exports of the core types composition authors use (layout styles, geometry, canvas, assets,
   snapshot and stream message types). Core stays the low-level contract for target and extension
   authors.
-- `@strangecyan/vignette-frame`: optional typed browser views and platform-neutral SSR/hydration
-  kernels.
+- `@strangecyan/vignette-frame`: optional typed browser views with live props, and platform-neutral
+  SSR kernels.
 - `@strangecyan/vignette-vite`: static frame registry, deterministic client entries, asset
   manifests, and the optional dev-server composer.
 - `@strangecyan/vignette-target-dom`: browser asset cache and `DOMRuntime`.

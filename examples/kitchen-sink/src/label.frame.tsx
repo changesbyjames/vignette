@@ -7,10 +7,12 @@ export const labelFrame = frame({
     title: z.string(),
     detail: z.string(),
     accent: z.string(),
+    active: z.boolean(),
   }),
-  view: ({ eyebrow, title, detail, accent }) => (
+  view: ({ eyebrow, title, detail, accent, active }) => (
     <div
       data-testid="label-frame"
+      data-active={String(active)}
       style={{
         width: "100%",
         height: "100%",
@@ -25,6 +27,7 @@ export const labelFrame = frame({
     >
       <div style={{ color: accent, fontSize: 18, fontWeight: 700, letterSpacing: "0.12em" }}>
         {eyebrow}
+        {active ? " · LIVE" : ""}
       </div>
       <div>
         <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: "-0.035em" }}>{title}</div>

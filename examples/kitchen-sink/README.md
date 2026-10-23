@@ -1,8 +1,8 @@
 # Kitchen-sink example
 
 A full-stack Vignette application with no local media assets to provision. It demonstrates a Vite
-browser preview, a Node composer, Yoga layout, color and MoQ sources, typed React frames with SSR
-and hydration, a composer stream over SSE, production builds, and optional OBS output. The only
+browser preview, a Node composer, Yoga layout, color and MoQ sources, typed React frames with live
+props and SSR, a composer stream over SSE, production builds, and optional OBS output. The only
 remote input is the public `https://cdn.moq.dev/demo` / `bbb.hang` MoQ demo stream.
 
 ```sh
@@ -18,8 +18,9 @@ Useful entry points:
 - `src/show.tsx` defines the sources, Yoga layout, layers, and frame views, and exports the
   `composition` definition (project ID `kitchen-sink`, canvas, MoQ extension) that every host
   renders.
-- `src/label.frame.tsx` is a parameterized React DOM frame.
-- `src/clock.frame.tsx` demonstrates independent client hydration and state.
+- `src/label.frame.tsx` is a parameterized React DOM frame. Its `active` param is a live prop that
+  changes every two seconds without reloading the page.
+- `src/clock.frame.tsx` demonstrates independent client state inside a frame.
 - `vite.config.ts` hosts the composer during development through the Vignette plugin's `composition`
   option; edits to `src/show.tsx` or its imports re-render it.
 - `src/server/entry.tsx` and `src/server/obs-worker.ts` are production host and OBS entries.

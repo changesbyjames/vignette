@@ -13,7 +13,7 @@ const workspaceRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const exampleRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 describe("production kitchen-sink server", () => {
-  it("builds and serves stream SSE, frame SSR, and manifest-resolved hydration modules", async () => {
+  it("builds and serves stream SSE, frame SSR, and the frame's client modules", async () => {
     // Set VIGNETTE_SKIP_BUILD=1 to reuse an existing dist/ when iterating locally.
     if (process.env.VIGNETTE_SKIP_BUILD !== "1") {
       await execFileAsync("pnpm", ["build"], {
@@ -57,14 +57,17 @@ describe("production kitchen-sink server", () => {
       const frameHtml = await frameResponse.text();
       expect(frameHtml).toContain("<!doctype html>");
 
-      const routeKey = new URL(frameUrl ?? "", origin).pathname.split("/").at(-1);
-      const hydrationPath = /src="([^"]+\/hydrate\.js)"/u.exec(frameHtml)?.[1];
+      // Frame URLs name the frame and the placement; params travel as live page props instead.
+      const [routeKey, sourceId] = new URL(frameUrl ?? "", origin).pathname.split("/").slice(-2);
       expect(routeKey).toBeDefined();
-      expect(hydrationPath).toBeDefined();
-      const hydrationResponse = await fetch(new URL(hydrationPath ?? "", origin));
-      expect(hydrationResponse.status).toBe(200);
-      const hydrationModule = await hydrationResponse.text();
-      const imports = [...hydrationModule.matchAll(/from ("[^"]+")/gu)].map((match) =>
+      expect(sourceId).toBeDefined();
+      // The host passes the composer's snapshot, so the page is server-rendered with its props.
+      expect(frameHtml).toContain(
+        `"sourceId":"${sourceId ?? ""}","stream":"/stream","initialProps":`,
+      );
+      expect(frameHtml).not.toContain("hydrate.js");
+      const bootstrap = /<script type="module">([\s\S]+?)<\/script>/u.exec(frameHtml)?.[1] ?? "";
+      const imports = [...bootstrap.matchAll(/from ("[^"]+")/gu)].map((match) =>
         z.string().parse(JSON.parse(match[1] ?? "")),
       );
       expect(imports).toHaveLength(2);

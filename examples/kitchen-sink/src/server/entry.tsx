@@ -26,7 +26,11 @@ const reportError = (error: Error) => {
 const root = createComposerRoot(composition, { assets, onError: reportError });
 await root.render();
 
-const handleFrame = createFrameRequestHandler(frames);
+// Frame pages read live props from /stream; the current snapshot lets them render server-side first.
+const handleFrame = createFrameRequestHandler(frames, {
+  stream: "/stream",
+  snapshot: () => root.snapshot,
+});
 const app = new Hono();
 app.get("/stream", (context) =>
   streamSSE(context, async (stream) => {

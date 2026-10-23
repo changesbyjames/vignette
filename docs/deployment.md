@@ -26,7 +26,7 @@ address than the worker, set `VIGNETTE_BROWSER_SOURCE_BASE_URL` (the runtime's
 `browserSourceBaseUrl`). In local Docker, the worker uses `http://vignette-host:4173` while OBS on
 the Docker host uses the published `http://127.0.0.1:4173/`.
 
-`@strangecyan/vignette-vite` emits frame entries under `assets/vignette/frame/` and the hydration
+`@strangecyan/vignette-vite` emits frame entries under `assets/vignette/frame/` and the frame mount
 helper at `assets/vignette/frame-client.js`. These deterministic entry names are intentionally not
 content-hashed and should be served with `Cache-Control: no-store`.
 

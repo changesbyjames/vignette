@@ -5,14 +5,16 @@ import { describe, expect, it } from "vitest";
 import { frame, type FrameMetadata } from "./definition.js";
 import { useRemoteStore } from "./remote-store-client.js";
 import { defineRemoteStore } from "./remote-store.js";
+import type { BrowserPageProps, BrowserSource, CompiledSnapshot } from "@strangecyan/vignette-core";
+
 import {
   createFrameRequestHandler,
   FrameRouteRegistry,
   renderFrameHtml,
-  renderHydrationModule,
   resolveFrame,
   type FrameRequestHandler,
   type FrameModuleHost,
+  type FrameServerOptions,
 } from "./server.js";
 
 interface FrameResponse {
@@ -55,43 +57,70 @@ const greeting = frame.withMetadata(metadata)({
 });
 
 describe("frame request handler", () => {
-  it("renders frame HTML with serialized props", async () => {
+  it("server-renders a placement with its current props and mounts it from the stream", async () => {
+    const snapshot = snapshotWith("lower-third", { name: "Ada" });
     const response = await request(
-      createHandler(),
-      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
+      createHandler({ stream: "/live", snapshot: () => snapshot }),
+      "/__vignette/frame/greeting-test/lower-third",
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.text).toContain("<strong>Hello Ada</strong>");
-    expect(response.text).toContain('{"name":"Ada"}');
-    expect(response.text).toContain('src="/__vignette/frame/greeting-test/hydrate.js"');
+    expect(response.text).toContain('from "https://assets.test/frames/greeting.js"');
+    expect(response.text).toContain(
+      'import { mountFrame } from "https://assets.test/frame-client.js"',
+    );
+    expect(response.text).toContain(
+      'mountFrame(frameModule["greeting"], {"sourceId":"lower-third","stream":"/live","initialProps":{"name":"Ada"}});',
+    );
+    expect(response.text).not.toContain("hydrate.js");
   });
 
-  it("uses host-resolved hydration module URLs", async () => {
-    const response = await request(createHandler(), "/__vignette/frame/greeting-test/hydrate.js");
+  it("renders an empty page that waits for the stream when no snapshot holds the placement", async () => {
+    const response = await request(createHandler(), "/__vignette/frame/greeting-test/elsewhere");
 
     expect(response.status).toBe(200);
-    expect(response.text).toContain('from "https://assets.test/frames/greeting.js"');
-    expect(response.text).toContain('from "https://assets.test/frame-client.js"');
-    expect(response.text).not.toContain("/@fs/");
+    expect(response.text).toContain("<div data-vignette-frame-root></div>");
+    expect(response.text).toContain('{"sourceId":"elsewhere","stream":"/stream"}');
   });
 
-  it("maps props validation failures to 400", async () => {
+  it("keeps embedded props from closing the inline script", async () => {
+    const snapshot = snapshotWith("lower-third", { name: "</script><script>alert(1)</script>" });
     const response = await request(
-      createHandler(),
-      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A1%7D",
+      createHandler({ snapshot: () => snapshot }),
+      "/__vignette/frame/greeting-test/lower-third",
     );
 
-    expect(response.status).toBe(400);
+    const script = /<script type="module">([\s\S]*)<\/script>/u.exec(response.text)?.[1];
+    expect(script).not.toContain("</script>");
+    expect(script).toContain("\\u003c/script>");
+  });
+
+  it("reports props that no longer match the frame's schema as a server error", async () => {
+    const snapshot = snapshotWith("lower-third", { name: 1 });
+    const response = await request(
+      createHandler({ snapshot: () => snapshot }),
+      "/__vignette/frame/greeting-test/lower-third",
+    );
+
+    expect(response.status).toBe(500);
     expect(response.text).toBe("Frame props failed validation: name must be a string");
   });
 
-  it("maps unknown frame routes to 404", async () => {
-    const response = await request(createHandler(), "/__vignette/frame/unknown?props=%7B%7D");
-
-    expect(response.status).toBe(404);
-    expect(response.text).toBe("Frame route not found.");
+  it("maps unknown frames and malformed placements to 404", async () => {
+    const handler = createHandler();
+    for (const path of [
+      "/__vignette/frame/unknown/lower-third",
+      "/__vignette/frame/greeting-test",
+      "/__vignette/frame/greeting-test/",
+      "/__vignette/frame/greeting-test/lower-third/hydrate.js",
+    ]) {
+      const response = await request(handler, path);
+      expect(response.status, path).toBe(404);
+      expect(response.text).toBe("Frame route not found.");
+    }
   });
 
   it("leaves unrelated paths unhandled", async () => {
@@ -101,59 +130,26 @@ describe("frame request handler", () => {
     expect(response.text).toBe("Not handled.");
   });
 
-  it("serves registered definitions without any module loading", async () => {
-    const registry = new FrameRouteRegistry();
-    registry.registerDefinition(greeting);
-    const handler = createFrameRequestHandler({
-      modules: {
-        resolveClientModule: (moduleUrl) => `https://assets.test${moduleUrl}`,
-        resolveClientHelper: () => "https://assets.test/frame-client.js",
-      },
-      registry,
-    });
-
-    const response = await request(
-      handler,
-      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.text).toContain("<strong>Hello Ada</strong>");
-  });
-
   it("resolves request targets to plain results without Fetch objects", () => {
-    // Covers a page, its hydration module, a missing payload, an unknown frame, and a foreign path.
     const registry = new FrameRouteRegistry();
     registry.registerDefinition(greeting);
     const frames = { modules: createHost(), registry };
 
-    const page = resolveFrame(
-      frames,
-      "/__vignette/frame/greeting-test?props=%7B%22name%22%3A%22Ada%22%7D",
-    );
+    const page = resolveFrame(frames, "/__vignette/frame/greeting-test/lower-third?ignored=1");
     expect(page?.status).toBe(200);
     expect(page?.headers["Content-Type"]).toBe("text/html; charset=utf-8");
-    expect(page?.body).toContain("<strong>Hello Ada</strong>");
-
-    expect(resolveFrame(frames, "/__vignette/frame/greeting-test/hydrate.js")?.headers).toEqual({
-      "Cache-Control": "no-store",
-      "Content-Type": "text/javascript; charset=utf-8",
-    });
-    expect(resolveFrame(frames, "/__vignette/frame/greeting-test")).toMatchObject({
-      status: 400,
-      body: "Frame request is missing its props payload.",
-    });
-    expect(resolveFrame(frames, "/__vignette/frame/unknown?props=%7B%7D")?.status).toBe(404);
-    expect(resolveFrame(frames, "/health?props=%7B%7D")).toBeUndefined();
+    expect(resolveFrame(frames, "/health")).toBeUndefined();
   });
 
-  it("exports pure render kernels for platform routers", () => {
-    expect(renderFrameHtml(greeting, metadata, { name: "Ada" })).toContain(
-      "<strong>Hello Ada</strong>",
-    );
-    expect(renderHydrationModule(createHost(), metadata)).toContain(
-      'from "https://assets.test/frames/greeting.js"',
-    );
+  it("exports the pure page renderer for platform routers", () => {
+    const html = renderFrameHtml(greeting, metadata, {
+      sourceId: "lower-third",
+      stream: "/stream",
+      modules: createHost(),
+      props: { name: "Ada" },
+    });
+
+    expect(html).toContain("<strong>Hello Ada</strong>");
   });
 
   it("renders views that suspend on the server without their own Suspense boundary", () => {
@@ -168,7 +164,12 @@ describe("frame request handler", () => {
         ),
     });
 
-    const html = renderFrameHtml(live, liveMetadata, {});
+    const html = renderFrameHtml(live, liveMetadata, {
+      sourceId: "live",
+      stream: "/stream",
+      modules: createHost(),
+      props: {},
+    });
 
     expect(html).toContain("<div data-vignette-frame-root>");
     expect(html).not.toContain("<em>");
@@ -204,7 +205,6 @@ describe("FrameRouteRegistry", () => {
     registry.registerDefinition(greeting);
     registry.registerDefinition(greeting);
 
-    expect(registry.get(metadata.routeKey)?.definition).toBe(greeting);
     expect(registry.get(metadata.routeKey)?.metadata).toEqual(metadata);
   });
 });
@@ -216,13 +216,28 @@ function EmptyView(): ReturnType<typeof createElement> {
   return createElement("div");
 }
 
-function createHandler(): FrameRequestHandler {
+function createHandler(options: FrameServerOptions = {}): FrameRequestHandler {
   const registry = new FrameRouteRegistry();
   registry.registerDefinition(greeting);
-  return createFrameRequestHandler({
-    modules: createHost(),
-    registry,
-  });
+  return createFrameRequestHandler({ modules: createHost(), registry }, options);
+}
+
+/** A snapshot holding one browser source with the given page props. */
+function snapshotWith(sourceId: string, props: BrowserPageProps): CompiledSnapshot {
+  const definition: BrowserSource = {
+    kind: "source:browser",
+    id: sourceId,
+    url: `/__vignette/frame/greeting-test/${sourceId}`,
+    props,
+  };
+  return {
+    revision: 1,
+    projectId: "frames",
+    canvas: { width: 1920, height: 1080 },
+    sources: [{ id: sourceId, definition }],
+    scenes: [],
+    warnings: [],
+  };
 }
 
 function createHost(): FrameModuleHost {

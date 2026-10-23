@@ -97,7 +97,13 @@ export function Show(): ReactElement {
                   style={fill}
                   opacity={activeCard === index ? 1 : 0.72}
                 />
-                <View id={`card.${card.id}.label`} source={labelFrame} params={card} style={fill} />
+                {/* `active` is a live prop: the label re-renders in place, its page never reloads. */}
+                <View
+                  id={`card.${card.id}.label`}
+                  source={labelFrame}
+                  params={{ ...card, active: activeCard === index }}
+                  style={fill}
+                />
               </Box>
             ))}
           </Box>

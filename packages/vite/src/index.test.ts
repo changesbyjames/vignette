@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, resolveConfig, type InlineConfig, type Plugin } from "vite";
 import { describe, expect, it } from "vitest";
 
+import { transformFrameDefinitions } from "./frame-transform.js";
 import { vignette } from "./index.js";
 
 interface InputOptionsContract {
@@ -68,6 +69,34 @@ describe("vignette", () => {
     expect(generated).toContain(`registry.registerDefinition(frame0["one"]);`);
     expect(generated).toContain(`/assets/vignette/frame/${routeKey}.js`);
     expect(generated).toContain('registry.registerDefinition(frame1["two"]);');
+  });
+
+  it("rewrites only exported calls to the frame package's factory, without TypeScript", () => {
+    // An aliased, wrapped export is rewritten; local, unexported, and frame-free modules are not.
+    const code = [
+      'import { frame as defineFrame, type FrameDefinition } from "@strangecyan/vignette-frame";',
+      'import { frame } from "./local-frame";',
+      "const é = (value: number) => value;",
+      "export const title = (defineFrame({ view: () => <b>{é(1) as number}</b> }) satisfies FrameDefinition<object>);",
+      "export const local = frame({ view });",
+      "const hidden = defineFrame({ view });",
+    ].join("\n");
+
+    const result = transformFrameDefinitions(code, "/src/title.frame.tsx", "/src/title.frame.tsx");
+
+    expect(result?.metadata).toEqual([
+      {
+        routeKey: expect.stringMatching(/^title-[a-f0-9]{8}$/u),
+        moduleUrl: "/src/title.frame.tsx",
+        exportName: "title",
+      },
+    ]);
+    expect(result?.code).toContain(
+      `(defineFrame.withMetadata(${JSON.stringify(result?.metadata[0])})({ view:`,
+    );
+    expect(result?.code).toContain("export const local = frame({ view });");
+    expect(result?.code).toContain("const hidden = defineFrame({ view });");
+    expect(transformFrameDefinitions("export const x = 1;", "/src/x.ts", "/src/x.ts")).toBeNull();
   });
 
   it("adds deterministic client entries for every discovered frame", async () => {

@@ -117,21 +117,26 @@ describe("host tree mutations", () => {
     });
   });
 
-  it("lowers an embedded browser view to a neutral source and layer", () => {
+  it("lowers an inline source nested in a box to a declared source and a layer", () => {
     const container = makeContainer();
     const broadcast = createHostNode("broadcast", {});
     const scene = createHostNode("scene", { id: "main" });
-    const view = createHostNode("browser-view", {
+    const box = createHostNode("box", {});
+    const view = createHostNode("inline-source", {
       id: "scoreboard-layer",
-      sourceId: "scoreboard-source",
-      url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
-      viewport: { width: 1280, height: 720 },
+      definition: {
+        kind: "source:browser",
+        id: "scoreboard-source",
+        url: "http://127.0.0.1:4173/__vignette/frame/scoreboard",
+        viewport: { width: 1280, height: 720 },
+      },
       style: { width: 640, height: 360 },
       fit: "contain",
     });
     appendHostChild(container, broadcast);
     appendHostChild(broadcast, scene);
-    appendHostChild(scene, view);
+    appendHostChild(scene, box);
+    appendHostChild(box, view);
 
     expect(hostTreeToBroadcast(container)).toEqual({
       kind: "broadcast",
@@ -154,11 +159,16 @@ describe("host tree mutations", () => {
           id: "main",
           children: [
             {
-              kind: "layer",
-              id: "scoreboard-layer",
-              sourceId: "scoreboard-source",
-              style: { width: 640, height: 360 },
-              fit: "contain",
+              kind: "box",
+              children: [
+                {
+                  kind: "layer",
+                  id: "scoreboard-layer",
+                  sourceId: "scoreboard-source",
+                  style: { width: 640, height: 360 },
+                  fit: "contain",
+                },
+              ],
             },
           ],
         },

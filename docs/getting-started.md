@@ -74,10 +74,12 @@ status and settlement APIs for its own operator, tests, and UI.
 
 ## Real React DOM content
 
-The kitchen sink's panels are defined with `frame({ params, view })` and placed with `<View>`. Their
-URLs are a normal browser source in the compiled snapshot, but the backend serves server-rendered
-HTML and a hydration modules for the original React components. Open the kitchen sink and inspect
-the clock; its seconds counter is state owned by the iframe React root.
+The kitchen sink's panels are defined with `frame({ params, view })` and placed with `<View>`. Each
+is a normal browser source in the compiled snapshot. The backend serves server-rendered HTML for the
+original React component, and the page then follows the composer stream for its params. Open the
+kitchen sink and watch the card labels: the active card's label changes every two seconds as a live
+prop, without reloading its page. The clock's seconds counter is state owned by the iframe's React
+root.
 
 See [`react-frames.md`](react-frames.md) for the typed API, Vite setup, lifecycle, and security
 constraints.

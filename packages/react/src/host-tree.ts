@@ -77,11 +77,11 @@ export function hostTreeToBroadcast(container: HostContainer): BroadcastNode {
   }
   const rootChildren = visibleChildren(root);
   const embeddedSources = rootChildren.flatMap((child) =>
-    child.type === "scene" ? collectBrowserViewSources(child) : [],
+    child.type === "scene" ? collectInlineSources(child) : [],
   );
   const sourcesIndex = rootChildren.findIndex((child) => child.type === "sources");
   const children = rootChildren.map(
-    /** Merge embedded browser sources into the first explicit sources group without duplicating those definitions. */
+    /** Merge inline sources into the first explicit sources group without duplicating those definitions. */
     (child, index) => {
       if (child.type === "sources") {
         const sources = toSources(child);
@@ -113,6 +113,10 @@ function toSources(node: HostNode): SourcesNode {
 
 function toSource(node: HostNode): AnySourceDefinition {
   if (node.type !== "source") throw new Error(`<${node.type}> is not valid inside <Sources>.`);
+  return toDefinition(node);
+}
+
+function toDefinition(node: HostNode): AnySourceDefinition {
   const definition = required(node.props, "definition");
   if (!z.object({ kind: z.string(), id: z.string() }).safeParse(definition).success) {
     throw new Error("A <Source> definition must declare 'kind' and 'id'.");
@@ -141,11 +145,11 @@ function toLayout(node: HostNode): LayoutNode {
         children: visibleChildren(node).map(toLayout),
       } as BoxNode;
     case "layer":
-    case "browser-view":
+    case "inline-source":
       return /* SAFETY: React props enter the authoring graph here; the core compiler validates their fields before publishing a snapshot. */ {
         kind: "layer",
         id: required(props, "id"),
-        sourceId: required(props, "sourceId"),
+        sourceId: node.type === "layer" ? required(props, "sourceId") : toDefinition(node).id,
         ...optionalProps(props, [
           "style",
           "fit",
@@ -168,18 +172,10 @@ function toLayout(node: HostNode): LayoutNode {
   }
 }
 
-function collectBrowserViewSources(node: HostNode): readonly AnySourceDefinition[] {
-  if (node.type === "browser-view") {
-    return [
-      /* SAFETY: React props enter the authoring graph here; the core compiler validates their fields before publishing a snapshot. */ {
-        kind: "source:browser",
-        id: required(node.props, "sourceId"),
-        url: required(node.props, "url"),
-        ...optionalProps(node.props, ["viewport", "label", "shutdownWhenHidden"]),
-      } as AnySourceDefinition,
-    ];
-  }
-  return visibleChildren(node).flatMap(collectBrowserViewSources);
+/** Inline sources anywhere in a scene are declared alongside the explicit sources. */
+function collectInlineSources(node: HostNode): readonly AnySourceDefinition[] {
+  if (node.type === "inline-source") return [toDefinition(node)];
+  return visibleChildren(node).flatMap(collectInlineSources);
 }
 
 /** React-only props are excluded from the graph before compiling it. */

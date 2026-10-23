@@ -1,1 +1,1 @@
-export { hydrateFrame } from "@strangecyan/vignette-frame/client";
+export { mountFrame } from "@strangecyan/vignette-frame/client";

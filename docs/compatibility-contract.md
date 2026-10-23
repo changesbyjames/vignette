@@ -33,16 +33,19 @@ load when the iframe document is same-origin. Browser same-origin policy prevent
 arbitrary cross-origin URL; in that case the iframe has `data-vignette-css-injection="blocked"`, and
 the served page must include equivalent CSS itself.
 
-Optional `@strangecyan/vignette-frame` views compile to this same browser-source contract. The Vite
-adapter serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each
-load that URL in their own browser instance, so markup and behavior are shared but hook state and
-timing are not synchronized.
+A browser source may carry `props`, a JSON object for its page. Targets never render `props`, so a
+change to them never reloads the page; pages that want them read them from the composer stream.
+
+Optional `@strangecyan/vignette-frame` views compile to this same browser-source contract, with
+their params as `props` and a URL that names only the frame and the placement. DOM and OBS each load
+that URL in their own browser instance and each page follows the stream, so markup, behavior, and
+props are shared but hook state and timing are not synchronized.
 
 ## URL resolution
 
 Snapshots and asset manifests carry server resources as either an absolute `http:`/`https:` URL or a
-root-relative path beginning with exactly one `/` (for example `/__vignette/frame/<routeKey>?...` or
-`/assets/logo-1a2b3c4d.png`). Protocol-relative (`//host/...`), bare relative (`logo.png`), and
+root-relative path beginning with exactly one `/` (for example `/__vignette/frame/<routeKey>/<id>`
+or `/assets/logo-1a2b3c4d.png`). Protocol-relative (`//host/...`), bare relative (`logo.png`), and
 other schemes are rejected: browser sources with `INVALID_BROWSER_URL`, manifest entries when the
 wire message is decoded. Absolute URLs are used unchanged by every target; the composer never needs
 to know its public origin.

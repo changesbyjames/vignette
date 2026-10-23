@@ -32,7 +32,7 @@ test("serves parameterized frames and configures the public MoQ demo", async ({ 
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
   await expect(page.locator('iframe[data-vignette-source^="card."]')).toHaveCount(3);
-  const firstLabel = page.frameLocator('iframe[data-vignette-source="card.layout.label.source"]');
+  const firstLabel = page.frameLocator('iframe[data-vignette-source="card.layout.label"]');
   await expect(firstLabel.getByTestId("label-frame")).toContainText("Yoga boxes");
 
   const moq = page.locator('moq-watch[data-vignette-source="demo.moq"]');
@@ -46,14 +46,14 @@ test("hydrates the clock as an independent React root", async ({ page, request }
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
 
-  const clock = page.locator('iframe[data-vignette-source="clock.source"]');
+  const clock = page.locator('iframe[data-vignette-source="clock"]');
   const sourceUrl = await clock.getAttribute("src");
   expect(sourceUrl).not.toBeNull();
   const response = await request.get(sourceUrl ?? "");
   expect(response.ok()).toBe(true);
   expect(await response.text()).toContain("Vignette kitchen sink");
 
-  const clockFrame = page.frameLocator('iframe[data-vignette-source="clock.source"]');
+  const clockFrame = page.frameLocator('iframe[data-vignette-source="clock"]');
   await expect(clockFrame.getByTestId("clock-frame")).toHaveAttribute("data-hydrated", "true");
   const firstTime = await clockFrame.getByTestId("clock-frame").textContent();
   await expect
@@ -70,9 +70,7 @@ test("keeps the hydrated browser document across scenes without moveBefore", asy
   });
   await page.goto("/");
   await expect(page.getByTestId("dom-status")).toHaveText("settled");
-  const frameUrl = await page
-    .locator('iframe[data-vignette-source="clock.source"]')
-    .getAttribute("src");
+  const frameUrl = await page.locator('iframe[data-vignette-source="clock"]').getAttribute("src");
   if (frameUrl === null) throw new Error("Clock frame URL is missing.");
   await page.evaluate(
     async ({ moduleUrl, frameUrl }) => {

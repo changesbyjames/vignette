@@ -1,5 +1,9 @@
-/** Pure server-side snapshot stream for remote frame stores. */
-import type { RemoteStoreSnapshot } from "./remote-store.js";
+/** Server-side snapshot streams and Fetch handlers for remote frame stores. */
+import {
+  encodeRemoteStoreSnapshot,
+  type RemoteStoreRef,
+  type RemoteStoreSnapshot,
+} from "./remote-store.js";
 
 interface ReadableContextStoreGetSnapshot<TContext> {
   readonly context: TContext;
@@ -65,4 +69,61 @@ export async function* remoteStoreSnapshots<TContext>(
     signal?.removeEventListener("abort", stop);
     subscription.unsubscribe();
   }
+}
+
+/** Fetch handler that leaves requests for other paths unhandled. */
+export type RemoteStoreRequestHandler = (request: Request) => Response | undefined;
+
+/**
+ * Serves a store at its reference's URL as server-sent events, one per context change, until the
+ * client disconnects. Requests for any other path return undefined so hosts can fall through:
+ *
+ * ```ts
+ * const handleTitle = createRemoteStoreHandler(titleStore, store);
+ * app.get(titleStore.url, (c) => handleTitle(c.req.raw) ?? c.notFound());
+ * ```
+ */
+export function createRemoteStoreHandler<TContext>(
+  ref: RemoteStoreRef<ReadableContextStore<TContext>>,
+  store: ReadableContextStore<TContext>,
+): RemoteStoreRequestHandler {
+  return (request) => {
+    const url = new URL(request.url);
+    const target = new URL(ref.url, url);
+    if (
+      request.method !== "GET" ||
+      target.origin !== url.origin ||
+      target.pathname !== url.pathname
+    ) {
+      return undefined;
+    }
+    return new Response(remoteStoreEventStream(store, request.signal), {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/event-stream; charset=utf-8",
+      },
+    });
+  };
+}
+
+/** Encodes each conflated snapshot as one SSE `data` record. */
+function remoteStoreEventStream<TContext>(
+  store: ReadableContextStore<TContext>,
+  signal: AbortSignal,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const stop = new AbortController();
+  const snapshots = remoteStoreSnapshots(store, AbortSignal.any([signal, stop.signal]))[
+    Symbol.asyncIterator
+  ]();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const next = await snapshots.next();
+      if (next.done === true) controller.close();
+      else controller.enqueue(encoder.encode(`data: ${encodeRemoteStoreSnapshot(next.value)}\n\n`));
+    },
+    cancel() {
+      stop.abort();
+    },
+  });
 }

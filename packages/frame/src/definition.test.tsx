@@ -49,6 +49,7 @@ describe("frame View", () => {
           <Broadcast>
             <Scene id="main">
               <View
+                id="greeting"
                 source={greeting}
                 params={{ name: "James" }}
                 style={{ width: 640, height: 360 }}
@@ -67,13 +68,12 @@ describe("frame View", () => {
     if (definition?.kind !== "source:browser") return;
     const browserDefinition =
       /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ definition as BrowserSource;
-    expect(browserDefinition.url).toMatch(/^\/__vignette\/frame\/greeting-abc123\?props=/u);
-    expect(
-      new URL(browserDefinition.url, "http://composer.invalid").searchParams.get("props"),
-    ).toBe('{"name":"James"}');
-    expect(snapshot?.scenes[0]?.items[0]?.content).toEqual({
-      kind: "source",
-      sourceId: browserDefinition.id,
+    // The URL names only the frame and the placement; params travel as live page props.
+    expect(browserDefinition.url).toBe("/__vignette/frame/greeting-abc123/greeting");
+    expect(browserDefinition.props).toEqual({ name: "James" });
+    expect(snapshot?.scenes[0]?.items[0]).toMatchObject({
+      id: "greeting",
+      content: { kind: "source", sourceId: "greeting" },
     });
     // Without an explicit viewport, the page renders at the placement's laid-out size.
     expect(browserDefinition.viewport).toEqual({ width: 640, height: 360 });
@@ -93,7 +93,7 @@ describe("frame View", () => {
         component: () => (
           <Broadcast>
             <Scene id="main">
-              <View source={banner} style={{ width: 800, height: 120 }} />
+              <View id="banner" source={banner} style={{ width: 800, height: 120 }} />
             </Scene>
           </Broadcast>
         ),
@@ -105,9 +105,8 @@ describe("frame View", () => {
     const definition =
       /* SAFETY: The only source in this composition is the frame's browser source. */ snapshot
         .sources[0]?.definition as BrowserSource | undefined;
-    expect(
-      new URL(definition?.url ?? "", "http://composer.invalid").searchParams.get("props"),
-    ).toBe("{}");
+    expect(definition?.url).toBe("/__vignette/frame/banner-abc123/banner");
+    expect(definition?.props).toEqual({});
     expect(banner.params.parse({})).toEqual({});
     expect(() => banner.params.parse({ unexpected: true })).toThrow();
     await root.dispose();
@@ -132,7 +131,7 @@ describe("frame View", () => {
           <Broadcast>
             <Scene id="main">
               {/* @ts-expect-error Deliberately exercise runtime validation for untyped input. */}
-              <View source={greeting} params={{}} />
+              <View id="invalid" source={greeting} params={{}} />
               {/* @ts-expect-error Frames with required parameters require `params`. */}
               <View id="missing" source={greeting} />
             </Scene>
