@@ -2,11 +2,7 @@ import type { TargetStatus } from "@strangecyan/vignette-core";
 
 export class ObsStatusStore {
   private readonly listeners = new Set<() => void>();
-  private status: TargetStatus;
-
-  constructor(targetId: string) {
-    this.status = { targetId, phase: "disconnected" };
-  }
+  private status: TargetStatus = { phase: "disconnected", revision: 0 };
 
   getSnapshot(): TargetStatus {
     return this.status;

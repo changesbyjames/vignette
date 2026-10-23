@@ -100,7 +100,7 @@ describe("frame View", () => {
       }),
     );
 
-    const { snapshot } = await root.render();
+    const snapshot = await root.render();
 
     const definition =
       /* SAFETY: The only source in this composition is the frame's browser source. */ snapshot

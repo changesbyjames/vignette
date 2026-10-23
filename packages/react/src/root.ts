@@ -1,4 +1,3 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
 import {
   compileBroadcast,
   deepFreeze,
@@ -40,23 +39,14 @@ export interface ComposerRootOptions {
   readonly onError?: ((error: Error) => void) | undefined;
 }
 
-/** Revisions and the compiled snapshot associated with one completed React commit. */
-export interface CommitReceipt {
-  readonly requestedRevision: number;
-  readonly compiledRevision: number;
-  readonly compiledAt: number;
-  /** The snapshot compiled for this commit (or a newer one that superseded it). */
-  readonly snapshot: CompiledSnapshot;
-}
-
 /** Persistent Node-side React root that compiles a composition and publishes its stream. */
 export interface ComposerRoot {
   /**
    * Renders the composition's component, or `element` when supplied (for hosts that wrap the
-   * component in providers, or tests that render ad hoc trees). Resolves once the commit is
-   * compiled, so `(await root.render()).snapshot` and `root.snapshot` are current.
+   * component in providers, or tests that render ad hoc trees). Resolves to the snapshot compiled
+   * for the commit (or a newer one that superseded it), which is also `root.snapshot`.
    */
-  render(element?: ReactNode): Promise<CommitReceipt>;
+  render(element?: ReactNode): Promise<CompiledSnapshot>;
   /** The latest compiled snapshot, or undefined before the first successful compile. */
   readonly snapshot: CompiledSnapshot | undefined;
   settled(): Promise<CompiledSnapshot>;
@@ -67,13 +57,14 @@ export interface ComposerRoot {
   getStatus(): ComposerStatus;
   subscribe(listener: (snapshot: CompiledSnapshot) => void): () => void;
   subscribeStatus(listener: () => void): () => void;
-  unmount(): Promise<CommitReceipt>;
+  /** Renders nothing and resolves to the resulting empty snapshot. */
+  unmount(): Promise<CompiledSnapshot>;
   dispose(): Promise<void>;
 }
 
 interface CompileWaiter {
   readonly revision: number;
-  readonly resolve: (receipt: CommitReceipt) => void;
+  readonly resolve: (snapshot: CompiledSnapshot) => void;
   readonly reject: (error: Error) => void;
 }
 
@@ -129,7 +120,7 @@ class ComposerRootImpl implements ComposerRoot {
   private readonly messageHub = new StreamHub();
   private currentSnapshot: CompiledSnapshot | undefined;
   private compileScheduled = false;
-  private compiledRevision = -1;
+  private compiledRevision = 0;
   private disposed = false;
   private compileFailure: ComposerRootImplCompileFailure | undefined;
 
@@ -180,9 +171,11 @@ class ComposerRootImpl implements ComposerRoot {
       ) as unknown;
   }
 
-  render(element: ReactNode = createElement(this.composition.component)): Promise<CommitReceipt> {
+  render(
+    element: ReactNode = createElement(this.composition.component),
+  ): Promise<CompiledSnapshot> {
     this.assertActive();
-    return new Promise<CommitReceipt>((resolve, reject) => {
+    return new Promise<CompiledSnapshot>((resolve, reject) => {
       let renderFailed = false;
       const rejectRender = (error: Error) => {
         renderFailed = true;
@@ -192,9 +185,9 @@ class ComposerRootImpl implements ComposerRoot {
       reconciler.updateContainer(element, this.internalRoot, null, () => {
         this.renderRejectors.delete(rejectRender);
         if (renderFailed) return;
-        this.waitForCompile(this.container.commitRevision).then((receipt) => {
+        this.waitForCompile(this.container.commitRevision).then((snapshot) => {
           reconciler.flushPassiveEffects();
-          resolve(receipt);
+          resolve(snapshot);
         }, reject);
       });
     });
@@ -246,11 +239,11 @@ class ComposerRootImpl implements ComposerRoot {
     return this.status.subscribe(listener);
   }
 
-  unmount(): Promise<CommitReceipt> {
+  unmount(): Promise<CompiledSnapshot> {
     return this.render(null);
   }
 
-  /** Unmount active authoring nodes before closing streams, rejecting receipts, and disposing targets. */
+  /** Unmount active authoring nodes before closing streams and rejecting pending renders. */
   async dispose(): Promise<void> {
     if (this.disposed) return;
     if (this.container.children.length > 0) await this.unmount();
@@ -266,9 +259,7 @@ class ComposerRootImpl implements ComposerRoot {
     this.status.set({
       phase: "disposed",
       commitRevision: this.container.commitRevision,
-      ...omitUndefined({
-        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
-      }),
+      compiledRevision: this.compiledRevision,
       diagnostics: [],
     });
     this.status.clear();
@@ -280,9 +271,7 @@ class ComposerRootImpl implements ComposerRoot {
     this.status.set({
       phase: "compiling",
       commitRevision: this.container.commitRevision,
-      ...omitUndefined({
-        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
-      }),
+      compiledRevision: this.compiledRevision,
       diagnostics: [],
     });
     queueMicrotask(() => {
@@ -291,7 +280,7 @@ class ComposerRootImpl implements ComposerRoot {
     });
   }
 
-  /** Compile the latest committed revision, preserving render failures and rejecting superseded receipts. */
+  /** Compile the latest committed revision, preserving render failures and rejecting superseded renders. */
   private async compileLatest(): Promise<void> {
     if (this.disposed) return;
     const revision = this.container.commitRevision;
@@ -337,7 +326,7 @@ class ComposerRootImpl implements ComposerRoot {
     for (const listener of this.snapshotListeners) listener(snapshot);
     for (const waiter of this.compileWaiters) {
       if (waiter.revision > snapshot.revision) continue;
-      waiter.resolve(this.receipt(waiter.revision, snapshot));
+      waiter.resolve(snapshot);
       this.compileWaiters.delete(waiter);
     }
   }
@@ -347,9 +336,7 @@ class ComposerRootImpl implements ComposerRoot {
     this.status.set({
       phase: "error",
       commitRevision: revision,
-      ...omitUndefined({
-        compiledRevision: this.compiledRevision < 0 ? undefined : this.compiledRevision,
-      }),
+      compiledRevision: this.compiledRevision,
       diagnostics: [...diagnostics],
       message: error.message,
     });
@@ -358,10 +345,10 @@ class ComposerRootImpl implements ComposerRoot {
   }
 
   /** Resolve from the current snapshot, reject a recorded failure, or wait for the revision to compile. */
-  private waitForCompile(revision: number): Promise<CommitReceipt> {
+  private waitForCompile(revision: number): Promise<CompiledSnapshot> {
     if (this.disposed) return Promise.reject(new Error("Composer root is disposed."));
     if (this.compiledRevision >= revision && this.currentSnapshot !== undefined) {
-      return Promise.resolve(this.receipt(revision, this.currentSnapshot));
+      return Promise.resolve(this.currentSnapshot);
     }
     if (this.compileFailure !== undefined && this.compileFailure.revision >= revision) {
       return Promise.reject(this.compileFailure.error);
@@ -369,15 +356,6 @@ class ComposerRootImpl implements ComposerRoot {
     return new Promise((resolve, reject) => {
       this.compileWaiters.add({ revision, resolve, reject });
     });
-  }
-
-  private receipt(requestedRevision: number, snapshot: CompiledSnapshot): CommitReceipt {
-    return {
-      requestedRevision,
-      compiledRevision: this.compiledRevision,
-      compiledAt: Date.now(),
-      snapshot,
-    };
   }
 
   private handleRenderError(error: Error): void {

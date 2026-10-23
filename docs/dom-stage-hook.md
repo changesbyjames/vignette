@@ -37,15 +37,17 @@ readonly [
 ]
 ```
 
-The status is cached until a real store transition and contains:
+`StageStatus` is the DOM runtime's `TargetStatus` plus the scene it shows. It is cached until a real
+store transition and contains:
 
-- `phase`: container, connection, asset-download, target apply, error, or disposal state;
+- `phase`: `idle` until a container attaches, `connecting` while the stream opens and setup assets
+  download, then the target phases `synchronising`, `settled`, `disconnected` (the stream ended),
+  `error`, or `disposed`;
 - `revision`: the latest settled target revision, or zero before settlement;
-- `desiredRevision` and `settledRevision` when supplied by the target;
-- `targetId`, `sceneId`, and an optional error/status message.
+- `sceneId`, and an optional `message` explaining an `error` or `disconnected` phase.
 
-During server rendering the stable status is `waiting-for-container`. No EventSource, runtime, DOM
-stage, or asset download is created until React attaches the client ref.
+During server rendering the stable status is `idle`. No EventSource, runtime, DOM stage, or asset
+download is created until React attaches the client ref.
 
 ## Alternate streams
 
@@ -86,7 +88,7 @@ const status = useSyncExternalStore(
 );
 ```
 
-`getSnapshot()` delegates to the target's cached immutable `TargetStatus`; repeated calls return the
-same object until the target changes. `getServerSnapshot()` retains the initial disconnected status.
-The runtime deliberately does not own SSE or any other transport; consuming the stream belongs to
-the hook or the calling application.
+`getSnapshot()` delegates to the target's cached immutable `TargetStatus` (`phase`, `revision`, and
+an optional `message`); repeated calls return the same object until the target changes.
+`getServerSnapshot()` retains the initial disconnected status. The runtime deliberately does not own
+SSE or any other transport; consuming the stream belongs to the hook or the calling application.

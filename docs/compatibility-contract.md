@@ -10,7 +10,7 @@ For nodes supported by both targets, a compiled revision defines:
 - explicit crop and content alignment;
 - visibility and leaf rotation;
 - clipping inherited from virtual layout containers;
-- deterministic target-local diagnostics for unsupported runtime capabilities.
+- deterministic target-local diagnostics when a target cannot render a source kind or feature.
 
 The compiler runs the same pinned Yoga configuration for each target branch. Common nodes produce
 the same computed rectangles; DOM and OBS never independently reinterpret flexbox. Native OBS scene

@@ -14,12 +14,13 @@ export function deepFreeze<T>(value: T): T {
   return value;
 }
 
+/** `T` with `undefined` excluded from every property type. */
+export type DefinedProperties<T> = { [K in keyof T]: Exclude<T[K], undefined> };
+
 /**
  * Removes `undefined`-valued properties so the result satisfies targets compiled with
  * `exactOptionalPropertyTypes`.
  */
-export type DefinedProperties<T> = { [K in keyof T]: Exclude<T[K], undefined> };
-
 export function omitUndefined<T extends object>(value: T): DefinedProperties<T> {
   // SAFETY: Filtering removes only undefined values and preserves every remaining key and value.
   return Object.fromEntries(

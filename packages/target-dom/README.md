@@ -40,5 +40,6 @@ custom source renderers through `extensions`; built-in image, media, browser, an
 are always available. A setup advertising an extension kind without a registered renderer puts the
 runtime in the `error` phase with an actionable message (for example "Stream requires source kind
 'source:moq'; register @strangecyan/vignette-moq/dom.") and ignores updates until a satisfiable
-setup arrives. The DOM target has no managed namespace, so it does not check the project ID. Runtime
-status and `whenSettled()` expose local convergence without coupling it to the composer.
+setup arrives. The DOM target has no managed namespace, so it does not check the project ID.
+`getStatus()` (`phase`, latest settled `revision`, and an optional `message`) and
+`whenSettled(revision)` expose local convergence without coupling it to the composer.

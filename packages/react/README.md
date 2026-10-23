@@ -88,8 +88,9 @@ await root.render();
 for await (const message of root.messages(signal)) publish(message);
 ```
 
-`render()` resolves once the commit has compiled, so `(await root.render()).snapshot` (and
-`root.snapshot`) is the current snapshot.
+`render()` resolves to the snapshot compiled for the commit, which is also `root.snapshot`.
+`getStatus()` reports the composer's `phase`, latest `commitRevision` and `compiledRevision` (zero
+before the first), `diagnostics`, and an error `message`.
 
 `render()` renders the composition's component. Pass an element instead —
 `root.render(<Providers><Show /></Providers>)` — when a host wraps the component in providers or a

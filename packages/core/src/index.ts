@@ -7,7 +7,6 @@
 export * from "./assets.js";
 export * from "./async-queue.js";
 export type * from "./authoring.js";
-export * from "./capabilities.js";
 export * from "./diagnostics.js";
 export * from "./geometry.js";
 export * from "./ids.js";
@@ -17,6 +16,7 @@ export type * from "./layout/layout-engine.js";
 export * from "./layout/rounding.js";
 export * from "./stream-hub.js";
 export * from "./objects.js";
+export type * from "./render-target.js";
 export * from "./resource-url.js";
 export * from "./stream.js";
 export type * from "./snapshot.js";

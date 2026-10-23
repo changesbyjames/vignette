@@ -1,12 +1,8 @@
-import { omitUndefined } from "@strangecyan/vignette-core";
 import type {
   AssetResolver,
-  Capability,
   CompiledScene,
   CompiledSnapshot,
   RenderTarget,
-  TargetApplyReceipt,
-  TargetCapabilities,
   TargetStatus,
 } from "@strangecyan/vignette-core";
 
@@ -37,7 +33,7 @@ export interface DomTargetOptions {
 
 interface SettlementWaiter {
   readonly revision: number;
-  readonly resolve: (receipt: TargetApplyReceipt) => void;
+  readonly resolve: () => void;
   readonly reject: (error: Error) => void;
 }
 
@@ -59,18 +55,11 @@ interface ApplyWaiter {
   readonly reject: (error: Error) => void;
 }
 
-const DOM_TRANSFORM_CAPABILITIES: readonly Capability[] = [
-  "scene:nested",
-  "transform:crop",
-  "transform:opacity",
-  "transform:rotation",
-];
-
 /** Asynchronous DOM render target with latest-wins snapshot convergence. */
 export class DomTarget implements RenderTarget {
   readonly id: string;
-  readonly kind = "dom" as const;
-  readonly capabilities: TargetCapabilities;
+  /** Source kinds this target can render: built-ins plus registered extensions. */
+  readonly sourceKinds: ReadonlySet<string>;
 
   private readonly options: DomTargetOptions;
   private readonly renderers: DomRendererMap;
@@ -98,18 +87,14 @@ export class DomTarget implements RenderTarget {
     this.renderers = resolveDomRenderers(options.extensions);
     this.sceneId = options.sceneId;
     this.id = options.id ?? "dom";
-    this.capabilities = {
-      targetId: this.id,
-      targetKind: "dom",
-      capabilities: [...this.renderers.keys(), ...DOM_TRANSFORM_CAPABILITIES].sort(),
-    };
+    this.sourceKinds = new Set(this.renderers.keys());
     this.stage = new DomStage(options.container);
     const document = options.container.ownerDocument;
     this.patcher = new DomScenePatcher(this.stage.stage, this.renderers, {
       baseUrl: new URL(options.baseUrl ?? document.baseURI, document.baseURI).href,
     });
     this.assets = new DomAssetRegistry(options.assetResolver, this.id);
-    this.status = { targetId: this.id, phase: "disconnected" };
+    this.status = { phase: "disconnected", revision: 0 };
   }
 
   publish(snapshot: CompiledSnapshot): void {
@@ -135,10 +120,10 @@ export class DomTarget implements RenderTarget {
     return this.waitForApply(this.enqueue(snapshot, sceneId));
   }
 
-  whenSettled(revision: number): Promise<TargetApplyReceipt> {
+  whenSettled(revision: number): Promise<void> {
     if (this.disposed) return Promise.reject(new Error(`DOM target '${this.id}' is disposed.`));
-    if (this.settledRevision >= revision) return Promise.resolve(this.receipt(revision));
-    return new Promise<TargetApplyReceipt>((resolve, reject) => {
+    if (this.settledRevision >= revision) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
       this.waiters.add({ revision, resolve, reject });
     });
   }
@@ -265,7 +250,7 @@ export class DomTarget implements RenderTarget {
   private resolveWaiters(): void {
     for (const waiter of this.waiters) {
       if (waiter.revision > this.settledRevision) continue;
-      waiter.resolve(this.receipt(waiter.revision));
+      waiter.resolve();
       this.waiters.delete(waiter);
     }
   }
@@ -309,27 +294,9 @@ export class DomTarget implements RenderTarget {
     }
   }
 
-  private receipt(requestedRevision: number): TargetApplyReceipt {
-    return {
-      targetId: this.id,
-      requestedRevision,
-      settledRevision: this.settledRevision,
-      settledAt: Date.now(),
-    };
-  }
-
   private setStatus(phase: TargetStatus["phase"], message?: string): void {
-    this.status = {
-      targetId: this.id,
-      phase,
-      ...omitUndefined({
-        desiredRevision: this.desiredRevision < 0 ? undefined : this.desiredRevision,
-      }),
-      ...omitUndefined({
-        settledRevision: this.settledRevision < 0 ? undefined : this.settledRevision,
-      }),
-      ...omitUndefined({ message: message }),
-    };
+    const revision = Math.max(0, this.settledRevision);
+    this.status = message === undefined ? { phase, revision } : { phase, revision, message };
     for (const listener of this.listeners) listener();
   }
 

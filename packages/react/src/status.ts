@@ -6,9 +6,12 @@ export type ComposerPhase = "idle" | "compiling" | "ready" | "error" | "disposed
 /** Current React commit, compilation, and diagnostic state. */
 export interface ComposerStatus {
   readonly phase: ComposerPhase;
+  /** Latest React commit, or 0 before the first. */
   readonly commitRevision: number;
-  readonly compiledRevision?: number;
+  /** Latest successfully compiled revision, or 0 before the first. */
+  readonly compiledRevision: number;
   readonly diagnostics: readonly Diagnostic[];
+  /** Explanation for the `error` phase. */
   readonly message?: string;
 }
 
@@ -18,6 +21,7 @@ export class ComposerStatusStore {
   private status: ComposerStatus = {
     phase: "idle",
     commitRevision: 0,
+    compiledRevision: 0,
     diagnostics: [],
   };
 

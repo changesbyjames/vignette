@@ -73,14 +73,14 @@ test("embedded OBS runtime consumes the in-memory snapshot stream", async () => 
 
   try {
     const first = await root.render();
-    await waitForRuntime(runtime, first.compiledRevision, "initial convergence");
+    await waitForRuntime(runtime, first.revision, "initial convergence");
     expect(await sceneExists(url, password, sceneName)).toBe(true);
 
     const second = await root.render(show("#334455"));
-    await waitForRuntime(runtime, second.compiledRevision, "update convergence");
+    await waitForRuntime(runtime, second.revision, "update convergence");
     expect(runtime.getStatus()).toMatchObject({
       phase: "settled",
-      settledRevision: second.compiledRevision,
+      revision: second.revision,
     });
   } finally {
     unsubscribe();

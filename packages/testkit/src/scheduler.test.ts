@@ -103,7 +103,6 @@ describe("OBS convergence scheduler", () => {
       transport,
       retry: { initialDelayMs: 50, maximumDelayMs: 50, jitterRatio: 0 },
       schedulerRuntime: {
-        now: () => clock.now,
         random: () => 0.5,
         setTimeout: (callback, delay) => clock.setTimeout(callback, delay),
         clearTimeout: (handle) => {
@@ -247,7 +246,7 @@ describe("OBS convergence scheduler", () => {
       runtime.update(snapshot(1));
       await runtime.event({ id: "select", kind: "scene:select", sceneId: "main" });
 
-      expect(runtime.getStatus()).toEqual({ targetId: "obs", phase: "error", message });
+      expect(runtime.getStatus()).toEqual({ phase: "error", revision: 0, message });
       expect(onError).toHaveBeenCalledWith(new Error(message));
       await expect(runtime.whenSettled(1)).rejects.toThrow(message);
       expect(transport.connections).toHaveLength(0);
@@ -274,7 +273,6 @@ describe("OBS convergence scheduler", () => {
       },
       transport,
       {
-        now: () => clock.now,
         random: () => 0.5,
         setTimeout: (callback, delayMs) => clock.setTimeout(callback, delayMs),
         clearTimeout: (handle) => {
@@ -284,9 +282,9 @@ describe("OBS convergence scheduler", () => {
     );
 
     for (let revision = 1; revision <= 100; revision += 1) target.publish(snapshot(revision));
-    const receipt = await target.whenSettled(100);
+    await target.whenSettled(100);
 
-    expect(receipt.settledRevision).toBe(100);
+    expect(target.getStatus()).toMatchObject({ phase: "settled", revision: 100 });
     expect(transport.connections).toHaveLength(1);
     expect(
       transport.requests.filter((request) => request.requestType === "CreateInput"),
@@ -297,11 +295,7 @@ describe("OBS convergence scheduler", () => {
     clock.advanceBy(100);
     await eventually(() => transport.connections.length === 2);
     await eventually(() => target.getStatus().phase === "settled");
-    expect(target.getStatus()).toMatchObject({
-      desiredRevision: 100,
-      settledRevision: 100,
-      observationEpoch: 2,
-    });
+    expect(target.getStatus()).toStrictEqual({ phase: "settled", revision: 100 });
 
     await target.dispose();
     expect(transport.listenerCount("ConnectionClosed")).toBe(0);
@@ -342,12 +336,12 @@ describe("OBS convergence scheduler", () => {
 
     target.publish(invalid);
     await expect(target.whenSettled(1)).rejects.toThrow(/could not be resolved/u);
-    expect(target.getStatus()).toMatchObject({ phase: "error", desiredRevision: 1 });
+    expect(target.getStatus()).toMatchObject({ phase: "error", revision: 0 });
 
     target.publish(snapshot(2));
     await eventually(() => target.getStatus().phase === "settled");
-    await expect(target.whenSettled(2)).resolves.toMatchObject({ settledRevision: 2 });
-    expect(target.getStatus()).toMatchObject({ phase: "settled", desiredRevision: 2 });
+    await expect(target.whenSettled(2)).resolves.toBeUndefined();
+    expect(target.getStatus()).toStrictEqual({ phase: "settled", revision: 2 });
     await target.dispose();
   });
 
@@ -383,7 +377,7 @@ describe("OBS convergence scheduler", () => {
     transport.emit("CurrentSceneCollectionChanged");
     await eventually(() => target.getStatus().phase === "settled");
 
-    expect(target.getStatus()).toMatchObject({ settledRevision: 1, observationEpoch: 2 });
+    expect(target.getStatus()).toStrictEqual({ phase: "settled", revision: 1 });
     expect(
       transport.requests.filter((request) => request.requestType === "CreateScene"),
     ).toHaveLength(2);
@@ -411,7 +405,6 @@ describe("OBS convergence scheduler", () => {
       },
       transport,
       {
-        now: () => clock.now,
         random: () => 0.5,
         setTimeout: (callback, delayMs) => clock.setTimeout(callback, delayMs),
         clearTimeout: (handle) => {
@@ -451,7 +444,6 @@ describe("OBS convergence scheduler", () => {
       },
       transport,
       {
-        now: () => clock.now,
         random: () => 0.5,
         setTimeout: (callback, delayMs) => clock.setTimeout(callback, delayMs),
         clearTimeout: (handle) => {
