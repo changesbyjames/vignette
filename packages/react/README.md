@@ -100,6 +100,12 @@ Sources are reusable resource definitions. Layers place sources in scenes. `Box`
 Yoga layout but never becomes a target object. IDs are explicit because React keys do not identify
 remote resources.
 
+Wrap an upcoming scene or layer in `<Activity mode="hidden">` to prewarm it. Hidden content stays in
+the snapshot: its sources remain declared and its layers compile with `visible: false`, so switching
+to `mode="visible"` only flips visibility in each target. React pauses effects inside a hidden
+Activity and first renders it at idle priority, so it reaches the stream one snapshot after the
+visible content. A layer's own `visible` prop cannot override an enclosing hidden boundary.
+
 Call `dispose()` when the composer shuts down. Observe asynchronous failures through `onError` and
 root status, not delayed React exceptions. Custom source packages provide a `sourceElement` wrapper
 and a core `SourceModule`; list the module in the composition's `extensions`.

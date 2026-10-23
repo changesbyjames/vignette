@@ -61,9 +61,45 @@ describe("applyFakeObsPlan", () => {
       );
     }
   });
+
+  it("keeps invisible placements and their inputs, toggling only enablement", () => {
+    // Converge a hidden placement, then flip it visible and back; each flip must plan only enablement.
+    const hidden = snapshot(false);
+    const visible = snapshot(true);
+    const prewarm = planObsUpdate({
+      desired: hidden,
+      observed: emptyObserved(),
+      resolvedAssets: new Map(),
+      codecs,
+    });
+    expect(prewarm.ok).toBe(true);
+    if (!prewarm.ok) return;
+    expect(prewarm.plan.operations.map((operation) => operation.kind)).toContain("create-input");
+    expect(prewarm.plan.operations.map((operation) => operation.kind)).toContain(
+      "create-placement",
+    );
+    expect(prewarm.plan.operations.map((operation) => operation.kind)).not.toContain("set-enabled");
+    let state = applyFakeObsPlan({
+      state: emptyObserved(),
+      plan: prewarm.plan,
+      projectId: hidden.projectId,
+    }).state;
+
+    for (const desired of [visible, hidden]) {
+      const flip = planObsUpdate({ desired, observed: state, resolvedAssets: new Map(), codecs });
+      expect(flip.ok).toBe(true);
+      if (!flip.ok) return;
+      expect(
+        flip.plan.operations.map((operation) =>
+          operation.kind === "set-enabled" ? [operation.kind, operation.enabled] : operation.kind,
+        ),
+      ).toEqual([["set-enabled", desired.scenes[0]?.items[0]?.visible]]);
+      state = applyFakeObsPlan({ state, plan: flip.plan, projectId: desired.projectId }).state;
+    }
+  });
 });
 
-function snapshot(): CompiledSnapshot {
+function snapshot(visible = true): CompiledSnapshot {
   const source = "background";
   const fixtureSource1 = {
     id: source,
@@ -90,7 +126,7 @@ function snapshot(): CompiledSnapshot {
             id: "background-layer",
             content: { kind: "source", sourceId: source },
             frame: { x: 0, y: 0, width: 1920, height: 1080 },
-            visible: true,
+            visible,
             opacity: 1,
             rotation: 0,
           },

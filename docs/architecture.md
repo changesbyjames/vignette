@@ -91,6 +91,21 @@ uses atomic `moveBefore()` when available so iframe loading state survives scene
 runtime owns the WebSocket connection, observation, planning, retries, and managed OBS namespace.
 Neither runtime inspects React fibers or authoring nodes.
 
+## Hidden React subtrees
+
+React hides a subtree instead of unmounting it for `<Activity mode="hidden">` and for previously
+shown Suspense content while its fallback is displayed. The composer treats hiddenness as inherited
+visibility, not absence: sources declared inside the hidden subtree stay in the snapshot, and every
+layer or scene layer inside it compiles with `visible: false` and otherwise identical IDs, layout,
+and order. Revealing the subtree is therefore a visibility flip in every target (a scene-item enable
+in OBS, a `display` change in the DOM), never a resource creation. An explicit `visible` prop cannot
+re-show a layer inside a hidden boundary.
+
+`<Activity mode="hidden">` is the sanctioned way to prewarm an upcoming scene or layer. React pauses
+effects inside a hidden Activity, so timers and subscriptions there do not drive updates until it
+becomes visible, and it renders a newly mounted hidden Activity at idle priority: its content
+reaches the stream in a later snapshot than the surrounding visible content.
+
 ## Optional React DOM frames
 
 `@strangecyan/vignette-frame` can lower a typed `<View>` into a normal browser source plus layer.

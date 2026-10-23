@@ -166,6 +166,137 @@ describe("host tree mutations", () => {
     });
   });
 
+  it("keeps hidden subtrees and compiles their layers invisible", () => {
+    const container = makeContainer();
+    const broadcast = createHostNode("broadcast", {});
+    const sources = createHostNode("sources", {});
+    const color = createHostNode("source", {
+      definition: { kind: "source:color", id: "next-background", color: "#123456" },
+    });
+    const scene = createHostNode("scene", { id: "next" });
+    const box = createHostNode("box", { style: { width: "100%", height: "100%" } });
+    const layer = createHostNode("layer", {
+      id: "next-background-layer",
+      sourceId: "next-background",
+      visible: true,
+    });
+    const view = createHostNode("browser-view", {
+      id: "next-view",
+      sourceId: "next-view-source",
+      url: "/__vignette/frame/next",
+    });
+    const nested = createHostNode("scene-layer", { id: "next-nested", sceneId: "other" });
+    appendHostChild(container, broadcast);
+    appendHostChild(broadcast, sources);
+    appendHostChild(sources, color);
+    appendHostChild(broadcast, scene);
+    appendHostChild(scene, box);
+    appendHostChild(box, layer);
+    appendHostChild(box, view);
+    appendHostChild(box, nested);
+    sources.hidden = true;
+    box.hidden = true;
+
+    expect(hostTreeToBroadcast(container)).toEqual({
+      kind: "broadcast",
+      projectId: "show",
+      canvas: { width: 1920, height: 1080 },
+      children: [
+        {
+          kind: "sources",
+          children: [
+            { kind: "source:color", id: "next-background", color: "#123456" },
+            { kind: "source:browser", id: "next-view-source", url: "/__vignette/frame/next" },
+          ],
+        },
+        {
+          kind: "scene",
+          id: "next",
+          children: [
+            {
+              kind: "box",
+              style: { width: "100%", height: "100%" },
+              children: [
+                {
+                  kind: "layer",
+                  id: "next-background-layer",
+                  sourceId: "next-background",
+                  visible: false,
+                },
+                {
+                  kind: "layer",
+                  id: "next-view",
+                  sourceId: "next-view-source",
+                  visible: false,
+                },
+                { kind: "scene-layer", id: "next-nested", sceneId: "other", visible: false },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    box.hidden = false;
+    const scenes = hostTreeToBroadcast(container).children.filter(
+      (child) => child.kind === "scene",
+    );
+    expect(scenes).toEqual([
+      {
+        kind: "scene",
+        id: "next",
+        children: [
+          {
+            kind: "box",
+            style: { width: "100%", height: "100%" },
+            children: [
+              {
+                kind: "layer",
+                id: "next-background-layer",
+                sourceId: "next-background",
+                visible: true,
+              },
+              { kind: "layer", id: "next-view", sourceId: "next-view-source" },
+              { kind: "scene-layer", id: "next-nested", sceneId: "other" },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("hides every layer of a hidden scene", () => {
+    const container = makeContainer();
+    const broadcast = createHostNode("broadcast", {});
+    const scene = createHostNode("scene", { id: "next" });
+    const layer = createHostNode("layer", { id: "next-layer", sourceId: "background" });
+    appendHostChild(container, broadcast);
+    appendHostChild(broadcast, scene);
+    appendHostChild(scene, layer);
+    scene.hidden = true;
+
+    expect(hostTreeToBroadcast(container).children).toEqual([
+      {
+        kind: "scene",
+        id: "next",
+        children: [{ kind: "layer", id: "next-layer", sourceId: "background", visible: false }],
+      },
+    ]);
+  });
+
+  it("counts hidden broadcast nodes when requiring exactly one root", () => {
+    const container = makeContainer();
+    const visible = createHostNode("broadcast", {});
+    const hidden = createHostNode("broadcast", {});
+    appendHostChild(container, visible);
+    appendHostChild(container, hidden);
+    hidden.hidden = true;
+
+    expect(() => hostTreeToBroadcast(container)).toThrow(
+      "The renderer root must contain exactly one <Broadcast> node.",
+    );
+  });
+
   it("rejects source nodes without a complete definition", () => {
     const container = makeContainer();
     const broadcast = createHostNode("broadcast", {});

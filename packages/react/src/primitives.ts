@@ -61,6 +61,7 @@ export interface LayerProps {
   readonly fit?: FitMode | undefined;
   readonly alignment?: ContentAlignment | undefined;
   readonly crop?: Partial<Insets> | undefined;
+  /** Defaults to `true`; an enclosing hidden `<Activity>` forces `false` regardless of this prop. */
   readonly visible?: boolean | undefined;
   readonly opacity?: number | undefined;
   readonly rotation?: number | undefined;
@@ -76,6 +77,7 @@ export interface SceneLayerProps {
   readonly id: string;
   readonly sceneId: string;
   readonly style?: LayoutStyle | undefined;
+  /** Defaults to `true`; an enclosing hidden `<Activity>` forces `false` regardless of this prop. */
   readonly visible?: boolean | undefined;
   readonly opacity?: number | undefined;
   readonly rotation?: number | undefined;

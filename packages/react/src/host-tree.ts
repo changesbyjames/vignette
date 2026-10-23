@@ -68,14 +68,19 @@ export function clearHostChildren(parent: HostNode | HostContainer): void {
   parent.children.splice(0);
 }
 
-/** Find the authoring root and collect embedded sources before converting visible children to the broadcast graph. */
+/**
+ * Find the authoring root and collect embedded sources before converting the committed tree to the
+ * broadcast graph. Nodes React hides (a hidden `<Activity>` boundary or a suspended Suspense
+ * subtree) stay in the graph: their sources remain declared and their layers compile invisible, so
+ * revealing them is a visibility change rather than a new resource.
+ */
 export function hostTreeToBroadcast(container: HostContainer): BroadcastNode {
-  const root = visibleChildren(container).find((node) => node.type === "broadcast");
+  const root = container.children.find((node) => node.type === "broadcast");
   if (root === undefined) throw new Error("The renderer root must contain a <Broadcast> node.");
-  if (visibleChildren(container).length !== 1) {
+  if (container.children.length !== 1) {
     throw new Error("The renderer root must contain exactly one <Broadcast> node.");
   }
-  const rootChildren = visibleChildren(root);
+  const rootChildren = root.children;
   const embeddedSources = rootChildren.flatMap((child) =>
     child.type === "scene" ? collectBrowserViewSources(child) : [],
   );
@@ -91,7 +96,7 @@ export function hostTreeToBroadcast(container: HostContainer): BroadcastNode {
           children: [...sources.children, ...embeddedSources],
         };
       }
-      if (child.type === "scene") return toScene(child);
+      if (child.type === "scene") return toScene(child, root.hidden);
       throw invalidChild(root, child);
     },
   );
@@ -107,7 +112,7 @@ export function hostTreeToBroadcast(container: HostContainer): BroadcastNode {
 }
 
 function toSources(node: HostNode): SourcesNode {
-  const sources = visibleChildren(node).map(toSource);
+  const sources = node.children.map(toSource);
   return { kind: "sources", children: sources };
 }
 
@@ -121,24 +126,31 @@ function toSource(node: HostNode): AnySourceDefinition {
   return definition as AnySourceDefinition;
 }
 
-function toScene(node: HostNode): SceneNode {
+function toScene(node: HostNode, ancestorHidden: boolean): SceneNode {
+  const hidden = ancestorHidden || node.hidden;
   return /* SAFETY: React props enter the authoring graph here; the core compiler validates their fields before publishing a snapshot. */ {
     kind: "scene",
     id: required(node.props, "id"),
     ...optionalProps(node.props, ["label"]),
-    children: visibleChildren(node).map(toLayout),
+    children: node.children.map((child) => toLayout(child, hidden)),
   } as SceneNode;
 }
 
-function toLayout(node: HostNode): LayoutNode {
+/**
+ * Hiddenness is inherited: a layer inside any hidden host ancestor compiles with `visible: false`,
+ * and its own `visible` prop cannot re-show it. Everything else compiles exactly as when visible.
+ */
+function toLayout(node: HostNode, ancestorHidden: boolean): LayoutNode {
   const props = node.props;
+  const hidden = ancestorHidden || node.hidden;
+  const visibility = hidden ? { visible: false } : {};
   switch (node.type) {
     case "box":
       // SAFETY: The layout compiler validates box styles before publishing a snapshot.
       return {
         kind: "box",
         ...optionalProps(props, ["style"]),
-        children: visibleChildren(node).map(toLayout),
+        children: node.children.map((child) => toLayout(child, hidden)),
       } as BoxNode;
     case "layer":
     case "browser-view":
@@ -155,6 +167,7 @@ function toLayout(node: HostNode): LayoutNode {
           "opacity",
           "rotation",
         ]),
+        ...visibility,
       } as LayerNode;
     case "scene-layer":
       return /* SAFETY: React props enter the authoring graph here; the core compiler validates their fields before publishing a snapshot. */ {
@@ -162,6 +175,7 @@ function toLayout(node: HostNode): LayoutNode {
         id: required(props, "id"),
         sceneId: required(props, "sceneId"),
         ...optionalProps(props, ["style", "visible", "opacity", "rotation"]),
+        ...visibility,
       } as SceneLayerNode;
     default:
       throw new Error(`<${node.type}> is not a layout primitive.`);
@@ -179,7 +193,7 @@ function collectBrowserViewSources(node: HostNode): readonly AnySourceDefinition
       } as AnySourceDefinition,
     ];
   }
-  return visibleChildren(node).flatMap(collectBrowserViewSources);
+  return node.children.flatMap(collectBrowserViewSources);
 }
 
 /** React-only props are excluded from the graph before compiling it. */
@@ -203,10 +217,6 @@ function required<K extends keyof HostProps>(props: HostProps, key: K): HostProp
   const value = props[key];
   if (value === undefined) throw new Error(`Host primitive is missing required prop '${key}'.`);
   return value;
-}
-
-function visibleChildren(parent: HostNode | HostContainer): readonly HostNode[] {
-  return parent.children.filter((child) => !child.hidden);
 }
 
 /** Walk parent links until reaching the candidate ancestor or the root container. */
