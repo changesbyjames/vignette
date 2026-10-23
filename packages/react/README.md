@@ -60,7 +60,8 @@ so hosts and tooling can load it from a module path.
 `fill` is a layout preset (`position: "absolute"`, `inset: 0`, 100% width and height) for layers and
 boxes that cover their parent; spread it to extend it. A `<ColorSource>` without `size` takes the
 canvas size, and a `<BrowserView>` (or frame `<View>`) without `viewport` renders its page at the
-layer's laid-out size. Optional props accept `undefined` as "use the default".
+layer's laid-out size. `<InlineSource>` declares any source definition and places it in one node;
+`<BrowserView>` is built on it. Optional props accept `undefined` as "use the default".
 
 ## Compile once
 

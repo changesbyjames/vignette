@@ -45,6 +45,25 @@ export interface BrowserSource extends AnySourceDefinition {
    */
   readonly viewport?: Size;
   readonly shutdownWhenHidden?: boolean;
+  /**
+   * Live JSON data for the page. It travels in each snapshot, and pages read it from the composer
+   * stream. Targets never render it, so changing it updates the page without reloading it.
+   */
+  readonly props?: BrowserPageProps;
+}
+
+/** A JSON value carried in browser-source props. */
+export type BrowserPageJson =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly BrowserPageJson[]
+  | BrowserPageProps;
+
+/** The JSON object a browser source delivers to its page. */
+export interface BrowserPageProps {
+  readonly [key: string]: BrowserPageJson;
 }
 
 /** Solid color source with optional intrinsic dimensions. */

@@ -41,7 +41,7 @@ including the existing local changes. Those changes were left intact. Relevant s
 - [`Workers Yoga entrypoint`](../packages/core/src/layout/layout-yoga-workerd.ts): imports the
   vendored Wasm as a precompiled module.
 - [`Frame SSR`](../packages/frame/src/server.ts) and [`View`](../packages/frame/src/view.ts): build
-  metadata, frame routes, SSR, and browser hydration.
+  metadata, frame routes, SSR, and live props read from the composer stream.
 - [`DOM revision handling`](../packages/target-dom/src/dom-target.ts) and
   [`OBS scheduler`](../packages/target-obs/src/scheduler.ts): lower snapshot revisions are ignored.
 
@@ -71,7 +71,9 @@ There are **two independent SSE feeds**:
 | `/__vignette/store/composition` | Application state such as the current title              | Hydrated React frames            |
 
 A title change updates the existing frame through the store feed. It does not rerender the
-composition or replace the frame URL. Preserve this behavior when introducing generated code.
+composition. Frame params are the alternative when the composition owns the state: they travel in
+each snapshot and also update the frame without replacing its URL. Preserve both behaviors when
+introducing generated code.
 
 What is missing for SaaS is platform routing/authentication, dynamic builds, code isolation,
 tenant/session identities, publication and rollback, resource quotas, and recovery across versions.

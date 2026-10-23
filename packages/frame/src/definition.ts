@@ -51,9 +51,8 @@ export interface FrameDefinition<Params extends object> {
 }
 
 interface FrameFactory extends FrameBuilder {
+  /** Binds build metadata; the Vite plugin rewrites exported `frame()` calls to use it. */
   withMetadata(metadata: FrameMetadata): FrameBuilder;
-  /** @deprecated Use `frame.withMetadata()` or the `metadata` frame option. */
-  __withMetadata(metadata: FrameMetadata): FrameBuilder;
 }
 
 const noFrameParams: FrameParamsSchema<NoFrameParams> = {
@@ -92,7 +91,6 @@ function frameBuilder(metadata?: FrameMetadata): FrameBuilder {
  */
 export const frame: FrameFactory = Object.assign(frameBuilder(), {
   withMetadata: (metadata: FrameMetadata) => frameBuilder(metadata),
-  __withMetadata: (metadata: FrameMetadata) => frameBuilder(metadata),
 });
 
 function freezeFrameMetadata(metadata: FrameMetadata): FrameMetadata {

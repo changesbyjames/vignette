@@ -8,7 +8,7 @@ export type HostType =
   | "layer"
   | "scene-layer"
   | "source"
-  | "browser-view";
+  | "inline-source";
 
 /** Raw values accepted by React authoring primitives; core validates them before publication. */
 export interface HostProps {
@@ -29,9 +29,6 @@ export interface HostProps {
   readonly visible?: unknown;
   readonly opacity?: unknown;
   readonly rotation?: unknown;
-  readonly url?: unknown;
-  readonly viewport?: unknown;
-  readonly shutdownWhenHidden?: unknown;
 }
 
 export interface HostNode {

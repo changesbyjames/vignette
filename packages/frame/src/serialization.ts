@@ -2,22 +2,20 @@ import { z } from "zod";
 
 export const FrameJsonValueSchema = z.json();
 export type FrameJsonValue = z.output<typeof FrameJsonValueSchema>;
-export type FrameJsonObject = Record<string, FrameJsonValue>;
+export const FrameJsonObjectSchema = z.record(z.string(), FrameJsonValueSchema);
+export type FrameJsonObject = z.output<typeof FrameJsonObjectSchema>;
 
-/** Validate every value before canonicalizing keys; preserve cycle detection on original objects. */
-export function serializeFrameParams(
+/**
+ * Converts parsed frame params to canonical JSON page props: plain objects and arrays only, keys
+ * sorted, and no cycles or non-finite numbers.
+ */
+export function toFrameProps(
   value: Parameters<typeof FrameJsonValueSchema.parse>[0],
-): string {
-  return JSON.stringify(toJsonValue(value, new Set<object>()));
-}
-
-export function hashFrameValue(value: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(36);
+): FrameJsonObject {
+  const json = toJsonValue(value, new Set<object>());
+  const object = FrameJsonObjectSchema.safeParse(json);
+  if (!object.success) throw new TypeError("Frame parameters must be a JSON object.");
+  return object.data;
 }
 
 /** Only ancestors count as cycles: shared sibling references are serialized independently. */

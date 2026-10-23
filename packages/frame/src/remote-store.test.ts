@@ -6,7 +6,11 @@ import {
   encodeRemoteStoreSnapshot,
   type RemoteSnapshotOf,
 } from "./remote-store.js";
-import { remoteStoreSnapshots, type ReadableContextStore } from "./remote-store-server.js";
+import {
+  createRemoteStoreHandler,
+  remoteStoreSnapshots,
+  type ReadableContextStore,
+} from "./remote-store-server.js";
 
 interface TestStoreGetSnapshotContext {
   readonly title: string;
@@ -38,6 +42,10 @@ interface TestReadableStoreSubscribeListenerSnapshot<TContext> {
 
 interface TestReadableStoreSubscribeResult {
   unsubscribe(): void;
+}
+
+interface CounterContext {
+  readonly count: number;
 }
 
 interface TestStore {
@@ -133,6 +141,36 @@ describe("remote store snapshots", () => {
     const iterator = remoteStoreSnapshots(store, controller.signal)[Symbol.asyncIterator]();
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
     expect(store.subscriberCount).toBe(0);
+  });
+});
+
+describe("remote store handler", () => {
+  it("streams the store at its reference URL and releases it when the client disconnects", async () => {
+    // Other paths and methods fall through; the matching GET streams until the client cancels.
+    const store = new TestReadableStore({ count: 0 });
+    const ref = defineRemoteStore<TestReadableStore<CounterContext>>({ id: "counter" });
+    const handler = createRemoteStoreHandler(ref, store);
+    const client = new AbortController();
+
+    expect(handler(new Request("https://show.test/__vignette/store/other"))).toBeUndefined();
+    expect(
+      handler(new Request("https://show.test/__vignette/store/counter", { method: "POST" })),
+    ).toBeUndefined();
+    const response = handler(
+      new Request("https://show.test/__vignette/store/counter", { signal: client.signal }),
+    );
+    expect(response?.headers.get("content-type")).toBe("text/event-stream; charset=utf-8");
+    const reader = response?.body?.getReader();
+    if (reader === undefined) throw new Error("The store stream has no body.");
+    const decoder = new TextDecoder();
+    const read = async () => decoder.decode((await reader.read()).value);
+
+    await expect(read()).resolves.toBe('data: {"context":{"count":0}}\n\n');
+    store.emit({ count: 1 });
+    await expect(read()).resolves.toBe('data: {"context":{"count":1}}\n\n');
+
+    await reader.cancel();
+    await expect.poll(() => store.subscriberCount).toBe(0);
   });
 });
 

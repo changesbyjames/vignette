@@ -9,6 +9,7 @@ import {
 import {
   encodeStreamMessageSse,
   type AssetManifest,
+  type CompiledSnapshot,
   type SourceModule,
 } from "@strangecyan/vignette-core";
 import { createElement, type ComponentType } from "react";
@@ -51,6 +52,8 @@ export interface DevComposer {
   fileChanged(file: string): void;
   /** Replaces the root when the asset manifest changed. */
   assetsChanged(): void;
+  /** The active root's latest snapshot, which frame pages are server-rendered from. */
+  snapshot(): CompiledSnapshot | undefined;
   dispose(): Promise<void>;
 }
 
@@ -162,6 +165,10 @@ class DevComposerImpl implements DevComposer {
     const seen = new Set<EvaluatedModuleNode>();
     for (const node of modules) this.invalidateWithImporters(node, seen);
     this.requestReload();
+  }
+
+  snapshot(): CompiledSnapshot | undefined {
+    return this.active?.root.snapshot;
   }
 
   assetsChanged(): void {

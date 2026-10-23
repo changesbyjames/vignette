@@ -34,7 +34,7 @@ Maintainers can find package ordering and tokenless GitHub OIDC release instruct
 
 - `packages/core` — target-neutral graph, validation, layout, snapshots, and stream contracts.
 - `packages/react` — Node-side custom React composer and typed authoring primitives.
-- `packages/frame` — optional typed React DOM frames with Vite SSR and hydration.
+- `packages/frame` — optional typed React DOM frames with live props and server rendering.
 - `packages/vite` — frame discovery, deterministic client entries, build-derived assets, and the dev
   composer.
 - `packages/target-dom` — manifest asset cache, browser `DOMRuntime`, and optional React hook.

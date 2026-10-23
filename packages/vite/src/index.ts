@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 import type { AssetManifest, AssetManifestEntry } from "@strangecyan/vignette-core";
 import type { FrameMetadata } from "@strangecyan/vignette-frame";
 import { resolveFrame, type FrameBundle } from "@strangecyan/vignette-frame/server";
-import { transformFrameDefinitions } from "@strangecyan/vignette-frame/transform";
 import { globSync } from "tinyglobby";
 import type { Plugin, UserConfig } from "vite";
 
 import type { ComposerRootHook, DevComposer } from "./dev-composer.js";
+import { transformFrameDefinitions } from "./frame-transform.js";
 
 export type { ComposerRootContext, ComposerRootHook } from "./dev-composer.js";
 
@@ -123,10 +123,8 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
     transform(code, id) {
       const cleanId = id.split("?", 1)[0];
       if (cleanId === undefined || cleanId.includes(`${sep}node_modules${sep}`)) return null;
-      return transformFrameDefinitions(code, {
-        id: cleanId,
-        moduleUrl: toModuleUrl(cleanId, root),
-      });
+      const transformed = transformFrameDefinitions(code, cleanId, toModuleUrl(cleanId, root));
+      return transformed === null ? null : { code: transformed.code, map: null };
     },
     options(inputOptions) {
       if (command !== "build" || this.environment.name !== "client") return null;
@@ -196,7 +194,10 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
       server.middlewares.use((request, response, next) => {
         getBundle().then(
           (frames) => {
-            const frame = resolveFrame(frames, request.url ?? "/");
+            const frame = resolveFrame(frames, request.url ?? "/", {
+              stream: options.streamPath ?? "/stream",
+              snapshot: () => composer?.snapshot(),
+            });
             if (frame === undefined) next();
             else response.writeHead(frame.status, frame.headers).end(frame.body);
           },
@@ -226,6 +227,7 @@ export function vignette(options: VignettePluginOptions = {}): Plugin {
   };
 }
 
+/** Register every exported frame in the matched modules, ordered by route key for stable output. */
 function discoverFrames(
   root: string,
   patterns: string | readonly string[] | undefined,
@@ -237,11 +239,12 @@ function discoverFrames(
   }).sort();
   const registrations: FrameRegistration[] = [];
   for (const file of files) {
-    transformFrameDefinitions(readFileSync(file, "utf8"), {
-      id: file,
-      moduleUrl: toModuleUrl(file, root),
-      onMetadata: (metadata) => registrations.push({ ...metadata, file }),
-    });
+    const transformed = transformFrameDefinitions(
+      readFileSync(file, "utf8"),
+      file,
+      toModuleUrl(file, root),
+    );
+    for (const metadata of transformed?.metadata ?? []) registrations.push({ ...metadata, file });
   }
   return registrations.sort((left, right) => left.routeKey.localeCompare(right.routeKey));
 }

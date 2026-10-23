@@ -1,13 +1,19 @@
 /** Fetch routing and pure SSR kernels for Vignette frames. */
-import { DEFAULT_BROWSER_SOURCE_CSS } from "@strangecyan/vignette-core";
+import {
+  DEFAULT_BROWSER_SOURCE_CSS,
+  omitUndefined,
+  type CompiledSnapshot,
+} from "@strangecyan/vignette-core";
 import { renderToString } from "react-dom/server";
 
-import type { FrameDefinition, FrameMetadata, FrameParamsInput } from "./definition.js";
+import type { FrameMountOptions } from "./client.js";
+import type { FrameDefinition, FrameMetadata } from "./definition.js";
 import { frameElement } from "./frame-element.js";
-import { serializeFrameParams } from "./serialization.js";
+import { pageProps } from "./page-props.js";
+import type { FrameJsonObject } from "./serialization.js";
 import { FRAME_ROUTE_PREFIX } from "./view.js";
 
-/** Resolves browser modules needed to hydrate statically registered frames. */
+/** Resolves browser modules needed to mount statically registered frames. */
 export interface FrameModuleHost {
   resolveClientModule(moduleUrl: string): string;
   resolveClientHelper(): string;
@@ -17,6 +23,17 @@ export interface FrameModuleHost {
 export interface FrameBundle {
   readonly registry: FrameRouteRegistry;
   readonly modules: FrameModuleHost;
+}
+
+/** Where frame pages read their live props, and optionally how the server renders them first. */
+export interface FrameServerOptions {
+  /** Composer stream URL the page subscribes to. Defaults to `/stream`. */
+  readonly stream?: string | undefined;
+  /**
+   * The composer's current snapshot, when the frame host runs beside the composer. Pages are then
+   * server-rendered with their current props; otherwise they render once the first update arrives.
+   */
+  readonly snapshot?: (() => CompiledSnapshot | undefined) | undefined;
 }
 
 /** Fetch handler that leaves unrelated requests unhandled. */
@@ -29,18 +46,26 @@ export interface FrameResult {
   readonly body: string;
 }
 
-/** One live frame definition and its build-derived route metadata. */
+/** One live frame definition's route metadata and its typed page renderer. */
 export interface FrameRouteEntry {
   readonly metadata: FrameMetadata;
-  readonly definition: Pick<FrameDefinition<object>, "params" | "metadata">;
-  readonly render: (rawProps: FrameParamsInput<object>) => string;
+  readonly render: (request: FramePageRequest) => string;
+}
+
+/** Everything one frame page needs: which placement it is, where its props come from, and its modules. */
+export interface FramePageRequest {
+  readonly sourceId: string;
+  readonly stream: string;
+  readonly modules: FrameModuleHost;
+  /** Current page props, when known; the page is then server-rendered with them. */
+  readonly props?: FrameJsonObject | undefined;
 }
 
 /** Registry of live frame definitions keyed by deterministic build metadata. */
 export class FrameRouteRegistry {
   private readonly entries = new Map<string, FrameRouteEntry>();
 
-  /** Require transformed route metadata and reject collisions before retaining the frame's typed rendering closure. */
+  /** Require build metadata and reject route collisions before retaining the definition. */
   registerDefinition<Params extends object>(definition: FrameDefinition<Params>): void {
     const metadata = definition.metadata;
     if (metadata === undefined) {
@@ -58,8 +83,7 @@ export class FrameRouteRegistry {
     }
     this.entries.set(metadata.routeKey, {
       metadata,
-      definition,
-      render: (rawProps) => renderFrameHtml(definition, metadata, rawProps),
+      render: (request) => renderFrameHtml(definition, metadata, request),
     });
   }
 
@@ -68,16 +92,27 @@ export class FrameRouteRegistry {
   }
 }
 
-/** Validates props, server-renders a frame, and wraps it in its hydration document. */
+/**
+ * Renders a frame page. With props, the view is server-rendered and hydrated; without them the
+ * page renders on the client once the stream delivers them. Either way it then follows the stream.
+ */
 export function renderFrameHtml<Params extends object>(
   definition: FrameDefinition<Params>,
   metadata: FrameMetadata,
-  rawProps: FrameParamsInput<Params>,
+  request: FramePageRequest,
 ): string {
-  const params = parseFrameParams(definition, rawProps);
-  const serialized = serializeFrameParams(params);
-  const markup = renderToString(frameElement(definition, params));
-  const hydrationUrl = `${FRAME_ROUTE_PREFIX}/${metadata.routeKey}/hydrate.js`;
+  const markup =
+    request.props === undefined
+      ? ""
+      : renderToString(frameElement(definition, parseFrameParams(definition, request.props)));
+  const mount: FrameMountOptions = {
+    sourceId: request.sourceId,
+    stream: request.stream,
+    ...omitUndefined({ initialProps: request.props }),
+  };
+  const bootstrap = `import * as frameModule from ${JSON.stringify(request.modules.resolveClientModule(metadata.moduleUrl))};
+import { mountFrame } from ${JSON.stringify(request.modules.resolveClientHelper())};
+mountFrame(frameModule[${JSON.stringify(metadata.exportName)}], ${JSON.stringify(mount)});`;
   return `<!doctype html>
 <html>
   <head>
@@ -87,35 +122,23 @@ export function renderFrameHtml<Params extends object>(
   </head>
   <body>
     <div data-vignette-frame-root>${markup}</div>
-    <script id="__vignette-frame-props" type="application/json">${escapeJsonForHtml(serialized)}</script>
-    <script type="module" src="${hydrationUrl}"></script>
+    <script type="module">${escapeScript(bootstrap)}</script>
   </body>
 </html>`;
 }
 
 function parseFrameParams<Params extends object>(
   definition: FrameDefinition<Params>,
-  rawProps: FrameParamsInput<Params>,
+  props: FrameJsonObject,
 ): Params {
   try {
-    return definition.params.parse(rawProps);
+    return definition.params.parse(props);
   } catch (cause) {
     throw new FrameRequestError(
-      400,
+      500,
       `Frame props failed validation: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
-}
-
-/** Generates the browser module that imports and hydrates one frame definition. */
-export function renderHydrationModule(modules: FrameModuleHost, metadata: FrameMetadata): string {
-  return `import * as frameModule from ${JSON.stringify(modules.resolveClientModule(metadata.moduleUrl))};
-import { hydrateFrame } from ${JSON.stringify(modules.resolveClientHelper())};
-const definition = frameModule[${JSON.stringify(metadata.exportName)}];
-const element = document.querySelector('#__vignette-frame-props');
-if (element === null || element.textContent === null) throw new Error('Frame props are missing.');
-hydrateFrame(definition, JSON.parse(element.textContent));
-`;
 }
 
 /**
@@ -123,18 +146,21 @@ hydrateFrame(definition, JSON.parse(element.textContent));
  * frame bundle. Returns undefined outside the frame route prefix so hosts can fall through:
  *
  * ```ts
- * const frame = resolveFrame(frames, req.url);
+ * const frame = resolveFrame(frames, req.url, { snapshot: () => root.snapshot });
  * if (frame === undefined) return next();
  * res.writeHead(frame.status, frame.headers).end(frame.body);
  * ```
  */
-export function resolveFrame(frames: FrameBundle, target: string): FrameResult | undefined {
+export function resolveFrame(
+  frames: FrameBundle,
+  target: string,
+  options: FrameServerOptions = {},
+): FrameResult | undefined {
   const queryStart = target.indexOf("?");
   const pathname = queryStart === -1 ? target : target.slice(0, queryStart);
   if (!pathname.startsWith(`${FRAME_ROUTE_PREFIX}/`)) return undefined;
-  const query = queryStart === -1 ? "" : target.slice(queryStart + 1);
   try {
-    return renderFrameRoute(frames, pathname, new URLSearchParams(query));
+    return renderFrameRoute(frames, pathname, options);
   } catch (error: unknown) {
     // Request errors carry their HTTP status; anything else is a server-side rendering failure.
     return {
@@ -145,45 +171,46 @@ export function resolveFrame(frames: FrameBundle, target: string): FrameResult |
   }
 }
 
-/** Serves a registered frame's page, or its hydration module at `<key>/hydrate.js`; throws request errors. */
+/** Serves `<routeKey>/<sourceId>`, server-rendering it when the snapshot holds its props. */
 function renderFrameRoute(
   frames: FrameBundle,
   pathname: string,
-  query: URLSearchParams,
+  options: FrameServerOptions,
 ): FrameResult {
-  const route = pathname.slice(FRAME_ROUTE_PREFIX.length + 1).split("/");
-  const routeKey = route[0];
-  if (!isFrameRoute(route, routeKey)) throw new FrameRequestError(404, "Frame route not found.");
-  const entry = frames.registry.get(routeKey);
-  if (entry === undefined) throw new FrameRequestError(404, "Frame route not found.");
-  if (route.length === 2) {
-    if (route[1] !== "hydrate.js") throw new FrameRequestError(404, "Frame route not found.");
-    return {
-      status: 200,
-      headers: { "Cache-Control": "no-store", "Content-Type": "text/javascript; charset=utf-8" },
-      body: renderHydrationModule(frames.modules, entry.metadata),
-    };
+  const [routeKey, sourceId, ...rest] = pathname.slice(FRAME_ROUTE_PREFIX.length + 1).split("/");
+  const entry = routeKey === undefined ? undefined : frames.registry.get(routeKey);
+  if (entry === undefined || sourceId === undefined || sourceId.length === 0 || rest.length > 0) {
+    throw new FrameRequestError(404, "Frame route not found.");
   }
   return {
     status: 200,
     headers: { "Cache-Control": "no-store", "Content-Type": "text/html; charset=utf-8" },
-    body: entry.render(readFrameProps(query)),
+    body: entry.render({
+      sourceId,
+      stream: options.stream ?? "/stream",
+      modules: frames.modules,
+      props: pageProps(options.snapshot?.(), sourceId),
+    }),
   };
 }
 
 /** Creates a Fetch handler over a static frame bundle; a thin adapter over {@link resolveFrame}. */
-export function createFrameRequestHandler(frames: FrameBundle): FrameRequestHandler {
+export function createFrameRequestHandler(
+  frames: FrameBundle,
+  options: FrameServerOptions = {},
+): FrameRequestHandler {
   return (request) => {
     const url = new URL(request.url);
-    const frame = resolveFrame(frames, url.pathname + url.search);
+    const frame = resolveFrame(frames, url.pathname + url.search, options);
     return frame === undefined
       ? undefined
       : new Response(frame.body, { status: frame.status, headers: frame.headers });
   };
 }
 
-function escapeJsonForHtml(value: string): string {
-  return value.replaceAll("<", "\\u003c").replaceAll(">", "\\u003e").replaceAll("&", "\\u0026");
+/** Keeps a `</script>` sequence or HTML comment in embedded JSON from ending the inline script. */
+function escapeScript(value: string): string {
+  return value.replaceAll("<", "\\u003c");
 }
 
 class FrameRequestError extends Error {
@@ -193,20 +220,4 @@ class FrameRequestError extends Error {
   ) {
     super(message);
   }
-}
-
-/** Preserve request-specific errors for missing and syntactically invalid JSON payloads. */
-function readFrameProps(query: URLSearchParams): FrameParamsInput<object> {
-  const raw = query.get("props");
-  if (raw === null) throw new FrameRequestError(400, "Frame request is missing its props payload.");
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new FrameRequestError(400, "Frame props payload is not valid JSON.");
-  }
-}
-
-/** Only a frame key and optional hydration filename are valid route segments. */
-function isFrameRoute(route: readonly string[], key: string | undefined): key is string {
-  return key !== undefined && key.length > 0 && route.length <= 2;
 }

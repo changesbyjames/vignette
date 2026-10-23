@@ -1,7 +1,7 @@
 {
   "name": "@strangecyan/vignette-frame",
   "version": "0.5.1",
-  "description": "Typed React DOM frames with Vite SSR and hydration for Vignette browser sources.",
+  "description": "Typed React DOM frames with live props for Vignette browser sources.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,10 +40,6 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
-    },
-    "./transform": {
-      "types": "./dist/transform.d.ts",
-      "default": "./dist/transform.js"
     }
   },
   "scripts": {
@@ -57,7 +53,6 @@
   "dependencies": {
     "@strangecyan/vignette-core": "workspace:^",
     "@strangecyan/vignette": "workspace:^",
-    "typescript": "6.0.3",
     "zod": "4.6.5"
   },
   "peerDependencies": {
