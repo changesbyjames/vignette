@@ -26,22 +26,16 @@ export interface UseStageOptions extends Omit<DOMRuntimeOptions, "container" | "
   readonly stream: StreamSource;
 }
 
-/** Stage lifecycle, including the phases before the DOM runtime reports target status. */
-export type StagePhase =
-  | "waiting-for-container"
-  | "connecting"
-  | "downloading-assets"
-  | TargetPhase;
+/**
+ * Stage lifecycle: `idle` until a container attaches, `connecting` while the stream opens and
+ * setup assets download, then the DOM runtime's target phases.
+ */
+export type StagePhase = "idle" | TargetPhase;
 
-/** Stable React external-store status of a mounted stage. */
-export interface StageStatus {
-  readonly targetId: string;
-  readonly sceneId: string;
+/** Stable React external-store status of a stage: target status plus the scene it shows. */
+export interface StageStatus extends Omit<TargetStatus, "phase"> {
   readonly phase: StagePhase;
-  readonly revision: number;
-  readonly desiredRevision?: number;
-  readonly settledRevision?: number;
-  readonly message?: string;
+  readonly sceneId: string;
 }
 
 /** Ref callback that owns the lifetime of the stage container. */
@@ -98,12 +92,7 @@ class StageController {
 
   constructor(options: UseStageOptions) {
     this.options = options;
-    this.serverSnapshot = {
-      targetId: options.id ?? "dom",
-      sceneId: options.sceneId,
-      phase: "waiting-for-container" as const,
-      revision: 0,
-    };
+    this.serverSnapshot = { phase: "idle", revision: 0, sceneId: options.sceneId };
     this.snapshot = this.serverSnapshot;
   }
 
@@ -141,7 +130,7 @@ class StageController {
     this.runtime = runtime;
     this.unsubscribeRuntime = runtime.subscribe(() => {
       if (!this.isCurrent(generation, runtime)) return;
-      this.publishTarget(runtime.getSnapshot());
+      this.publish(runtime.getSnapshot());
     });
     this.publish({ phase: "connecting", revision: 0 });
     void this.consume(runtime, stream, abort.signal, generation);
@@ -159,7 +148,7 @@ class StageController {
     this.runtime = undefined;
     this.container = undefined;
     if (runtime !== undefined) void runtime.dispose();
-    this.publish({ phase: "waiting-for-container", revision: 0 });
+    this.publish({ phase: "idle", revision: 0 });
   }
 
   /** Ignore messages and failures from stale runtimes; publish disconnection only when the active stream ends. */
@@ -196,11 +185,10 @@ class StageController {
     generation: number,
   ): Promise<void> {
     if (message.kind === "setup") {
-      this.publish({ phase: "downloading-assets", revision: this.snapshot.revision });
       await runtime.setup(message);
       if (!this.isCurrent(generation, runtime)) return;
       const status = runtime.getSnapshot();
-      if (status.phase === "error") this.publishTarget(status);
+      if (status.phase === "error") this.publish(status);
       else this.publish({ phase: "connecting", revision: this.snapshot.revision });
     } else if (message.kind === "update") {
       runtime.update(message.snapshot);
@@ -217,22 +205,8 @@ class StageController {
     return generation === this.generation && runtime === this.runtime;
   }
 
-  private publishTarget(status: TargetStatus): void {
-    this.publish({
-      phase: status.phase,
-      revision: status.settledRevision ?? 0,
-      ...omitUndefined({ desiredRevision: status.desiredRevision }),
-      ...omitUndefined({ settledRevision: status.settledRevision }),
-      ...omitUndefined({ message: status.message }),
-    });
-  }
-
-  private publish(update: Omit<StageStatus, "targetId" | "sceneId">): void {
-    const next = {
-      targetId: this.options.id ?? "dom",
-      sceneId: this.options.sceneId,
-      ...update,
-    };
+  private publish(update: Omit<StageStatus, "sceneId">): void {
+    const next: StageStatus = { ...update, sceneId: this.options.sceneId };
     if (equals(this.snapshot, next)) return;
     this.snapshot = next;
     for (const listener of this.listeners) listener();

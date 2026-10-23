@@ -4,7 +4,6 @@ import type {
   StreamEvent,
   StreamSetup,
   TargetRuntime,
-  TargetApplyReceipt,
   TargetStatus,
 } from "@strangecyan/vignette-core";
 
@@ -49,6 +48,8 @@ export class OBSRuntime implements TargetRuntime {
   private readonly assets: ObsAssetStore;
   private readonly scheduler: ObsConvergenceScheduler;
   private setupFailure: Error | undefined;
+  /** Cached so repeated `getStatus()` calls return a stable reference while setup has failed. */
+  private setupFailureStatus: TargetStatus | undefined;
   private hasSetup = false;
 
   constructor(options: OBSRuntimeOptions) {
@@ -70,12 +71,18 @@ export class OBSRuntime implements TargetRuntime {
     const failure = this.checkSetup(setup);
     if (failure !== undefined) {
       this.setupFailure = new Error(failure);
+      this.setupFailureStatus = {
+        phase: "error",
+        revision: this.scheduler.getStatus().revision,
+        message: failure,
+      };
       this.options.onError?.(this.setupFailure);
       return;
     }
     await this.assets.setup(setup.manifest);
     this.hasSetup = true;
     this.setupFailure = undefined;
+    this.setupFailureStatus = undefined;
   }
 
   update(snapshot: CompiledSnapshot): void {
@@ -90,14 +97,13 @@ export class OBSRuntime implements TargetRuntime {
     return this.scheduler.event(event);
   }
 
-  whenSettled(revision: number): Promise<TargetApplyReceipt> {
+  whenSettled(revision: number): Promise<void> {
     if (this.setupFailure !== undefined) return Promise.reject(this.setupFailure);
     return this.scheduler.whenSettled(revision);
   }
 
   getStatus(): TargetStatus {
-    if (this.setupFailure === undefined) return this.scheduler.getStatus();
-    return { targetId: this.scheduler.id, phase: "error", message: this.setupFailure.message };
+    return this.setupFailureStatus ?? this.scheduler.getStatus();
   }
 
   async dispose(): Promise<void> {
@@ -110,11 +116,7 @@ export class OBSRuntime implements TargetRuntime {
     if (setup.projectId !== this.options.projectId) {
       return `Stream is for project '${setup.projectId}' but this OBS runtime manages project '${this.options.projectId}' (projectId / --project); refusing to manage OBS.`;
     }
-    return describeMissingExtensions(
-      setup.extensions,
-      new Set(this.scheduler.capabilities.capabilities),
-      "obs",
-    );
+    return describeMissingExtensions(setup.extensions, this.scheduler.sourceKinds, "obs");
   }
 
   private assertSetup(): void {

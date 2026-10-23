@@ -48,7 +48,7 @@ describe("DOMRuntime external store", () => {
     await runtime.whenSettled(1);
 
     expect(phases).toEqual(["synchronising", "settled"]);
-    expect(getSnapshot()).toMatchObject({ phase: "settled", settledRevision: 1 });
+    expect(getSnapshot()).toStrictEqual({ phase: "settled", revision: 1 });
     expect(getServerSnapshot()).toBe(serverSnapshot);
 
     await runtime.dispose();
@@ -74,7 +74,7 @@ describe("DOMRuntime external store", () => {
 
     const message =
       "Stream requires source kind 'source:moq'; register @strangecyan/vignette-moq/dom.";
-    expect(runtime.getSnapshot()).toEqual({ targetId: "dom", phase: "error", message });
+    expect(runtime.getSnapshot()).toEqual({ phase: "error", revision: 0, message });
     expect(onError).toHaveBeenCalledWith(new Error(message));
     expect(phases).toEqual(["error"]);
     expect(() => {

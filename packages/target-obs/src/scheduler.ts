@@ -1,12 +1,9 @@
 import { isStableId, omitUndefined, STABLE_ID_RULE } from "@strangecyan/vignette-core";
 import type {
   AssetResolver,
-  Capability,
   CompiledSnapshot,
   RenderTarget,
   StreamEvent,
-  TargetApplyReceipt,
-  TargetCapabilities,
   TargetStatus,
 } from "@strangecyan/vignette-core";
 import { clamp } from "ramda";
@@ -30,9 +27,8 @@ export interface ObsRetryOptions {
   readonly maximumNotReadyAttempts?: number;
 }
 
-/** Clock, randomness, and timer seam used by the convergence scheduler. */
+/** Randomness and timer seam used by the convergence scheduler. */
 export interface ObsSchedulerRuntime {
-  readonly now: () => number;
   readonly random: () => number;
   readonly setTimeout: (callback: () => void, delayMs: number) => () => void;
   readonly clearTimeout: (handle: () => void) => void;
@@ -56,18 +52,11 @@ export interface ObsConvergenceSchedulerOptions {
 
 interface SettlementWaiter {
   readonly revision: number;
-  readonly resolve: (receipt: TargetApplyReceipt) => void;
+  readonly resolve: () => void;
   readonly reject: (error: Error) => void;
 }
 
-const OBS_TRANSFORM_CAPABILITIES: readonly Capability[] = [
-  "scene:nested",
-  "transform:crop",
-  "transform:rotation",
-];
-
 const SYSTEM_RUNTIME: ObsSchedulerRuntime = {
-  now: Date.now,
   random: Math.random,
   setTimeout(callback, delayMs) {
     const handle = setTimeout(callback, delayMs);
@@ -86,8 +75,8 @@ const SYSTEM_RUNTIME: ObsSchedulerRuntime = {
  */
 export class ObsConvergenceScheduler implements RenderTarget {
   readonly id: string;
-  readonly kind = "obs" as const;
-  readonly capabilities: TargetCapabilities;
+  /** Source kinds this target can create: built-ins plus registered extensions. */
+  readonly sourceKinds: ReadonlySet<string>;
 
   private readonly options: ObsConvergenceSchedulerOptions;
   private readonly codecs: ObsCodecMap;
@@ -100,7 +89,6 @@ export class ObsConvergenceScheduler implements RenderTarget {
   private pending: CompiledSnapshot | undefined;
   private observed: ObservedObsState | undefined;
   private settledRevision = -1;
-  private inFlightRevision: number | undefined;
   private epoch = 0;
   private connected = false;
   private draining = false;
@@ -123,12 +111,8 @@ export class ObsConvergenceScheduler implements RenderTarget {
     this.codecs = resolveObsCodecs(options.extensions);
     this.runtime = options.runtime ?? SYSTEM_RUNTIME;
     this.id = options.id;
-    this.capabilities = {
-      targetId: this.id,
-      targetKind: "obs",
-      capabilities: [...this.codecs.keys(), ...OBS_TRANSFORM_CAPABILITIES].sort(),
-    };
-    this.status = new ObsStatusStore(this.id);
+    this.sourceKinds = new Set(this.codecs.keys());
+    this.status = new ObsStatusStore();
     this.unsubscribeEvents = subscribeToObsEvents(options.transport, {
       onCollectionChanging: () => {
         this.handleCollectionChanging();
@@ -156,21 +140,21 @@ export class ObsConvergenceScheduler implements RenderTarget {
   }
 
   /** Resolve ready revisions and reject disposed, terminal, or failed revisions before registering a waiter. */
-  whenSettled(revision: number): Promise<TargetApplyReceipt> {
+  whenSettled(revision: number): Promise<void> {
     if (this.disposed) return Promise.reject(new ObsTargetDisposedError(this.id));
     if (this.terminal) return Promise.reject(new Error(`OBS target '${this.id}' has failed.`));
-    // A previous receipt is stale while reconnecting or reconverging the same revision.
+    // A previous settlement is stale while reconnecting or reconverging the same revision.
     if (
       this.settledRevision >= revision &&
       this.pending === undefined &&
       this.status.getSnapshot().phase === "settled"
     ) {
-      return Promise.resolve(this.receipt(revision));
+      return Promise.resolve();
     }
     if (revision <= this.failedRevision && this.failedError !== undefined) {
       return Promise.reject(this.failedError);
     }
-    return new Promise((resolve, reject) => this.waiters.add({ revision, resolve, reject }));
+    return new Promise<void>((resolve, reject) => this.waiters.add({ revision, resolve, reject }));
   }
 
   getStatus(): TargetStatus {
@@ -193,7 +177,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     });
   }
 
-  /** Prevent new work, cancel retries, reject outstanding receipts, and disconnect the transport once. */
+  /** Prevent new work, cancel retries, reject outstanding waiters, and disconnect the transport once. */
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
@@ -210,7 +194,6 @@ export class ObsConvergenceScheduler implements RenderTarget {
       }
     }
     this.connected = false;
-    this.inFlightRevision = undefined;
     this.setStatus("disposed");
     this.status.clear();
   }
@@ -233,7 +216,6 @@ export class ObsConvergenceScheduler implements RenderTarget {
       for (;;) {
         const snapshot = this.takePending();
         if (snapshot === undefined) return;
-        this.inFlightRevision = snapshot.revision;
         this.setStatus("synchronising");
         if (!(await this.drainSnapshot(snapshot))) return;
       }
@@ -243,7 +225,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     }
   }
 
-  /** Clear in-flight state even when validation or transport failure stops the drain. */
+  /** Convert validation and transport failures into status, waiter rejection, or a retry. */
   private async drainSnapshot(snapshot: CompiledSnapshot): Promise<boolean> {
     try {
       return await this.synchronizeSnapshot(snapshot);
@@ -267,8 +249,6 @@ export class ObsConvergenceScheduler implements RenderTarget {
       this.setStatus("disconnected", "Connection lost; retrying from a fresh observation.");
       this.scheduleRetry();
       return false;
-    } finally {
-      this.inFlightRevision = undefined;
     }
   }
   /** Refresh no-op revisions, execute changed plans, and requeue work invalidated by newer state. */
@@ -323,6 +303,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     return true;
   }
 
+  /** Connect if needed, then take a fresh observation; bootstrapping a new connection stays `connecting`. */
   private async ensureObserved(): Promise<void> {
     if (!this.connected) {
       this.setStatus("connecting");
@@ -336,14 +317,11 @@ export class ObsConvergenceScheduler implements RenderTarget {
       this.epoch += 1;
       this.refreshedSources.clear();
     }
-    if (this.observed === undefined) {
-      this.setStatus("bootstrapping");
-      this.observed = await bootstrapObsState(
-        this.options.transport,
-        this.options.projectId,
-        this.epoch,
-      );
-    }
+    this.observed ??= await bootstrapObsState(
+      this.options.transport,
+      this.options.projectId,
+      this.epoch,
+    );
   }
 
   private async resolveAssets(snapshot: CompiledSnapshot): Promise<ReadonlyMap<string, string>> {
@@ -451,7 +429,7 @@ export class ObsConvergenceScheduler implements RenderTarget {
     this.epoch += 1;
     this.refreshedSources.clear();
     this.requeueDesired();
-    this.setStatus("bootstrapping");
+    this.setStatus("synchronising");
     this.scheduleDrain();
   }
 
@@ -485,18 +463,9 @@ export class ObsConvergenceScheduler implements RenderTarget {
     this.setStatus("settled");
     for (const waiter of this.waiters) {
       if (waiter.revision > revision) continue;
-      waiter.resolve(this.receipt(waiter.revision));
+      waiter.resolve();
       this.waiters.delete(waiter);
     }
-  }
-
-  private receipt(requestedRevision: number): TargetApplyReceipt {
-    return {
-      targetId: this.id,
-      requestedRevision,
-      settledRevision: this.settledRevision,
-      settledAt: this.runtime.now(),
-    };
   }
 
   private rejectWaiters(error: Error): void {
@@ -513,19 +482,8 @@ export class ObsConvergenceScheduler implements RenderTarget {
   }
 
   private setStatus(phase: TargetStatus["phase"], message?: string): void {
-    this.status.set({
-      targetId: this.id,
-      phase,
-      ...omitUndefined({
-        desiredRevision: this.desiredRevision < 0 ? undefined : this.desiredRevision,
-      }),
-      ...omitUndefined({
-        settledRevision: this.settledRevision < 0 ? undefined : this.settledRevision,
-      }),
-      ...omitUndefined({ inFlightRevision: this.inFlightRevision }),
-      ...omitUndefined({ observationEpoch: this.epoch === 0 ? undefined : this.epoch }),
-      ...omitUndefined({ message: message }),
-    });
+    const revision = Math.max(0, this.settledRevision);
+    this.status.set(message === undefined ? { phase, revision } : { phase, revision, message });
   }
 
   private takePending(): CompiledSnapshot | undefined {

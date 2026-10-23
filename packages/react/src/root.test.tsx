@@ -58,11 +58,11 @@ describe("createComposerRoot", () => {
     });
     const root = createComposerRoot(composition);
 
-    const receipt = await root.render();
+    const rendered = await root.render();
 
     expect(Object.isFrozen(composition)).toBe(true);
     expect(root.snapshot).toMatchObject({
-      revision: receipt.compiledRevision,
+      revision: rendered.revision,
       projectId: "defined-show",
       sources: [{ definition: { color: "#445566" } }],
     });
@@ -150,17 +150,17 @@ describe("createComposerRoot", () => {
       ),
     ).rejects.toThrow(/missing source/u);
 
-    expect(root.snapshot?.revision).toBe(first.compiledRevision);
+    expect(root.snapshot?.revision).toBe(first.revision);
     await root.dispose();
   });
 
   it("resolves render with the compiled snapshot", async () => {
     const root = makeRoot();
 
-    const receipt = await root.render(show("#123456"));
+    const snapshot = await root.render(show("#123456"));
 
-    expect(receipt.snapshot).toBe(root.snapshot);
-    expect(receipt.snapshot.revision).toBe(receipt.compiledRevision);
+    expect(snapshot).toBe(root.snapshot);
+    expect(root.getStatus()).toMatchObject({ phase: "ready", compiledRevision: snapshot.revision });
     await root.dispose();
   });
 });

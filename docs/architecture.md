@@ -63,7 +63,10 @@ for its embedded OBS runtime, so transports remain outside target runtime implem
 
 Snapshots have monotonically increasing revisions. Runtimes use mailbox-of-one convergence and may
 discard stale revisions. Runtime application status is deliberately local: the composer does not
-wait for or collect DOM/OBS settlement.
+wait for or collect DOM/OBS settlement. Each target reports a `TargetStatus` of `phase`
+(`disconnected`, `connecting`, `synchronising`, `settled`, `paused`, `error`, or `disposed`), the
+latest settled `revision` (zero before any), and an optional `message`; `whenSettled(revision)`
+resolves once that revision or a newer one has been applied.
 
 ## Assets
 

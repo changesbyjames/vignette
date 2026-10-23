@@ -5,7 +5,6 @@ import {
   type StreamEvent,
   type StreamSetup,
   type TargetRuntime,
-  type TargetApplyReceipt,
   type TargetStatus,
 } from "@strangecyan/vignette-core";
 
@@ -79,13 +78,13 @@ export class DOMRuntime implements TargetRuntime {
 
   /** Verify advertised extension kinds before downloading assets; a failure is observable status. */
   async setup(setup: StreamSetup): Promise<void> {
-    const missing = describeMissingExtensions(
-      setup.extensions,
-      new Set(this.target.capabilities.capabilities),
-      "dom",
-    );
+    const missing = describeMissingExtensions(setup.extensions, this.target.sourceKinds, "dom");
     if (missing !== undefined) {
-      this.setupFailure = { targetId: this.target.id, phase: "error", message: missing };
+      this.setupFailure = {
+        phase: "error",
+        revision: this.target.getStatus().revision,
+        message: missing,
+      };
       this.notify();
       this.options.onError?.(new Error(missing));
       return;
@@ -110,7 +109,7 @@ export class DOMRuntime implements TargetRuntime {
     return this.target.setScene(event.sceneId);
   }
 
-  whenSettled(revision: number): Promise<TargetApplyReceipt> {
+  whenSettled(revision: number): Promise<void> {
     return this.target.whenSettled(revision);
   }
 

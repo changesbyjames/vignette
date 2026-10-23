@@ -49,7 +49,7 @@ describe("DomTarget", () => {
       container.querySelector("[data-vignette-stage]")?.getAttribute("data-vignette-revision"),
     ).toBe("1");
     expect(container.querySelector("[data-vignette-layer='programme.background']")).not.toBeNull();
-    expect(target.getStatus()).toMatchObject({ phase: "settled", settledRevision: 1 });
+    expect(target.getStatus()).toStrictEqual({ phase: "settled", revision: 1 });
 
     await target.dispose();
     expect(container.childElementCount).toBe(0);

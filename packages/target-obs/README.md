@@ -46,7 +46,9 @@ the composer at a different address (for example, a worker in Docker and OBS on 
 `browserSourceBaseUrl` as well. Without a base, a root-relative manifest URL fails `setup()` and a
 root-relative browser source fails preflight, putting the target into its `error` phase. Stable
 snapshots converge through the scheduler; scene-selection events remain one-shot commands. Use
-`getStatus()` and `whenSettled(revision)` for observability.
+`getStatus()` (`phase`, latest settled `revision`, and an optional `message`) and
+`whenSettled(revision)`, which resolves once that revision has converged, for observability. The
+`paused` phase means OBS is switching scene collections or is temporarily not ready.
 
 A scene-selection event waits for the preceding snapshot to settle before it selects the managed
 scene. This also applies when reconnecting or replaying an already settled revision: the runtime

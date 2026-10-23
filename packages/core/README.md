@@ -60,10 +60,12 @@ Use `asset()` and an `AssetManifest` for resources that targets must resolve. Us
 `consumeStream`, and the SSE codecs to connect a composer's stream to one or more independent target
 runtimes. The `setup` message carries the project ID, the asset manifest, and the extension source
 kinds the composer registered; targets refuse a setup they cannot satisfy
-(`describeMissingExtensions` formats the shared actionable message). Extension packages define their
-own source type and contribute a generic `SourceModule`, optionally naming the target entrypoints
-that implement it in `entrypoints`; pass those modules to the compiler or composer rather than using
-an open settings bag.
+(`describeMissingExtensions` checks the advertised kinds against the source kinds a target has
+registered and formats the shared actionable message). Targets implement `RenderTarget` and report a
+`TargetStatus` of `phase`, latest settled `revision`, and an optional `message`. Extension packages
+define their own source type and contribute a generic `SourceModule`, optionally naming the target
+entrypoints that implement it in `entrypoints`; pass those modules to the compiler or composer
+rather than using an open settings bag.
 
 Source modules may implement `applyDefaults` for values that depend on the canvas or layout: color
 sources default `size` to the canvas, and browser sources default `viewport` to the frame size of
