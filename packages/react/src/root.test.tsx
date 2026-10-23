@@ -5,12 +5,12 @@ import type {
   StreamMessage,
   SourceModule,
 } from "@strangecyan/vignette-core";
-import { useEffect, useState } from "react";
+import { Activity, useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { defineComposition } from "./composition.js";
 import { fill } from "./presets.js";
-import { Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
+import { Box, Broadcast, ColorSource, Layer, Scene, Sources } from "./primitives.js";
 import { compile, createComposerRoot } from "./root.js";
 
 describe("createComposerRoot", () => {
@@ -154,6 +154,40 @@ describe("createComposerRoot", () => {
     await root.dispose();
   });
 
+  it("keeps a hidden Activity subtree declared and flips only visibility when revealed", async () => {
+    const root = makeRoot();
+
+    await root.render(<PrewarmShow mode="hidden" />);
+    // React prerenders a newly mounted hidden Activity at idle priority, after the visible commit.
+    const hidden = await vi.waitFor(() => {
+      const snapshot = root.snapshot;
+      if (!snapshot?.scenes.some((scene) => scene.id === "next")) {
+        throw new Error("The hidden Activity has not prerendered yet.");
+      }
+      return snapshot;
+    });
+    await root.render(<PrewarmShow mode="visible" />);
+    const visible = await root.settled();
+
+    expect(hidden.sources.map((source) => source.id)).toEqual(["background", "next", "next-pin"]);
+    expect(visible.sources).toEqual(hidden.sources);
+    const hiddenNext = hidden.scenes.find((scene) => scene.id === "next");
+    const visibleNext = visible.scenes.find((scene) => scene.id === "next");
+    expect(hiddenNext?.items.map((item) => [item.id, item.visible])).toEqual([
+      ["next-background", false],
+      ["next-pinned", false],
+    ]);
+    expect(visibleNext?.items.map((item) => [item.id, item.visible])).toEqual([
+      ["next-background", true],
+      ["next-pinned", true],
+    ]);
+    expect(visibleNext?.items.map((item) => ({ ...item, visible: false }))).toEqual(
+      hiddenNext?.items,
+    );
+    expect(hidden.scenes.find((scene) => scene.id === "main")?.items[0]?.visible).toBe(true);
+    await root.dispose();
+  });
+
   it("resolves render with the compiled snapshot", async () => {
     const root = makeRoot();
 
@@ -236,6 +270,35 @@ function show(color: string) {
           style={{ width: "100%", height: "100%" }}
         />
       </Scene>
+    </Broadcast>
+  );
+}
+
+interface PrewarmShowProps {
+  readonly mode: "hidden" | "visible";
+}
+
+function PrewarmShow(props: PrewarmShowProps) {
+  return (
+    <Broadcast>
+      <Sources>
+        <ColorSource id="background" color="#000000" />
+      </Sources>
+      <Scene id="main">
+        <Layer id="background-layer" sourceId="background" style={fill} />
+      </Scene>
+      <Activity mode={props.mode}>
+        <Sources>
+          <ColorSource id="next" color="#ffffff" />
+          <ColorSource id="next-pin" color="#ff0000" size={{ width: 200, height: 100 }} />
+        </Sources>
+        <Scene id="next">
+          <Box style={fill}>
+            <Layer id="next-background" sourceId="next" style={fill} />
+            <Layer id="next-pinned" sourceId="next-pin" style={fill} visible />
+          </Box>
+        </Scene>
+      </Activity>
     </Broadcast>
   );
 }

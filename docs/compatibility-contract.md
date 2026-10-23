@@ -78,6 +78,22 @@ incompatible sizes; use distinct source IDs in that case.
 - Adoption of manual changes to managed OBS resources.
 - Multiple placements of one source in the same scene in the first release.
 
+## Hidden subtrees and prewarming
+
+A React subtree hidden by `<Activity mode="hidden">` (or by a Suspense fallback) remains part of the
+snapshot. Its sources stay declared, and its layers compile with `visible: false` but the same IDs,
+geometry, and order they have when shown. An explicit `visible` prop inside the hidden boundary
+cannot override it; the boundary wins.
+
+Because hidden content is still referenced, OBS keeps its inputs and creates its scene items
+disabled, and the DOM target mounts invisible layers of its selected scene with `display: none`.
+Making the subtree visible only enables those scene items or shows those elements; browser pages,
+media, and inputs are not recreated. This is the supported way to prewarm an upcoming scene. React
+pauses effects inside a hidden Activity, and its first render happens at idle priority, so the
+hidden content arrives in a snapshot shortly after the surrounding visible content. The DOM target
+renders only its selected scene, so a hidden scene other than that one is prewarmed in OBS but is
+not materialized in the DOM until selected.
+
 ## Target-specific content
 
 The common authoring graph has no target-selection primitive. Every source and layer in a compiled

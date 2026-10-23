@@ -40,6 +40,7 @@ export interface HostNode {
   props: HostProps;
   parent: HostNode | HostContainer | null;
   readonly children: HostNode[];
+  /** Set by React for the nearest host children of a hidden boundary; descendants inherit it when compiled. */
   hidden: boolean;
 }
 

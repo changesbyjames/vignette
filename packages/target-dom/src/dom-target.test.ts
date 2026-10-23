@@ -123,6 +123,66 @@ describe("DomTarget", () => {
     await target.dispose();
   });
 
+  it("mounts an invisible layer and reveals it without recreating its element", async () => {
+    // Publish the same placement hidden and then visible; the wrapper and iframe must be reused.
+    const snapshotWith = (visible: boolean, revision: number) => {
+      const compiled = compileBroadcast(
+        broadcast({
+          projectId: "demo",
+          children: [
+            sources(
+              browserSource({
+                id: "browser",
+                url: "https://example.com/",
+                viewport: { width: 1280, height: 720 },
+              }),
+            ),
+            scene({
+              id: "programme",
+              children: [
+                layer({
+                  id: "programme.browser",
+                  sourceId: "browser",
+                  style: { width: 1280, height: 720 },
+                  visible,
+                }),
+              ],
+            }),
+          ],
+        }),
+        { revision, layoutEngine: yogaLayoutEngine },
+      );
+      if (!compiled.ok) throw new Error("Fixture failed to compile.");
+      return compiled.snapshot;
+    };
+
+    const container = document.createElement("div");
+    document.body.append(container);
+    const target = new DomTarget({
+      container,
+      sceneId: "programme",
+      assetResolver: unexpectedAssetResolver(),
+    });
+    target.publish(snapshotWith(false, 1));
+    await target.whenSettled(1);
+
+    const wrapper = container.querySelector<HTMLElement>(
+      "[data-vignette-layer='programme.browser']",
+    );
+    const frame = wrapper?.querySelector("iframe");
+    expect(wrapper?.style.display).toBe("none");
+    expect(frame).not.toBeNull();
+
+    target.publish(snapshotWith(true, 2));
+    await target.whenSettled(2);
+
+    expect(container.querySelector("[data-vignette-layer='programme.browser']")).toBe(wrapper);
+    expect(wrapper?.querySelector("iframe")).toBe(frame);
+    expect(wrapper?.style.display).toBe("block");
+
+    await target.dispose();
+  });
+
   it("retains a temporarily unplaced browser element", async () => {
     const graph = broadcast({
       projectId: "demo",
