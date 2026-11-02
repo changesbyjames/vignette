@@ -1,16 +1,14 @@
 # Simple example
 
-The smallest complete Vignette composition: one reusable color source, one layer, and one scene. It
-renders locally and prints the compiled, target-neutral snapshot without requiring a browser,
-server, OBS, or third-party service.
+The smallest complete Vignette show: one scene with one layer holding a color. It renders locally
+and prints the compiled snapshot without a browser, server, OBS, or third-party service.
 
 ```sh
-corepack pnpm --filter @strangecyan/vignette-simple-example build
-corepack pnpm --filter @strangecyan/vignette-simple-example start
+pnpm --filter @vignette/simple-example build
+pnpm --filter @vignette/simple-example start
 ```
 
-Start with [`src/show.tsx`](src/show.tsx), which exports the composition definition — its project
-ID, canvas, and top-level component — as `composition`. [`src/index.ts`](src/index.ts) is the host:
-a one-shot `compile(composition)` that resolves to the settled snapshot. Long-running hosts use
-`createComposerRoot(composition)` and `root.render()` instead. Move to
-[`../kitchen-sink`](../kitchen-sink) when you need a browser preview, frames, SSE, or OBS.
+[`src/show.tsx`](src/show.tsx) default-exports the `<Show>`. [`src/index.ts`](src/index.ts) is the
+host: `compose(show).once()` renders the show, waits for it to settle, disposes the composer and
+resolves to the snapshot. Long-running hosts keep the composer and read `composer.stream()` instead.
+Move to [`../kitchen-sink`](../kitchen-sink) for a browser preview, frames, or OBS.

@@ -1,49 +1,18 @@
 import { defineConfig } from "vite";
-import { vignette } from "@strangecyan/vignette-vite";
-import { fileURLToPath } from "node:url";
 
-const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
-
+/**
+ * Builds the browser app (`index.html` → `src/main.tsx`) into `dist/client`. In development the
+ * app's own Vite server proxies the stream and the bundle to the example server on port 3000.
+ */
 export const viteConfig = defineConfig({
-  plugins: [
-    vignette({
-      // `vite dev` composes this module's `composition` export and streams it at /stream.
-      composition: "./src/show.tsx",
-      async onComposerRoot(root, { composition, server, signal }) {
-        // Optionally drive a disposable local OBS instance from the dev composer.
-        if (process.env.VIGNETTE_ENABLE_EMBEDDED !== "1") return;
-        const [{ consumeStream }, { createKitchenSinkObsRuntime }] = await Promise.all([
-          import("@strangecyan/vignette-core"),
-          import("./src/server/kitchen-sink-obs.js"),
-        ]);
-        const runtime = createKitchenSinkObsRuntime({
-          projectId: composition.id,
-          url: process.env.VIGNETTE_OBS_URL ?? "ws://127.0.0.1:4455",
-          // Only this local runtime needs an address to resolve root-relative frame URLs.
-          baseUrl: `http://127.0.0.1:${String(server.config.server.port ?? 4173)}/`,
-          password: process.env.VIGNETTE_OBS_PASSWORD,
-          onError: (error) => {
-            server.config.logger.error(error.stack ?? error.message);
-          },
-        });
-        try {
-          await consumeStream(runtime, root.messages(signal));
-        } finally {
-          await runtime.dispose();
-        }
-      },
-    }),
-  ],
-  server: { host: "127.0.0.1", port: 4173, strictPort: true },
-  build: {
-    outDir: "dist/client",
-    rollupOptions: {
-      preserveEntrySignatures: "strict",
-      input: {
-        app: fromRoot("./index.html"),
-      },
-    },
+  server: {
+    host: "127.0.0.1",
+    port: 4173,
+    strictPort: true,
+    proxy: { "/stream": "http://127.0.0.1:3000", "/vignette": "http://127.0.0.1:3000" },
   },
+  resolve: { dedupe: ["react", "react-dom"] },
+  build: { outDir: "dist/client" },
 });
 
 // oxlint-disable-next-line import/no-default-export -- Vite discovers configuration through a default export.

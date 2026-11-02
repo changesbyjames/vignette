@@ -1,11 +1,9 @@
-import { z } from "zod";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import type { StreamMessage } from "@strangecyan/vignette-core";
-import { sseStream } from "@strangecyan/vignette-target-obs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { fromSse, type StreamMessage } from "vignette";
 import { describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
@@ -13,8 +11,8 @@ const workspaceRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const exampleRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 describe("production kitchen-sink server", () => {
-  it("builds and serves stream SSE, frame SSR, and manifest-resolved hydration modules", async () => {
-    // Set VIGNETTE_SKIP_BUILD=1 to reuse an existing dist/ when iterating locally.
+  it("builds, publishes serve in setup, streams an update and serves the bundle", async () => {
+    // Set VIGNETTE_SKIP_BUILD=1 to reuse an existing build when iterating locally.
     if (process.env.VIGNETTE_SKIP_BUILD !== "1") {
       await execFileAsync("pnpm", ["build"], {
         cwd: workspaceRoot,
@@ -25,61 +23,62 @@ describe("production kitchen-sink server", () => {
 
     const port = await reservePort();
     const origin = `http://127.0.0.1:${String(port)}`;
-    const child = spawn(process.execPath, ["dist/server/host.js"], {
+    const child = spawn(process.execPath, ["dist/server/entry.js"], {
       cwd: exampleRoot,
-      env: {
-        ...process.env,
-        PORT: String(port),
-      },
+      env: { ...process.env, PORT: String(port), OBS_URL: undefined },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
-    child.stdout.on("data", (chunk: Buffer) => {
+    const collect = (chunk: Buffer) => {
       output += chunk.toString();
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
+    };
+    child.stdout.on("data", collect);
+    child.stderr.on("data", collect);
 
     try {
-      // Wait for the launched server, inspect its runtime replay and frame routes, and always stop the child process.
-
       await waitForServer(origin, child, () => output);
-      const messages = await readRuntimeReplay(`${origin}/stream`);
-      expect(messages.map((message) => message.kind)).toEqual(["setup", "update"]);
+      const [setup, update] = await readUntilUpdate(`${origin}/stream`);
 
-      const update = messages.find((message) => message.kind === "update");
-      const frameUrl = findFrameUrl(update?.snapshot);
-      // Snapshots carry root-relative frame URLs; consumers resolve them against their own base.
-      expect(frameUrl).toMatch(/^\/__vignette\/frame\//u);
-      const frameResponse = await fetch(new URL(frameUrl ?? "", origin));
-      expect(frameResponse.status).toBe(200);
-      const frameHtml = await frameResponse.text();
-      expect(frameHtml).toContain("<!doctype html>");
+      expect(setup).toMatchObject({
+        kind: "setup",
+        id: "kitchen-sink",
+        kinds: expect.arrayContaining(["color", "frame", "image", "moq"]),
+        serve: {
+          stream: `${origin}/stream`,
+          assets: `${origin}/vignette/assets/`,
+          frames: `${origin}/vignette/frames.html`,
+        },
+      });
+      expect(update?.kind).toBe("update");
+      if (update?.kind !== "update") return;
+      const frames = update.snapshot.sources.filter((source) => source.kind === "frame");
+      expect(frames.map((source) => source.props)).toContainEqual({
+        frame: "Clock",
+        params: { title: "Vignette kitchen sink" },
+      });
 
-      const routeKey = new URL(frameUrl ?? "", origin).pathname.split("/").at(-1);
-      const hydrationPath = /src="([^"]+\/hydrate\.js)"/u.exec(frameHtml)?.[1];
-      expect(routeKey).toBeDefined();
-      expect(hydrationPath).toBeDefined();
-      const hydrationResponse = await fetch(new URL(hydrationPath ?? "", origin));
-      expect(hydrationResponse.status).toBe(200);
-      const hydrationModule = await hydrationResponse.text();
-      const imports = [...hydrationModule.matchAll(/from ("[^"]+")/gu)].map((match) =>
-        z.string().parse(JSON.parse(match[1] ?? "")),
-      );
-      expect(imports).toHaveLength(2);
-      for (const moduleUrl of imports) {
-        const moduleResponse = await fetch(new URL(moduleUrl, origin));
-        expect(moduleResponse.status).toBe(200);
-        if (moduleUrl !== imports[1]) {
-          expect(await moduleResponse.text()).toContain(routeKey);
-        }
-      }
+      const page = await fetch(`${origin}/vignette/frames.html`);
+      expect(page.status).toBe(200);
+      expect(await page.text()).toContain("frames.js");
+      expect((await fetch(`${origin}/vignette/frames.js`)).status).toBe(200);
+      expect((await fetch(`${origin}/vignette/assets/logo.png`)).status).toBe(200);
+      expect((await fetch(origin)).status).toBe(200);
     } finally {
       await stopChild(child);
     }
-  }, 120_000);
+  }, 180_000);
 });
+
+/** Reads the replayed setup and first update, then disconnects. */
+async function readUntilUpdate(url: string): Promise<readonly StreamMessage[]> {
+  const controller = new AbortController();
+  const messages: StreamMessage[] = [];
+  for await (const message of fromSse(url, { signal: controller.signal })) {
+    messages.push(message);
+    if (message.kind === "update") controller.abort();
+  }
+  return messages;
+}
 
 async function reservePort(): Promise<number> {
   const server = createServer();
@@ -97,13 +96,13 @@ async function reservePort(): Promise<number> {
   return port;
 }
 
-/** Poll readiness while the child remains alive, then report collected output if startup never succeeds. */
+/** Polls the server while the child is alive; reports its output if it never starts. */
 async function waitForServer(
   origin: string,
   child: ChildProcess,
   readOutput: () => string,
 ): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     if (child.exitCode !== null) {
       throw new Error(`Production server exited with ${String(child.exitCode)}.\n${readOutput()}`);
     }
@@ -116,35 +115,6 @@ async function waitForServer(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`Production server did not start.\n${readOutput()}`);
-}
-
-async function readRuntimeReplay(url: string): Promise<readonly StreamMessage[]> {
-  const controller = new AbortController();
-  const messages: StreamMessage[] = [];
-  for await (const message of sseStream(url)(controller.signal)) {
-    messages.push(message);
-    if (message.kind === "update") controller.abort();
-  }
-  return messages;
-}
-
-const ReplayJsonSchema = z.json();
-export type ReplayJson = z.output<typeof ReplayJsonSchema>;
-
-function findFrameUrl(input: Parameters<typeof ReplayJsonSchema.parse>[0]): string | undefined {
-  return findJsonFrameUrl(ReplayJsonSchema.parse(input));
-}
-
-/** Search each JSON branch until the first frame URL is found, preserving the wire traversal order. */
-function findJsonFrameUrl(value: ReplayJson): string | undefined {
-  const string = z.string().safeParse(value);
-  if (string.success) return string.data.includes("/__vignette/frame/") ? string.data : undefined;
-  if (!(value instanceof Object)) return undefined;
-  for (const child of Array.isArray(value) ? value : Object.values(value)) {
-    const result = findJsonFrameUrl(child);
-    if (result !== undefined) return result;
-  }
-  return undefined;
 }
 
 async function stopChild(child: ChildProcess): Promise<void> {

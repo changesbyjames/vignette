@@ -1,0 +1,437 @@
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+
+import type { AssetEntry } from "../core/assets.js";
+import type { Item, Snapshot, Source } from "../core/snapshot.js";
+import type { SetupMessage, StreamMessage } from "../stream/messages.js";
+import type { Target } from "../target/kernel.js";
+import type { TargetStatus } from "../target/status.js";
+import { ObsRequestError } from "./errors.js";
+import { obsTarget, type ObsTargetOptions } from "./target.js";
+import { FakeObs, ManualClock } from "./testing.js";
+
+const logoBytes = new TextEncoder().encode("not really a png");
+const logo: AssetEntry = {
+  name: "logo.png",
+  hash: `sha256-${createHash("sha256").update(logoBytes).digest("base64")}`,
+};
+
+function setup(
+  id = "show",
+  kinds: readonly string[] = ["browser", "color", "image"],
+): SetupMessage {
+  return {
+    kind: "setup",
+    id,
+    canvas: { width: 1920, height: 1080 },
+    kinds,
+    assets: { version: "v1", entries: [logo] },
+    serve: {},
+  };
+}
+
+function item(id: string, sourceId: string, x: number): Item {
+  const frame = { x, y: 0, width: 640, height: 360 };
+  return {
+    id,
+    sourceId,
+    frame,
+    placement: {
+      destination: frame,
+      sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignment: { horizontal: "center", vertical: "center" },
+    },
+    visible: true,
+    opacity: 1,
+    rotation: 0,
+  };
+}
+
+const bg: Source = {
+  id: "bg",
+  kind: "color",
+  props: { color: "#102030" },
+  size: { width: 1920, height: 1080 },
+};
+const chat: Source = {
+  id: "chat",
+  kind: "browser",
+  props: { url: "https://example.com/chat", shutdownWhenHidden: false },
+  size: { width: 1280, height: 720 },
+};
+const image: Source = {
+  id: "main.logo",
+  kind: "image",
+  props: { src: "logo.png" },
+  size: { width: 640, height: 360 },
+};
+
+/** `main` places bg, chat and the logo; `brb` places the shared chat source. */
+function snapshot(revision: number, overrides: Partial<Snapshot> = {}): Snapshot {
+  return {
+    revision,
+    id: "show",
+    canvas: { width: 1920, height: 1080 },
+    sources: [bg, chat, image],
+    scenes: [
+      {
+        id: "main",
+        items: [
+          item("main.0", "bg", 0),
+          item("main.1", "chat", 0),
+          item("main.logo", "main.logo", 640),
+        ],
+      },
+      { id: "brb", items: [item("brb.0", "chat", 100)] },
+    ],
+    ...overrides,
+  };
+}
+
+function update(revision: number, overrides: Partial<Snapshot> = {}): StreamMessage {
+  return { kind: "update", snapshot: snapshot(revision, overrides) };
+}
+
+interface Harness {
+  readonly obs: FakeObs;
+  readonly clock: ManualClock;
+  readonly target: Target;
+  readonly phases: TargetStatus["phase"][];
+  readonly connections: string[];
+}
+
+function harness(options: Partial<ObsTargetOptions> = {}): Harness {
+  const obs = new FakeObs();
+  const clock = new ManualClock();
+  const target = obsTarget({
+    url: "ws://fake",
+    transport: obs,
+    clock,
+    assets: { fetch: () => Promise.resolve(logoBytes) },
+    ...options,
+  });
+  const phases: TargetStatus["phase"][] = [];
+  const connections: string[] = [];
+  target.subscribe(() => {
+    const { phase, connection } = target.status;
+    if (phases.at(-1) !== phase) phases.push(phase);
+    if (connection !== undefined && connections.at(-1) !== connection.phase)
+      connections.push(connection.phase);
+  });
+  return { obs, clock, target, phases, connections };
+}
+
+/** Waits, a macrotask at a time, until the status satisfies `predicate`. */
+async function until(target: Target, predicate: (status: TargetStatus) => boolean): Promise<void> {
+  for (let turn = 0; turn < 500; turn += 1) {
+    if (predicate(target.status)) return;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  throw new Error(`Timed out in status ${JSON.stringify(target.status)}.`);
+}
+
+/** Settled at `revision` with every source's handle live. */
+function converged(revision: number): (status: TargetStatus) => boolean {
+  return (status) =>
+    status.phase === "settled" &&
+    status.revision.settled === revision &&
+    Object.values(status.sources).every((source) => source === "live");
+}
+
+function names(obs: FakeObs): readonly string[] {
+  return [
+    ...obs.scenes.map((scene) => scene.sceneName),
+    ...obs.inputs.map((input) => input.inputName),
+  ];
+}
+
+function itemsOf(obs: FakeObs, sceneName: string): readonly string[] {
+  return (
+    obs.scenes
+      .find((scene) => scene.sceneName === sceneName)
+      ?.items.map((entry) => entry.sourceName) ?? []
+  );
+}
+
+describe("obsTarget", () => {
+  it("converges a two-scene snapshot with a shared source, after reconnecting", async () => {
+    const { obs, clock, target, phases, connections } = harness();
+    obs.fail("connect", new Error("OBS is not running yet"));
+    target.apply(setup());
+    target.apply(update(1));
+
+    await until(target, (status) => status.connection?.phase === "retry-wait");
+    expect(target.status.phase).toBe("synchronising");
+    expect(target.status.connection?.error?.message).toBe("OBS is not running yet");
+    clock.advance(250);
+    await until(target, converged(1));
+
+    expect(phases).toEqual(["checking-plugins", "downloading-assets", "synchronising", "settled"]);
+    expect(connections).toEqual(["connecting", "retry-wait", "connecting", "open"]);
+    expect(names(obs)).toEqual([
+      "vignette/show",
+      "vignette/show/main",
+      "vignette/show/brb",
+      "vignette/show/bg",
+      "vignette/show/chat",
+      "vignette/show/main.logo",
+    ]);
+    expect(itemsOf(obs, "vignette/show/main")).toEqual([
+      "vignette/show/bg",
+      "vignette/show/chat",
+      "vignette/show/main.logo",
+    ]);
+    expect(itemsOf(obs, "vignette/show/brb")).toEqual(["vignette/show/chat"]);
+    // One shared input, placed in both scenes.
+    expect(obs.inputs.filter((input) => input.inputKind === "browser_source")).toHaveLength(1);
+    const file = z
+      .string()
+      .parse(obs.inputs.find((input) => input.inputKind === "image_source")?.inputSettings.file);
+    expect(readFileSync(file, "utf8")).toBe("not really a png");
+
+    await target.dispose();
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it("settles a revision once OBS converges, and fails it when OBS invalidates the session", async () => {
+    const { obs, clock, target } = harness();
+    target.apply(setup());
+    target.apply(update(1));
+    await until(target, converged(1));
+    await expect(target.settled(1)).resolves.toBeUndefined();
+    expect(target.status.connection).toEqual({ phase: "open" });
+
+    // Revision 2 executes, but OBS is busy when it is re-read, so it waits for a retry; then
+    // OBS invalidates the session.
+    obs.fail("GetVersion", new ObsRequestError("GetVersion", 207, "Not ready."));
+    target.apply(update(2, { activeScene: "brb" }));
+    const second = target.settled(2);
+    await until(target, () => clock.pending === 1);
+    const invalidated = Object.assign(new Error("Session invalidated."), { code: 4011 });
+    obs.emit("ConnectionClosed", invalidated);
+
+    await expect(second).rejects.toBe(invalidated);
+    expect(target.status.phase).toBe("error");
+    expect(target.status.connection).toEqual({ phase: "closed", error: invalidated });
+    await target.dispose();
+  });
+
+  it("prunes scenes, items and inputs the snapshot no longer has", async () => {
+    const { obs, target } = harness();
+    target.apply(setup());
+    target.apply(update(1));
+    await until(target, converged(1));
+    const operatorScene = obs.addScene("Operator scene");
+
+    target.apply(
+      update(2, { sources: [chat], scenes: [{ id: "main", items: [item("main.1", "chat", 0)] }] }),
+    );
+    await until(target, converged(2));
+
+    expect(names(obs)).toEqual([
+      "vignette/show",
+      "vignette/show/main",
+      "Operator scene",
+      "vignette/show/chat",
+    ]);
+    expect(itemsOf(obs, "vignette/show/main")).toEqual(["vignette/show/chat"]);
+    expect(obs.scenes).toContain(operatorScene);
+    await target.dispose();
+  });
+
+  it("sets the program scene when activeScene changes, and not again when the operator switches", async () => {
+    const { obs, target } = harness();
+    target.apply(setup());
+    target.apply(update(1, { activeScene: "main" }));
+    await until(target, converged(1));
+    expect(obs.programSceneName).toBe("vignette/show/main");
+
+    // The operator takes a different scene to air; OBS reports the change and the target re-reads.
+    obs.programSceneName = "Operator scene";
+    const reads = obs.calls("GetSceneList").length;
+    obs.emit("SceneItemEnableStateChanged", {});
+    await until(target, () => obs.calls("GetSceneList").length > reads);
+    target.apply(update(2, { activeScene: "main" }));
+    await until(target, converged(2));
+    expect(obs.programSceneName).toBe("Operator scene");
+
+    target.apply(update(3, { activeScene: "brb" }));
+    await until(target, converged(3));
+    expect(obs.programSceneName).toBe("vignette/show/brb");
+    expect(obs.calls("SetCurrentProgramScene")).toHaveLength(2);
+    await target.dispose();
+  });
+
+  it("reports a missing source plugin before any call to OBS", async () => {
+    const { obs, target } = harness({ builtins: false });
+    target.apply(setup());
+    target.apply(update(1));
+
+    await until(target, (status) => status.phase === "error");
+    expect(target.status.error?.message).toContain('missing source plugin for kind "browser"');
+    await expect(target.settled(1)).rejects.toThrow("missing source plugin");
+    expect(obs.connections).toBe(0);
+    expect(obs.requests).toEqual([]);
+    await target.dispose();
+  });
+
+  it("fails only the sources whose input kind OBS lacks, and converges the rest", async () => {
+    const { obs, target } = harness();
+    obs.inputKinds = obs.inputKinds.filter((kind) => kind !== "browser_source");
+    target.apply(setup());
+    target.apply(update(1, { activeScene: "brb" }));
+
+    await until(target, (status) => status.phase === "settled" && status.revision.settled === 1);
+    expect(target.status.sources).toMatchObject({ bg: "live", chat: "error", "main.logo": "live" });
+    expect(target.status.sourceErrors.chat?.message).toBe(
+      "OBS has no input kind 'browser_source' for source 'chat'.",
+    );
+    expect(itemsOf(obs, "vignette/show/main")).toEqual([
+      "vignette/show/bg",
+      "vignette/show/main.logo",
+    ]);
+    expect(obs.programSceneName).toBe("vignette/show/brb");
+    await target.dispose();
+  });
+
+  it("reloads frame pages once converged after the first sync and after each setup", async () => {
+    const { obs, target } = harness({
+      frames: (frame, id) => `https://show.example/f?${frame}&${id}`,
+    });
+    const clock: Source = {
+      id: "clock",
+      kind: "frame",
+      props: { frame: "Clock", params: {} },
+      size: { width: 640, height: 360 },
+    };
+    const withClock = (revision: number): StreamMessage =>
+      update(revision, {
+        sources: [bg, clock],
+        scenes: [{ id: "main", items: [item("main.0", "bg", 0), item("main.1", "clock", 0)] }],
+      });
+    const reloads = () =>
+      obs.calls("PressInputPropertiesButton").map((call) => call.requestData?.inputName);
+
+    target.apply(setup("show", ["color", "frame"]));
+    target.apply(withClock(1));
+    await until(target, converged(1));
+    await until(target, () => reloads().length === 1);
+    expect(reloads()).toEqual(["vignette/show/clock"]);
+
+    target.apply(withClock(2));
+    await until(target, converged(2));
+    // A reconnecting stream replays its setup: the server may have been down meanwhile.
+    target.apply(setup("show", ["color", "frame"]));
+    target.apply(withClock(3));
+    await until(target, converged(3));
+    await until(target, () => reloads().length === 2);
+    await target.dispose();
+  });
+
+  it("renders text as a local page, pushing changes into it and falling back to a new page", async () => {
+    const { obs, target } = harness();
+    const title = (revision: number, text: string): StreamMessage =>
+      update(revision, {
+        sources: [
+          {
+            id: "title",
+            kind: "text",
+            props: { text, style: { fontSize: 64, color: "#ffffff", textWrap: "balance" } },
+            size: { width: 640, height: 360 },
+          },
+        ],
+        scenes: [{ id: "main", items: [item("main.0", "title", 0)] }],
+      });
+    const page = () => {
+      const input = obs.inputs.find((entry) => entry.inputName === "vignette/show/title");
+      expect(input?.inputKind).toBe("browser_source");
+      expect(input?.inputSettings).toMatchObject({ is_local_file: true, width: 640, height: 360 });
+      return z.string().parse(input?.inputSettings.local_file);
+    };
+
+    target.apply(setup("show", ["text"]));
+    target.apply(title(1, "Fish & <chips>"));
+    await until(target, converged(1));
+    const first = page();
+    const html = readFileSync(first, "utf8");
+    expect(html).toContain("Fish &amp; &lt;chips&gt;");
+    expect(html).toContain("text-wrap: balance;");
+
+    // A change goes into the open page; the file is rewritten for a later fresh load.
+    target.apply(title(2, "Up next"));
+    await until(target, converged(2));
+    expect(page()).toBe(first);
+    expect(readFileSync(first, "utf8")).toContain("Up next");
+    const [pushed] = obs.calls("CallVendorRequest");
+    expect(pushed?.requestData).toMatchObject({
+      inputName: "vignette/show/title",
+      vendorName: "obs-browser",
+      requestType: "emit_event",
+      requestData: { event_name: "vignette-text", event_data: { text: "Up next" } },
+    });
+
+    // Without obs-browser's events, the change becomes a new page that OBS navigates to.
+    obs.fail("CallVendorRequest", new Error("No vendor."));
+    target.apply(title(3, "Live"));
+    await until(target, converged(3));
+    const second = page();
+    expect(second).not.toBe(first);
+    expect(existsSync(first)).toBe(false);
+    expect(readFileSync(second, "utf8")).toContain("Live");
+    await target.dispose();
+    expect(existsSync(second)).toBe(false);
+  });
+
+  it("refuses a stream for a different show without touching OBS", async () => {
+    const { obs, target } = harness();
+    target.apply(setup());
+    target.apply(update(1));
+    await until(target, converged(1));
+    const before = obs.requests.length;
+
+    target.apply(setup("other", ["color"]));
+    target.apply({
+      kind: "update",
+      snapshot: {
+        ...snapshot(1, { sources: [bg], scenes: [{ id: "main", items: [] }] }),
+        id: "other",
+      },
+    });
+    await until(target, (status) => status.phase === "error");
+
+    expect(target.status.error?.message).toContain("manages 'show'; refusing to touch OBS");
+    expect(obs.requests.slice(before)).toEqual([]);
+    expect(names(obs).some((name) => name.startsWith("vignette/other"))).toBe(false);
+    await target.dispose();
+  });
+
+  it("restarts a video on a media:restart event", async () => {
+    const video: Source = {
+      id: "intro",
+      kind: "video",
+      props: { src: "logo.png", loop: false, muted: true, restartOnShow: false },
+      size: { width: 1920, height: 1080 },
+    };
+    const { obs, target } = harness();
+    target.apply(setup("show", ["video"]));
+    target.apply(
+      update(1, {
+        sources: [video],
+        scenes: [{ id: "main", items: [item("main.0", "intro", 0)] }],
+      }),
+    );
+    await until(target, converged(1));
+    expect(obs.inputs[0]?.inputMuted).toBe(true);
+
+    target.apply({ kind: "event", event: { kind: "media:restart", sourceId: "intro" } });
+    await until(target, () => obs.calls("TriggerMediaInputAction").length === 1);
+    expect(obs.calls("TriggerMediaInputAction")[0]?.requestData).toEqual({
+      inputName: "vignette/show/intro",
+      mediaAction: "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+    });
+    await target.dispose();
+  });
+});

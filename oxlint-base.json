@@ -16,8 +16,7 @@
     "**/node_modules/**",
     "reference/**",
     "test-results/**",
-    "playwright-report/**",
-    "packages/vite/test-fixtures/**"
+    "playwright-report/**"
   ],
   "rules": {
     "constructor-super": "error",
@@ -238,6 +237,13 @@
         "typescript/no-unsafe-member-access": "off"
       },
       "plugins": ["typescript"]
+    },
+    {
+      "files": ["**/show.tsx"],
+      "rules": {
+        "import/no-default-export": "off"
+      },
+      "plugins": ["import"]
     },
     {
       "files": ["**/*.d.ts"],

@@ -1,0 +1,380 @@
+import {
+  createActor,
+  fromCallback,
+  fromPromise,
+  waitFor,
+  type Actor,
+  type SnapshotFrom,
+} from "xstate";
+
+import type { Snapshot, Source } from "../core/snapshot.js";
+import type { StreamMessage } from "../stream/messages.js";
+import type { AssetFetcher } from "../target/asset-store.js";
+import { createTarget, type Target, type TargetSourcePlugin } from "../target/kernel.js";
+import type { TargetConnection } from "../target/status.js";
+import { fileAssetStore } from "./asset-store.js";
+import { bootstrapObsState } from "./bootstrap.js";
+import { ObsPreflightError } from "./errors.js";
+import { subscribeToObsEvents } from "./events.js";
+import { executeObsPlan } from "./executor.js";
+import { obsMachine, type ObsDesired, type ObsMachineContext, type ObsOutcome } from "./machine.js";
+import { managedSourceName } from "./naming.js";
+import type { ObsHandle, ObsPluginContext, ObsSourcePlugin } from "./plugin.js";
+import { freePort } from "./port.js";
+import { browserObs } from "./sources/browser.js";
+import { colorObs } from "./sources/color.js";
+import { frameObs } from "./sources/frame.js";
+import { imageObs } from "./sources/image.js";
+import { textObs } from "./sources/text.js";
+import { videoObs } from "./sources/video.js";
+import type { ObsTransport } from "./transport.js";
+import { ObsWebSocketTransport } from "./websocket-transport.js";
+
+/** Local overrides for where assets come from and where they are kept. */
+export interface ObsAssetOptions {
+  /** Downloads one asset; defaults to `serve.assets` + name from the stream's setup. */
+  readonly fetch?: AssetFetcher;
+  /** Keeps downloads here; default is a temporary directory removed on dispose. */
+  readonly dir?: string;
+}
+
+/** Backoff for reconnects and "not ready" retries. */
+export interface ObsRetryOptions {
+  /** First delay; doubles per attempt. Default 250 ms. */
+  readonly initialDelayMs?: number;
+  /** Largest delay. Default 10 s. */
+  readonly maximumDelayMs?: number;
+  /** Each delay is randomised by up to this fraction either way. Default 0.2. */
+  readonly jitterRatio?: number;
+  /** "Not ready" answers retried before reconnecting. Default 5. */
+  readonly maximumNotReadyAttempts?: number;
+}
+
+/** Timers and randomness, injectable so tests control time. */
+export interface ObsClock {
+  /** Runs `callback` after `delayMs`; returns a function that cancels it. */
+  schedule(delayMs: number, callback: () => void): () => void;
+  /** A number in `[0, 1)`, for backoff jitter. */
+  random(): number;
+}
+
+/** Options of {@link obsTarget}. Locations come from the stream; these only override them. */
+export interface ObsTargetOptions {
+  /** obs-websocket URL. Default `ws://127.0.0.1:4455`. */
+  readonly url?: string;
+  readonly password?: string;
+  readonly assets?: ObsAssetOptions;
+  /** The page URL of a frame source; defaults to `serve.frames` and `serve.stream` from setup. */
+  readonly frames?: (frame: string, sourceId: string) => string;
+  /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
+  readonly sources?: readonly ObsSourcePlugin[];
+  /** Registers the built-in color, image, video, browser, frame and text plugins. Default `true`. */
+  readonly builtins?: boolean;
+  /** Backoff for reconnects and "not ready" retries. */
+  readonly retry?: ObsRetryOptions;
+  /** How requests reach OBS; defaults to obs-websocket. Tests pass a fake. */
+  readonly transport?: ObsTransport;
+  /** Timers and jitter; defaults to real timers. Tests pass a manual clock. */
+  readonly clock?: ObsClock;
+}
+
+/** The built-in OBS plugins, registered unless `builtins: false`. */
+const BUILTIN_PLUGINS: readonly ObsSourcePlugin[] = [
+  colorObs,
+  imageObs,
+  textObs,
+  videoObs,
+  browserObs,
+  frameObs,
+];
+
+/** Real timers and `Math.random`. */
+const SYSTEM_CLOCK: ObsClock = {
+  schedule(delayMs, callback) {
+    const timer = setTimeout(callback, delayMs);
+    return () => {
+      clearTimeout(timer);
+    };
+  },
+  random: Math.random,
+};
+
+/** The running OBS machine. */
+type ObsActor = Actor<typeof obsMachine>;
+
+/**
+ * Converges OBS to a stream's snapshots. It connects when the first snapshot is ready to apply,
+ * reads the scenes and inputs in `vignette/<show>`, executes a dependency-ordered plan, and
+ * re-reads until the plan is empty; `update` resolves then. It never touches anything outside
+ * that namespace, refuses a stream for another show, and reports its websocket as
+ * `status.connection`.
+ */
+export function obsTarget(options: ObsTargetOptions = {}): Target {
+  const transport = options.transport ?? new ObsWebSocketTransport();
+  const clock = options.clock ?? SYSTEM_CLOCK;
+  const retry = options.retry ?? {};
+  const machine = obsMachine.provide({
+    actors: {
+      connect: fromPromise(() => {
+        const url = options.url ?? "ws://127.0.0.1:4455";
+        return transport.connect({ url, password: options.password, rpcVersion: 1 });
+      }),
+      // A failed disconnect leaves nothing to clean up; the next connect replaces the socket.
+      disconnect: fromPromise(() =>
+        transport.disconnect().then(
+          () => undefined,
+          () => undefined,
+        ),
+      ),
+      observe: fromPromise(({ input }) => bootstrapObsState(transport, input)),
+      execute: fromPromise(async ({ input, signal }) => {
+        await executeObsPlan(transport, input.plan, () => !signal.aborted);
+        return input.epoch;
+      }),
+      events: fromCallback(({ sendBack }) => subscribeToObsEvents(transport, sendBack)),
+      timer: fromCallback(({ input, sendBack }) =>
+        clock.schedule(backoff(input, retry, clock.random()), () => {
+          sendBack({ type: "timer" });
+        }),
+      ),
+    },
+  });
+  const actor = createActor(machine, {
+    input: { maximumNotReady: retry.maximumNotReadyAttempts ?? 5 },
+  }).start();
+  const plugins = [
+    ...(options.builtins === false ? [] : BUILTIN_PLUGINS),
+    ...(options.sources ?? []),
+  ];
+  const reloads = reloadFramesWhenConverged(actor, transport);
+  const target = createTarget<ObsHandle, ObsPluginContext>({
+    kind: "obs",
+    sources: plugins.map((plugin) => afterObservation(plugin, actor)),
+    assets: fileAssetStore(options.assets?.dir),
+    fetchAsset: options.assets?.fetch,
+    connection(report) {
+      let last: TargetConnection | undefined = undefined;
+      const subscription = actor.subscribe((snapshot) => {
+        // Report changes only: the kernel compares connections by identity.
+        const next = connectionOf(snapshot);
+        if (next === undefined || (next.phase === last?.phase && next.error === last.error)) return;
+        last = next;
+        report(next);
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    },
+    context: (base) => ({
+      ...base,
+      frames: options.frames ?? base.frames,
+      get inputKinds() {
+        return new Set(actor.getSnapshot().context.observed?.inputKinds);
+      },
+      port: freePort,
+      async request(sourceId, requestType, data) {
+        const { context } = actor.getSnapshot();
+        const connected = actor.getSnapshot().matches({ connection: "connected" });
+        if (!connected || context.show === undefined) throw new Error("OBS is not connected.");
+        const inputName = managedSourceName(context.show, sourceId);
+        return transport.call(requestType, { ...data, inputName });
+      },
+    }),
+    update: (snapshot, handles) => converge(actor, snapshot, handles),
+    async dispose() {
+      reloads.stop();
+      actor.stop();
+      await transport.disconnect().catch(() => undefined);
+    },
+  });
+  // Every setup, including the one a reconnecting stream replays, may follow a server outage.
+  const tap = async function* (stream: AsyncIterable<StreamMessage>) {
+    for await (const message of stream) {
+      if (message.kind === "setup") reloads.request();
+      yield message;
+    }
+  };
+  return {
+    get status() {
+      return target.status;
+    },
+    follow: (stream) => target.follow(tap(stream)),
+    apply(message) {
+      if (message.kind === "setup") reloads.request();
+      target.apply(message);
+    },
+    subscribe: (listener) => target.subscribe(listener),
+    settled: (revision) => target.settled(revision),
+    dispose: () => target.dispose(),
+  };
+}
+
+/** Frame reloads the OBS target asks for: `request` after a setup, `stop` on dispose. */
+interface FrameReloads {
+  request(): void;
+  stop(): void;
+}
+
+/**
+ * Reloads each frame page once OBS has converged it live after OBS connects and after each stream
+ * setup. OBS loads a browser source's page when it starts, and a page it loaded while the show's
+ * server was down stays an error page: its URL never changes, so convergence alone never reloads
+ * it. Frame pages rebuild themselves from the stream, so a reload costs a blink, not state.
+ */
+function reloadFramesWhenConverged(actor: ObsActor, transport: ObsTransport): FrameReloads {
+  // Each request is a generation; a frame is reloaded once per generation. Connecting starts
+  // one, which also covers the target's start: OBS may have started before the server.
+  let generation = 0;
+  const reloaded = new Map<string, number>();
+  let connected = false;
+  let seen: ObsOutcome | undefined = undefined;
+  const subscription = actor.subscribe((snapshot) => {
+    const nowConnected = snapshot.matches({ connection: "connected" });
+    if (nowConnected && !connected) generation += 1;
+    connected = nowConnected;
+    const { outcome, show } = snapshot.context;
+    const fresh = outcome !== seen;
+    seen = outcome;
+    // Only a newly settled convergence, while connected, places frames worth reloading.
+    if (!fresh || !connected || show === undefined || outcome?.error !== undefined) return;
+    if (outcome !== undefined) reloadFrames(outcome.desired, show);
+  });
+  // Presses refresh on each live frame not yet reloaded in this generation; failures are moot,
+  // because the next generation tries again.
+  function reloadFrames({ snapshot, handles }: ObsDesired, show: string): void {
+    for (const source of snapshot.sources) {
+      if (source.kind !== "frame" || !handles.has(source.id)) continue;
+      if (reloaded.get(source.id) === generation) continue;
+      reloaded.set(source.id, generation);
+      const inputName = managedSourceName(show, source.id);
+      transport
+        .call("PressInputPropertiesButton", { inputName, propertyName: "refreshnocache" })
+        .catch(() => undefined);
+    }
+  }
+  return {
+    request() {
+      generation += 1;
+    },
+    stop() {
+      subscription.unsubscribe();
+    },
+  };
+}
+
+/**
+ * Hands `snapshot` to the machine and resolves when convergence settles for it; rejects when its
+ * plan fails, OBS invalidates the session, or the target is disposed. A snapshot for another
+ * show is refused before the machine sees it.
+ */
+async function converge(
+  actor: ObsActor,
+  snapshot: Snapshot,
+  handles: ReadonlyMap<string, ObsHandle>,
+): Promise<void> {
+  const { show } = actor.getSnapshot().context;
+  if (show !== undefined && snapshot.id !== show) {
+    throw new ObsPreflightError(
+      `The stream is for show '${snapshot.id}', but this OBS target manages '${show}'; refusing to touch OBS.`,
+    );
+  }
+  actor.send({ type: "apply", snapshot, handles });
+  const { desired } = actor.getSnapshot().context;
+  const { outcome } = await unlessTerminal(
+    actor,
+    (context) => context.outcome?.desired === desired,
+  );
+  if (outcome?.error !== undefined) throw outcome.error;
+}
+
+/** Resolves once `ready` holds; rejects if OBS invalidates the session or the target stops first. */
+async function unlessTerminal(
+  actor: ObsActor,
+  ready: (context: ObsMachineContext) => boolean,
+): Promise<ObsMachineContext> {
+  const { context } = await waitFor(
+    actor,
+    (state) => ready(state.context) || state.matches({ connection: "terminal" }),
+  );
+  if (!ready(context)) throw context.error ?? new Error("OBS invalidated the session.");
+  return context;
+}
+
+/** The `connection` region as the kernel's connection report; nothing before the first connect. */
+function connectionOf(snapshot: SnapshotFrom<typeof obsMachine>): TargetConnection | undefined {
+  const { error } = snapshot.context;
+  if (snapshot.matches({ connection: "connecting" })) return { phase: "connecting" };
+  if (snapshot.matches({ connection: "connected" })) return { phase: "open" };
+  if (snapshot.matches({ connection: "retry-wait" })) return { phase: "retry-wait", error };
+  if (snapshot.matches({ connection: "terminal" })) return { phase: "closed", error };
+  return undefined;
+}
+
+/**
+ * Runs a plugin's `create` once OBS has been observed, so `inputKinds` is known. A handle without
+ * `update` is re-created when its props change, so a plugin that only maps props to an input
+ * needs nothing else.
+ */
+function afterObservation(
+  plugin: ObsSourcePlugin,
+  actor: ObsActor,
+): TargetSourcePlugin<ObsHandle, ObsPluginContext> {
+  return {
+    ...plugin,
+    async create(source, context) {
+      await unlessTerminal(actor, (state) => state.observed !== undefined);
+      const handle = await createSupported(plugin, source, context);
+      return handle.update === undefined ? recreating(plugin, handle, context) : handle;
+    },
+  };
+}
+
+/**
+ * Creates a handle whose input kind OBS has. An input kind OBS lacks fails this source, not the
+ * show: the planner skips a source without a handle, so the rest of the show still converges.
+ */
+async function createSupported(
+  plugin: ObsSourcePlugin,
+  source: Source,
+  context: ObsPluginContext,
+): Promise<ObsHandle> {
+  const handle = await plugin.create(source, context);
+  const { kind } = handle.input;
+  if (context.inputKinds.has(kind)) return handle;
+  await handle.dispose?.();
+  throw new Error(`OBS has no input kind '${kind}' for source '${source.id}'.`);
+}
+
+/** A handle that answers `update` by creating its replacement and disposing itself. */
+function recreating(
+  plugin: ObsSourcePlugin,
+  first: ObsHandle,
+  context: ObsPluginContext,
+): ObsHandle {
+  let current = first;
+  return {
+    get input() {
+      return current.input;
+    },
+    async update(source: Source) {
+      const previous = current;
+      current = await createSupported(plugin, source, context);
+      await previous.dispose?.();
+    },
+    async dispose() {
+      await current.dispose?.();
+    },
+    async event(event) {
+      await current.event?.(event);
+    },
+  };
+}
+
+/** Capped exponential backoff for `attempt`, randomised by the jitter ratio. */
+function backoff(attempt: number, retry: ObsRetryOptions, random: number): number {
+  const initial = Math.max(1, retry.initialDelayMs ?? 250);
+  const maximum = Math.max(initial, retry.maximumDelayMs ?? 10_000);
+  const jitter = Math.min(1, Math.max(0, retry.jitterRatio ?? 0.2));
+  const base = Math.min(maximum, initial * 2 ** attempt);
+  return Math.max(0, Math.round(base * (1 + (random * 2 - 1) * jitter)));
+}

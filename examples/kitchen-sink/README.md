@@ -1,45 +1,60 @@
 # Kitchen-sink example
 
-A full-stack Vignette application with no local media assets to provision. It demonstrates a Vite
-browser preview, a Node composer, Yoga layout, color and MoQ sources, typed React frames with SSR
-and hydration, a composer stream over SSE, production builds, and optional OBS output. The only
-remote input is the public `https://cdn.moq.dev/demo` / `bbb.hang` MoQ demo stream.
+Every part of Vignette in one show, hosted the way
+[README §4](../../README.md#4-hosting-in-production) describes. The only remote input is the public
+`https://cdn.moq.dev/demo` / `bbb.hang` MoQ demo broadcast.
+
+- [`src/show.tsx`](src/show.tsx) default-exports the `<Show>`: inline `Color` and `Image` sources,
+  one shared `<Moq id="demo">` placed with `<Use>` in two scenes, `<Frame of={Clock}>` and
+  `<Frame of={Label}>` with params, and a timer that highlights cards and drives `activeScene`
+  between `main` and `focus` so scene switching is visible.
+- [`src/clock.frame.tsx`](src/clock.frame.tsx), [`src/label.frame.tsx`](src/label.frame.tsx) are
+  frames: React DOM components with a name and a params schema.
+- [`src/server/entry.ts`](src/server/entry.ts) is the README's five steps on Hono: `compose` with
+  the bundle's manifest and `serve` locations, `/stream` over SSE with `toSseEvent`, the bundle at
+  `/vignette/`, the preview app at `/`, and optionally `obsTarget` in the same process.
+- [`src/app.tsx`](src/app.tsx) is the browser preview:
+  `<Stream url="/stream" sources={[MoqView]}><Stage /></Stream>` with a `useStreamStatus` readout.
+- [`scripts/bundle.mjs`](scripts/bundle.mjs) calls `bundle()` from `vignette/bundle`, writing
+  `public/vignette/` (`frames.html`, `frames.js`, `assets/`, `assets.json`).
+
+## Run it
 
 ```sh
-corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
+pnpm build                                     # from the repository root
+pnpm --filter @vignette/kitchen-sink start     # http://127.0.0.1:3000
 ```
 
-Open `http://127.0.0.1:4173`. The custom React reconciler runs in the Vite Node process, `/stream`
-serves the composer stream over SSE, and the browser renders it on a stage through `useStage` and
-`DOMRuntime`.
+`build` is `tsc` (server and show) + `scripts/bundle.mjs` + `vite build` (the app). `PORT`, `HOST`
+and `PUBLIC_ORIGIN` configure the server; `PUBLIC_ORIGIN` is what the stream publishes in `serve`.
 
-Useful entry points:
+While the server runs, `pnpm --filter @vignette/kitchen-sink dev` serves the app with hot reload at
+`http://127.0.0.1:4173`, proxying `/stream` and `/vignette` to port 3000. To preview the show alone
+without this app, use `pnpm --filter @vignette/kitchen-sink dev:show` (`vignette dev`).
 
-- `src/show.tsx` defines the sources, Yoga layout, layers, and frame views, and exports the
-  `composition` definition (project ID `kitchen-sink`, canvas, MoQ extension) that every host
-  renders.
-- `src/label.frame.tsx` is a parameterized React DOM frame.
-- `src/clock.frame.tsx` demonstrates independent client hydration and state.
-- `vite.config.ts` hosts the composer during development through the Vignette plugin's `composition`
-  option; edits to `src/show.tsx` or its imports re-render it.
-- `src/server/entry.tsx` and `src/server/obs-worker.ts` are production host and OBS entries.
-- `src/app.tsx` consumes the same composer stream in the browser.
+## OBS
 
-The browser preview renders the MoQ source through `@moq/watch`. OBS output requires the
-`moq_source` plugin that implements the contract used by `@strangecyan/vignette-moq/obs`. To use the
-CLI instead of the bundled worker, pass the composition's ID and the MoQ codec:
+Set `OBS_URL` (and `OBS_PASSWORD`) when starting the server to drive OBS from the same process, or
+run `vignette obs` against the stream from the OBS machine:
 
 ```sh
-pnpm exec vignette obs --project kitchen-sink --obs-url ws://127.0.0.1:4455 \
-  --url http://127.0.0.1:4173/stream --extension @strangecyan/vignette-moq/obs
+pnpm --filter @vignette/kitchen-sink obs   # vignette obs http://127.0.0.1:3000/stream --source @vignette/moq/obs
 ```
 
-To connect a disposable local OBS instance while developing, set `VIGNETTE_ENABLE_EMBEDDED=1` and
-optionally provide `VIGNETTE_OBS_URL` and `VIGNETTE_OBS_PASSWORD`; the config's `onComposerRoot`
-hook feeds it from the dev composer.
+OBS shows the MoQ source with its native `moq_source` input when the MoQ plugin is installed, and
+otherwise as a media source playing RTMP from a local `moq` CLI relay, so install
+[moq-cli](https://github.com/moq-dev/moq) next to `vignette obs` (the OBS container image does).
+`compose.yaml` runs the server and a `vignette obs` container against an OBS on the Docker host.
 
-The composer never needs its public origin: frame URLs in snapshots are root-relative and each
-target resolves them. The browser resolves them against `/stream`; the embedded OBS runtime uses the
-server's local address; the standalone worker uses `VIGNETTE_STREAM_URL`, plus
-`VIGNETTE_BROWSER_SOURCE_BASE_URL` when OBS reaches the host at a different address (see
-`compose.yaml` and [`docs/deployment.md`](../../docs/deployment.md)).
+## Tests
+
+- `src/server/production.test.ts` (in `pnpm test`): builds, starts the server, reads setup and an
+  update with `fromSse`, and fetches the bundle.
+- `tests/dom.spec.ts` (`pnpm test:e2e`, after `pnpm build`): the preview renders, the clock frame
+  renders as an iframe that keeps its page across params changes and scene switches, revisions
+  advance, and the shared `<moq-watch>` element survives scene switches with and without
+  `Element.moveBefore`.
+- `tests/obs-integration.spec.ts` (`pnpm test:obs-integration`): `obsTarget` against the example
+  server and a real OBS. Requires `VIGNETTE_ALLOW_INTEGRATION=1`, `VIGNETTE_OBS_URL`,
+  `VIGNETTE_OBS_PASSWORD` and `VIGNETTE_OBS_TEST_COLLECTION` naming the disposable scene collection
+  OBS must have open.

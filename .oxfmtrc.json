@@ -19,6 +19,6 @@
     "playwright-report/",
     "test-results/",
     "tools/",
-    "packages/core/vendor/"
+    "packages/vignette/vendor/"
   ]
 }

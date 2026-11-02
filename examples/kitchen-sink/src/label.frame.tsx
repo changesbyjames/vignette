@@ -1,7 +1,9 @@
-import { frame } from "@strangecyan/vignette-frame";
+import { frame } from "vignette/frame";
 import { z } from "zod";
 
-export const labelFrame = frame({
+/** A card label whose text comes from the show as params. */
+export const Label = frame({
+  name: "Label",
   params: z.object({
     eyebrow: z.string(),
     title: z.string(),

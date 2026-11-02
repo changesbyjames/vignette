@@ -2,8 +2,8 @@ import { defineConfig } from "vitest/config";
 
 export const vitestConfig = defineConfig({
   test: {
-    include: ["packages/**/*.{test,spec}.{ts,tsx}", "examples/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["examples/kitchen-sink/tests/**", "**/node_modules/**", "**/dist/**"],
+    include: ["packages/**/*.test.{ts,tsx}", "examples/**/src/**/*.test.{ts,tsx}"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
     passWithNoTests: true,
     restoreMocks: true,
   },

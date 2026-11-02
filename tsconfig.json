@@ -1,15 +1,8 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/testkit" },
-    { "path": "./packages/target-dom" },
-    { "path": "./packages/target-obs" },
-    { "path": "./packages/react" },
-    { "path": "./packages/frame" },
-    { "path": "./packages/vite" },
+    { "path": "./packages/vignette" },
     { "path": "./packages/moq" },
-    { "path": "./packages/cli" },
     { "path": "./examples/simple" },
     { "path": "./examples/kitchen-sink" }
   ]

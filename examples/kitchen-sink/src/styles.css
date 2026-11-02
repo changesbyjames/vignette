@@ -100,41 +100,6 @@ button {
   width: 100%;
   aspect-ratio: 16 / 9;
 }
-.connection h2 {
-  width: 100%;
-}
-.connection input {
-  flex: 1 1 240px;
-}
-[role="alert"] {
-  width: 100%;
-  color: #ff9d9d;
-}
-.parity-page {
-  width: 1920px;
-  height: 1080px;
-  margin: 0;
-  padding: 0;
-}
-.parity-page main {
-  width: 1920px;
-  margin: 0;
-  padding: 0;
-}
-.parity-page header {
-  display: none;
-}
-.parity-page .preview-shell {
-  width: 1920px;
-  height: 1080px;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-.parity-page .preview {
-  width: 1920px;
-  height: 1080px;
-}
 @media (max-width: 800px) {
   header {
     align-items: start;

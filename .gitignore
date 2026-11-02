@@ -12,3 +12,4 @@ test-results/
 vignette-preview/
 examples/studio/.vite/
 .pnpm-store
+examples/kitchen-sink/public/

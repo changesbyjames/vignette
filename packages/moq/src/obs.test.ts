@@ -1,25 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ObsPluginContext } from "vignette/obs";
 
-import type { MoqSource } from "./index.js";
-import { moqObsCodec } from "./obs.js";
+import { moqObs } from "./obs.js";
 
-describe("moqObsCodec", () => {
-  it("compiles the neutral source to moq_source settings", () => {
-    const source: MoqSource = {
-      kind: "source:moq",
-      id: "live",
-      url: "https://cdn.moq.dev/demo",
-      broadcast: "bbb.hang",
-      size: { width: 1280, height: 720 },
-      latencyMs: 250,
-      audio: false,
-      quality: "hd",
-      disableWhenHidden: false,
-    };
+const size = { width: 1280, height: 720 };
+const live = {
+  id: "live",
+  kind: "moq",
+  size,
+  props: {
+    url: "https://cdn.moq.dev/demo",
+    broadcast: "bbb.hang",
+    size,
+    latencyMs: 250,
+    video: true,
+    audio: false,
+    quality: "hd",
+    disableWhenHidden: false,
+  },
+};
 
-    expect(moqObsCodec.compile(source, { availableInputKinds: new Set(["moq_source"]) })).toEqual({
-      supported: true,
-      inputKind: "moq_source",
+function context(inputKinds: readonly string[]): ObsPluginContext {
+  return {
+    inputKinds: new Set(inputKinds),
+    canvas: { width: 1920, height: 1080 },
+    signal: new AbortController().signal,
+    assets: { resolve: (name) => Promise.resolve(name) },
+    frames: () => "",
+    port: () => Promise.resolve(0),
+    request: () => Promise.resolve({}),
+  };
+}
+
+describe("moqObs", () => {
+  it("creates a moq_source input with the source's settings", async () => {
+    const handle = await moqObs.create(live, context(["moq_source", "browser_source"]));
+    expect(handle.input).toEqual({
+      kind: "moq_source",
       settings: {
         url: "https://cdn.moq.dev/demo",
         broadcast: "bbb.hang",
@@ -32,24 +49,14 @@ describe("moqObsCodec", () => {
     });
   });
 
-  it("reports unsupported targets and applies defaults", () => {
-    const source: MoqSource = {
-      kind: "source:moq",
-      id: "live",
-      url: "https://cdn.moq.dev/demo",
-      broadcast: "bbb.hang",
-      size: { width: 1280, height: 720 },
-    };
-
-    expect(moqObsCodec.compile(source, { availableInputKinds: new Set() })).toEqual({
-      supported: false,
-      reason: "OBS MoQ input kind 'moq_source' is unavailable.",
-    });
-    expect(
-      moqObsCodec.compile(source, { availableInputKinds: new Set(["moq_source"]) }),
-    ).toMatchObject({
-      supported: true,
-      settings: { latency_ms: 100, video: true, audio: true, disable_when_hidden: true },
-    });
+  it("relays through the moq CLI when OBS lacks moq_source, and says when it is missing", async () => {
+    vi.stubEnv("VIGNETTE_MOQ_CLI", "/nonexistent/moq");
+    try {
+      await expect(async () =>
+        moqObs.create(live, context(["ffmpeg_source", "browser_source"])),
+      ).rejects.toThrow(/'\/nonexistent\/moq' executable was not found/u);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

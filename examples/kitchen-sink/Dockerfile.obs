@@ -14,9 +14,19 @@ RUN pnpm build
 FROM node:22-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
-    VIGNETTE_STREAM_URL=http://vignette-host:4173/stream \
-    VIGNETTE_BROWSER_SOURCE_BASE_URL=http://127.0.0.1:4173/ \
-    VIGNETTE_OBS_URL=ws://host.docker.internal:4455
+    VIGNETTE_STREAM_URL=http://127.0.0.1:4173/stream \
+    VIGNETTE_OBS_URL=ws://127.0.0.1:4455
+
+# `@vignette/moq/obs` relays MoQ through the `moq` CLI when OBS has no native `moq_source` input.
+ARG TARGETARCH
+ARG MOQ_CLI_VERSION=0.14.10
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && case "$TARGETARCH" in arm64) triple=aarch64-unknown-linux-gnu ;; *) triple=x86_64-unknown-linux-gnu ;; esac \
+ && release="moq-cli-v${MOQ_CLI_VERSION}-${triple}" \
+ && curl -fsSL "https://github.com/moq-dev/moq/releases/download/moq-cli-v${MOQ_CLI_VERSION}/${release}.tar.gz" | tar -xz -C /tmp \
+ && install -m 755 "/tmp/${release}/bin/moq" /usr/local/bin/moq \
+ && rm -rf "/tmp/${release}" /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -27,4 +37,6 @@ COPY --from=build --chown=node:node /workspace/examples/kitchen-sink ./examples/
 
 USER node
 
-CMD ["node", "examples/kitchen-sink/dist/server/obs-worker.js"]
+# `vignette obs <stream> --source @vignette/moq/obs`; asset and frame locations come from the stream.
+WORKDIR /app/examples/kitchen-sink
+CMD ["sh", "-c", "exec node node_modules/vignette/dist/cli/index.js obs \"$VIGNETTE_STREAM_URL\" --obs-url \"$VIGNETTE_OBS_URL\" --password \"$VIGNETTE_OBS_PASSWORD\" --source @vignette/moq/obs"]

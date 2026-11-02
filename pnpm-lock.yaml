@@ -14,9 +14,6 @@ importers:
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
-      '@strangecyan/vignette-cli':
-        specifier: workspace:*
-        version: link:packages/cli
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
@@ -59,27 +56,12 @@ importers:
       '@hono/node-server':
         specifier: 2.0.10
         version: 2.0.10(hono@4.12.30)
-      '@strangecyan/vignette':
-        specifier: workspace:^
-        version: link:../../packages/react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../../packages/core
-      '@strangecyan/vignette-frame':
-        specifier: workspace:^
-        version: link:../../packages/frame
-      '@strangecyan/vignette-moq':
-        specifier: workspace:^
+      '@tanstack/react-query':
+        specifier: 5.105.0
+        version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
+      '@vignette/moq':
+        specifier: workspace:*
         version: link:../../packages/moq
-      '@strangecyan/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../../packages/target-dom
-      '@strangecyan/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../../packages/target-obs
-      '@strangecyan/vignette-vite':
-        specifier: workspace:^
-        version: link:../../packages/vite
       hono:
         specifier: 4.12.30
         version: 4.12.30
@@ -89,10 +71,16 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      vignette:
+        specifier: workspace:*
+        version: link:../../packages/vignette
       zod:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      '@fontsource/nunito':
+        specifier: 5.3.0
+        version: 5.3.0
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
@@ -105,209 +93,93 @@ importers:
 
   examples/simple:
     dependencies:
-      '@strangecyan/vignette':
-        specifier: workspace:^
-        version: link:../../packages/react
       react:
         specifier: 19.2.7
         version: 19.2.7
+      vignette:
+        specifier: workspace:*
+        version: link:../../packages/vignette
     devDependencies:
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
-
-  packages/cli:
-    dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@strangecyan/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../target-dom
-      '@strangecyan/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../target-obs
-      playwright:
-        specifier: 1.61.1
-        version: 1.61.1
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@types/node':
-        specifier: 26.1.1
-        version: 26.1.1
-
-  packages/core:
-    dependencies:
-      yoga-layout:
-        specifier: 3.2.1
-        version: 3.2.1
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-
-  packages/frame:
-    dependencies:
-      '@strangecyan/vignette':
-        specifier: workspace:^
-        version: link:../react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.17
-        version: 19.2.17
-      '@types/react-dom':
-        specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.17)
-      react:
-        specifier: 19.2.7
-        version: 19.2.7
-      react-dom:
-        specifier: 19.2.7
-        version: 19.2.7(react@19.2.7)
 
   packages/moq:
     dependencies:
       '@moq/watch':
         specifier: 0.3.0
         version: 0.3.0(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@strangecyan/vignette':
-        specifier: workspace:^
-        version: link:../react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@strangecyan/vignette-target-dom':
-        specifier: workspace:^
-        version: link:../target-dom
-      '@strangecyan/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../target-obs
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.17
-        version: 19.2.17
-      react:
-        specifier: 19.2.7
-        version: 19.2.7
-
-  packages/react:
-    dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      react-reconciler:
-        specifier: 0.33.0
-        version: 0.33.0(react@19.2.7)
       zod:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
-      '@strangecyan/vignette-testkit':
-        specifier: workspace:^
-        version: link:../testkit
-      '@types/react':
-        specifier: 19.2.17
-        version: 19.2.17
-      '@types/react-reconciler':
-        specifier: 0.33.0
-        version: 0.33.0(@types/react@19.2.17)
-      react:
-        specifier: 19.2.7
-        version: 19.2.7
-
-  packages/target-dom:
-    dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      ramda:
-        specifier: 0.32.0
-        version: 0.32.0
-    devDependencies:
-      '@types/ramda':
-        specifier: 0.32.0
-        version: 0.32.0
+      '@tanstack/react-query':
+        specifier: 5.105.0
+        version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
       '@types/react-dom':
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.17)
+      jsdom:
+        specifier: 29.1.1
+        version: 29.1.1
       react:
         specifier: 19.2.7
         version: 19.2.7
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      vignette:
+        specifier: workspace:*
+        version: link:../vignette
 
-  packages/target-obs:
+  packages/vignette:
     dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
       obs-websocket-js:
         specifier: 5.0.8
         version: 5.0.8
-      ramda:
-        specifier: 0.32.0
-        version: 0.32.0
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@types/ramda':
-        specifier: 0.32.0
-        version: 0.32.0
-
-  packages/testkit:
-    dependencies:
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@strangecyan/vignette-target-obs':
-        specifier: workspace:^
-        version: link:../target-obs
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-
-  packages/vite:
-    dependencies:
-      '@strangecyan/vignette':
-        specifier: workspace:^
-        version: link:../react
-      '@strangecyan/vignette-core':
-        specifier: workspace:^
-        version: link:../core
-      '@strangecyan/vignette-frame':
-        specifier: workspace:^
-        version: link:../frame
+      react-reconciler:
+        specifier: 0.33.0
+        version: 0.33.0(react@19.2.7)
       tinyglobby:
         specifier: 0.2.17
         version: 0.2.17
+      xstate:
+        specifier: 5.33.3
+        version: 5.33.3
+      yoga-layout:
+        specifier: 3.2.1
+        version: 3.2.1
       zod:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      '@tanstack/react-query':
+        specifier: 5.105.0
+        version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
       '@types/node':
         specifier: 26.1.1
         version: 26.1.1
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      '@types/react-reconciler':
+        specifier: 0.33.0
+        version: 0.33.0(@types/react@19.2.17)
+      playwright:
+        specifier: 1.61.1
+        version: 1.61.1
       react:
         specifier: 19.2.7
         version: 19.2.7
+      react-dom:
+        specifier: 19.2.7
+        version: 19.2.7(react@19.2.7)
       vite:
         specifier: 8.1.4
         version: 8.1.4(@types/node@26.1.1)
@@ -386,6 +258,9 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource/nunito@5.3.0':
+    resolution: {integrity: sha512-vw9TaTQJ/zpEpKrsODuPmOvaVjXgdda6B+xXA4YqjrdeJ62MLgVoDerdRXFQHyBnSCt2yQ2nHKCHPP/Pv7Xq4Q==}
 
   '@hono/node-server@2.0.10':
     resolution: {integrity: sha512-ZcnNVhKTmyDJeg0UlnZjvM73JBsTAuhrH/J4fjwGOw59PwOW51r4J+p6CsKZWXdKSme4MFqU62CZMOsdDrU4CA==}
@@ -857,6 +732,18 @@ packages:
     resolution: {integrity: sha512-JMqclD7Akd+GSJiuaYNUHOP2wNtf/nauKeszlYeivSHfi0Lp3pmSW5PXDvJ2dO4aPmmSOQbF0ztTsW9Vcs2Whw==}
     engines: {node: '>=20'}
 
+  '@tanstack/query-core@5.105.0':
+    resolution: {integrity: sha512-7p56vRmT/z4UJ6sctGIdl5WRUQyUv53IUpUwEKi2g97zMbO7zh8ZsCLffGAvCPBR4xD72e3VXsDyLwXHhoNTMQ==}
+
+  '@tanstack/react-query@5.105.0':
+    resolution: {integrity: sha512-y+hMuDERvgg6ay1da0V1a6ZC0ZONt7dELxSFkqRZuwm7p1TTZs0MoXrPlBRflIpRoYjvzQVYxycnLImpFLhWrw==}
+    peerDependencies:
+      '@types/react': ^18 || ^19
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
 
@@ -874,9 +761,6 @@ packages:
 
   '@types/pngjs@6.0.5':
     resolution: {integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==}
-
-  '@types/ramda@0.32.0':
-    resolution: {integrity: sha512-eTRIFYUxjVvZimlPNpXzXc3j4tnSYc7lBsD7X3zwtRvJML3qXclM4+m8vvmAZAHhBASKPmZAp6qu2C/DwJpBGQ==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -1204,9 +1088,6 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  ramda@0.32.0:
-    resolution: {integrity: sha512-GQWAHhxhxWBWA8oIBr1XahFVjQ9Fic6MK9ikijfd4TZHfE2+urfk+irVlR5VOn48uwMgM+loRRBJd6Yjsbc0zQ==}
-
   react-dom@19.2.7:
     resolution: {integrity: sha512-t0BRVXvbiE/o20Hfw669rLbMCDWtYZLvmJigy2f0MxsXF+71pxhR3xOkspmsO8h3ZlNzyibAmtCa3l4lYKk6gQ==}
     peerDependencies:
@@ -1288,18 +1169,12 @@ packages:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
 
-  ts-toolbelt@9.6.0:
-    resolution: {integrity: sha512-nsZd8ZeNUzukXPlJmTBwUAuABDe/9qtVDelJeT/qW0ow3ZS3BsQJtNkan1802aM9Uf68/Y8ljw86Hu0h5IUW3w==}
-
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
   type-fest@3.13.1:
     resolution: {integrity: sha512-tLq3bSNx+xSpwvAJnzrK0Ep5CLNWjvFTOp71URMaAEWBfRb9nnJiBoUe0tF8bI4ZFO3omgBR6NvnbzVUT3Ly4g==}
     engines: {node: '>=14.16'}
-
-  types-ramda@0.32.0:
-    resolution: {integrity: sha512-iZtriSUdsDqOlip/wUaDNcoiskbVf5RdcqLNpQdUcOM1JKFClochCvPZCDjn/cc9HzoBzi4DEB4iPr1PbrhN1w==}
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -1437,6 +1312,9 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
+  xstate@5.33.3:
+    resolution: {integrity: sha512-AnDRjS/GyKHmbA1PyhVCYBqYsA7EGe3KGgeD0ht3NFsXzoz7leX/HQDFX9QlHFJ/ltLHPsgChJYwPzRvB/0b4g==}
+
   yoga-layout@3.2.1:
     resolution: {integrity: sha512-0LPOt3AxKqMdFBZA3HBAt/t/8vIKq7VaQYbuA8WxCgung+p9TVyKRYdpvCb80HcdTN2NkbIKbhNwKUfm3tQywQ==}
 
@@ -1510,6 +1388,8 @@ snapshots:
     optional: true
 
   '@exodus/bytes@1.15.1': {}
+
+  '@fontsource/nunito@5.3.0': {}
 
   '@hono/node-server@2.0.10(hono@4.12.30)':
     dependencies:
@@ -1819,6 +1699,15 @@ snapshots:
 
   '@svta/cml-utils@1.5.0': {}
 
+  '@tanstack/query-core@5.105.0': {}
+
+  '@tanstack/react-query@5.105.0(@types/react@19.2.17)(react@19.2.7)':
+    dependencies:
+      '@tanstack/query-core': 5.105.0
+      react: 19.2.7
+    optionalDependencies:
+      '@types/react': 19.2.17
+
   '@tybys/wasm-util@0.10.3':
     dependencies:
       tslib: 2.8.1
@@ -1840,10 +1729,6 @@ snapshots:
   '@types/pngjs@6.0.5':
     dependencies:
       '@types/node': 26.1.1
-
-  '@types/ramda@0.32.0':
-    dependencies:
-      types-ramda: 0.32.0
 
   '@types/react-dom@19.2.3(@types/react@19.2.17)':
     dependencies:
@@ -2167,8 +2052,6 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  ramda@0.32.0: {}
-
   react-dom@19.2.7(react@19.2.7):
     dependencies:
       react: 19.2.7
@@ -2247,15 +2130,9 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  ts-toolbelt@9.6.0: {}
-
   tslib@2.8.1: {}
 
   type-fest@3.13.1: {}
-
-  types-ramda@0.32.0:
-    dependencies:
-      ts-toolbelt: 9.6.0
 
   typescript@6.0.3: {}
 
@@ -2328,6 +2205,8 @@ snapshots:
   xml-name-validator@5.0.0: {}
 
   xmlchars@2.2.0: {}
+
+  xstate@5.33.3: {}
 
   yoga-layout@3.2.1: {}
 

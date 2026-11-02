@@ -1,51 +1,40 @@
-# Production deployment
+# Deployment
 
-The kitchen-sink production build creates a static client and two independent Node entries:
+[README §4](../README.md#4-hosting-in-production) is the recipe: compile the show, run `bundle`,
+`compose` with `assets` and `serve`, put `composer.stream()` on a wire, and serve the bundle
+directory at the URLs you published. `examples/kitchen-sink/src/server/entry.ts` is that recipe on
+Hono.
 
-- `dist/server/host.js`: Hono routing around the composer root, SSE, frame SSR, and static client.
-- `dist/server/obs-worker.js`: consumes `/stream` and owns the OBS WebSocket connection.
+## Checklist
 
-```sh
-pnpm build
-pnpm --filter @strangecyan/vignette-kitchen-sink start:host
-VIGNETTE_STREAM_URL=http://127.0.0.1:4173/stream \
-  pnpm --filter @strangecyan/vignette-kitchen-sink start:obs
-```
+- `serve.stream`, `serve.assets` and `serve.frames` are **absolute URLs as OBS reaches them**. They
+  are published in setup; no target derives a location. When the OBS machine reaches the host at
+  another address, publish that address, or override per target with
+  `obsTarget({ assets: { fetch }, frames })`.
+- `frames.html` and `frames.js` are the same for every deployment; serve them, and `assets/`, from
+  any static host or CDN. `frames.js` is not content-hashed, so serve it with a short cache
+  lifetime.
+- Run `vignette obs <stream-url>` (or `obsTarget` in your process) on the machine with OBS, with
+  `--source <module>` for every custom kind the show uses.
+- One composer per show. Each SSE subscriber gets setup and the latest update replayed, so
+  reconnects converge without coordination.
 
-Configure `PORT` and `HOST` on the host. Configure `VIGNETTE_STREAM_URL`,
-`VIGNETTE_BROWSER_SOURCE_BASE_URL` (optional), `VIGNETTE_OBS_URL`, and `VIGNETTE_OBS_PASSWORD` on
-the worker. The worker uses `@strangecyan/vignette-target-obs`'s `sseStream`, which has the same
-`StreamSource` API as the DOM runtime's SSE source and reconnects to the host with
-setup/latest-snapshot replay.
+## Docker
 
-The host never needs to know its public origin: snapshots and the asset manifest carry root-relative
-URLs (`/__vignette/frame/...`, `/assets/...`) and each target resolves them. The worker passes
-`VIGNETTE_STREAM_URL` as the OBS runtime's `baseUrl`, so manifest downloads use the host the worker
-already reaches. OBS loads browser sources itself, so when OBS reaches the host at a different
-address than the worker, set `VIGNETTE_BROWSER_SOURCE_BASE_URL` (the runtime's
-`browserSourceBaseUrl`). In local Docker, the worker uses `http://vignette-host:4173` while OBS on
-the Docker host uses the published `http://127.0.0.1:4173/`.
-
-`@strangecyan/vignette-vite` emits frame entries under `assets/vignette/frame/` and the hydration
-helper at `assets/vignette/frame-client.js`. These deterministic entry names are intentionally not
-content-hashed and should be served with `Cache-Control: no-store`.
-
-## Docker example
-
-Run both services with Compose:
+The kitchen sink ships a host image and a `vignette obs` image:
 
 ```sh
-VIGNETTE_OBS_PASSWORD=runtime-only docker compose -f examples/kitchen-sink/compose.yaml up --build
+docker compose -f examples/kitchen-sink/compose.yaml up --build
 ```
 
-Or build the images separately from the repository root:
+`PUBLIC_ORIGIN` on the host is what the stream publishes. The OBS container uses host networking so
+that address and OBS's obs-websocket are both reachable on `127.0.0.1`.
 
-```sh
-docker build -f examples/kitchen-sink/Dockerfile.host -t vignette-host .
-docker build -f examples/kitchen-sink/Dockerfile.obs -t vignette-worker .
-```
+## Cloudflare Workers and Durable Objects
 
-The Compose example reaches host OBS through `host.docker.internal` and includes Linux's
-`host-gateway` mapping. For remote deployments, set `VIGNETTE_STREAM_URL`,
-`VIGNETTE_BROWSER_SOURCE_BASE_URL` (when OBS sees the host differently), and `VIGNETTE_OBS_URL` to
-their reachable HTTP(S) and WebSocket endpoints.
+The composer runs in a Durable Object: swap the HTTP server for the object's `fetch` handler, serve
+`composer.stream()` as SSE from it, and put the bundle directory in R2 or static assets. Workers
+cannot compile WebAssembly at runtime, so pass a compiled Yoga module:
+`import wasm from "vignette/yoga.wasm"` and `compose(show, { layout: await loadYoga(wasm) })`.
+`vignette/bundle` and `vignette/obs` need Node and do not run in Workers; run `bundle` at build time
+and `vignette obs` next to OBS.
