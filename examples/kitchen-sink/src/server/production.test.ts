@@ -16,6 +16,8 @@ describe("production kitchen-sink server", () => {
     if (process.env.VIGNETTE_SKIP_BUILD !== "1") {
       await execFileAsync("pnpm", ["build"], {
         cwd: workspaceRoot,
+        // Windows runs `pnpm.cmd`, which only a shell can start.
+        shell: process.platform === "win32",
         env: process.env,
         maxBuffer: 10 * 1024 * 1024,
       });
