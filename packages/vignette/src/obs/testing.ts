@@ -59,8 +59,9 @@ const AUDIO_KINDS = new Set(["ffmpeg_source", "browser_source"]);
 
 /**
  * An in-memory OBS behind the {@link ObsTransport} seam. It keeps scenes, inputs, items and the
- * program scene, applies the requests the OBS target sends, and records every request. It emits
- * no events by itself; call `emit` to simulate one.
+ * program scene, applies the requests the OBS target sends, and records every request. Like OBS,
+ * it frees an input once no scene item shows it. It emits no events by itself; call `emit` to
+ * simulate one.
  */
 export class FakeObs implements ObsTransport {
   readonly requests: FakeObsRequest[] = [];
@@ -272,6 +273,17 @@ export class FakeObs implements ObsTransport {
   private removeScene(scene: FakeObsScene): void {
     this.removeSource(this.scenes, scene);
     if (this.programSceneName === scene.sceneName) this.programSceneName = undefined;
+    this.freeUnplacedInputs();
+  }
+
+  /** OBS frees an input when the last scene item showing it goes, as scene items own inputs. */
+  private freeUnplacedInputs(): void {
+    const placed = new Set(
+      this.scenes.flatMap((scene) => scene.items.map((item) => item.sourceUuid)),
+    );
+    for (const input of this.inputs.filter((candidate) => !placed.has(candidate.inputUuid))) {
+      remove(this.inputs, input);
+    }
   }
 
   /** Removes a scene or input and every item that shows it. */
@@ -293,6 +305,7 @@ export class FakeObs implements ObsTransport {
       }
       case "RemoveSceneItem":
         remove(scene.items, this.item(scene, data));
+        this.freeUnplacedInputs();
         return {};
       case "SetSceneItemTransform": {
         const item = this.item(scene, data);

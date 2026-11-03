@@ -97,13 +97,24 @@ async function executeBatch(
         new Error("OBS returned too few batch responses."),
       );
     }
-    if (!response.ok) {
+    if (!response.ok && !alreadyGone(operation, response.code)) {
       throw new ObsExecutionError(
         operation.key,
         new ObsRequestError(response.requestType, response.code, response.comment),
       );
     }
   }
+}
+
+/** obs-websocket's `ResourceNotFound` status. */
+const RESOURCE_NOT_FOUND = 600;
+
+/**
+ * A removal of something OBS no longer has is done: an operator may delete it between observation
+ * and execution, and removing a scene frees the inputs only its items showed.
+ */
+function alreadyGone(operation: ObsOperation, code: number): boolean {
+  return operation.phase.startsWith("remove-") && code === RESOURCE_NOT_FOUND;
 }
 
 async function executeOperation(
