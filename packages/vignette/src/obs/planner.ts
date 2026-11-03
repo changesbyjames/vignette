@@ -404,11 +404,9 @@ function findObservedItem(
 }
 
 /**
- * Removes what the snapshot no longer has: items of managed inputs and scenes no desired layer
- * places, removed scenes, then removed inputs. A removed input's own items are left to
- * `RemoveInput`, which deletes them with it: OBS frees an input when its last item goes, so
- * removing them first would leave `RemoveInput` naming an input that no longer exists. Items an
- * operator placed from outside the namespace are kept.
+ * Removes what the snapshot no longer has: items of managed inputs no desired layer places,
+ * registry items of removed inputs, removed scenes, then removed inputs once nothing places them.
+ * Items an operator placed from outside the namespace are kept.
  */
 function prune(planning: Planning): void {
   const { managed } = planning;
@@ -442,8 +440,9 @@ function prune(planning: Planning): void {
 }
 
 /**
- * Removes stale items from scenes that stay, and returns their keys: items that show a managed
- * input or scene no desired layer places, unless the input itself goes.
+ * Removes stale items from the registry and from scenes that stay, and returns their keys. A
+ * registry item is stale when its input goes; a scene item when it shows a managed input or scene
+ * that no desired layer places.
  */
 function pruneItems(
   planning: Planning,
@@ -454,15 +453,17 @@ function pruneItems(
   const removedInputs = new Set(
     [...managed.inputs].flatMap(([id, input]) => (sourceIds.has(id) ? [] : [input.inputUuid])),
   );
-  const keptScenes = [...managed.scenes].flatMap(([id, scene]) =>
-    sceneIds.has(id) ? [scene] : [],
-  );
+  const keptScenes = [
+    ...(managed.registry === undefined ? [] : [managed.registry]),
+    ...[...managed.scenes].flatMap(([id, scene]) => (sceneIds.has(id) ? [scene] : [])),
+  ];
   const removals: string[] = [];
   for (const scene of keptScenes) {
     const stale = (item: ObservedObsSceneItem): boolean =>
-      !removedInputs.has(item.sourceUuid) &&
-      !planning.matched.has(itemIdentity(scene.sceneUuid, item.sceneItemId)) &&
-      parseManagedName(item.sourceName, show) !== undefined;
+      scene === managed.registry
+        ? removedInputs.has(item.sourceUuid)
+        : !planning.matched.has(itemIdentity(scene.sceneUuid, item.sceneItemId)) &&
+          parseManagedName(item.sourceName, show) !== undefined;
     for (const item of (managed.itemsByScene.get(scene.sceneUuid) ?? []).filter(stale)) {
       const key = `placement:remove:${scene.sceneUuid}:${String(item.sceneItemId)}`;
       removals.push(key);

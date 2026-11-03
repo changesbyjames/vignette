@@ -215,7 +215,7 @@ describe("planObsUpdate", () => {
     });
   });
 
-  it("removes stale scenes before the inputs they place, and never foreign ones", () => {
+  it("removes stale items and scenes before the inputs they place, and never foreign ones", () => {
     const state = placedObserved();
     const result = plan({
       desired: snapshot({ sources: [], scenes: [] }),
@@ -236,23 +236,14 @@ describe("planObsUpdate", () => {
     });
     if (!result.ok) throw new Error(result.problems.join(" "));
     expect(result.plan.operations.map((operation) => operation.kind)).toEqual([
+      "remove-placement",
       "remove-scene",
       "remove-input",
     ]);
     expect(result.plan.operations.at(-1)).toMatchObject({
       inputUuid: "input-1",
-      dependsOn: ["scene:remove:main"],
+      dependsOn: ["placement:remove:registry-1:1", "scene:remove:main"],
     });
-  });
-
-  it("leaves a removed input's items to RemoveInput, which OBS would otherwise free first", () => {
-    const result = plan({
-      desired: snapshot({ sources: [], scenes: [{ id: "main", items: [] }] }),
-      handles: new Map(),
-      observed: placedObserved(),
-    });
-    if (!result.ok) throw new Error(result.problems.join(" "));
-    expect(result.plan.operations.map((operation) => operation.kind)).toEqual(["remove-input"]);
   });
 
   it("restacks a scene only when its items' relative order is wrong", () => {

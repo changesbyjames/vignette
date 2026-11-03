@@ -59,9 +59,9 @@ const AUDIO_KINDS = new Set(["ffmpeg_source", "browser_source"]);
 
 /**
  * An in-memory OBS behind the {@link ObsTransport} seam. It keeps scenes, inputs, items and the
- * program scene, applies the requests the OBS target sends, and records every request. Like OBS,
- * it frees an input once no scene item shows it. It emits no events by itself; call `emit` to
- * simulate one.
+ * program scene, applies the requests the OBS target sends, and records every request. Like OBS
+ * 33, it frees an input once no scene item shows it, and `RemoveInput` keeps an input that scene
+ * items still show. It emits no events by itself; call `emit` to simulate one.
  */
 export class FakeObs implements ObsTransport {
   readonly requests: FakeObsRequest[] = [];
@@ -237,9 +237,13 @@ export class FakeObs implements ObsTransport {
         return {};
       case "CreateInput":
         return this.createInput(data);
-      case "RemoveInput":
-        this.removeSource(this.inputs, this.input(data));
+      case "RemoveInput": {
+        // OBS 33 answers success but keeps an input that scene items still show; it goes with
+        // the last of them.
+        const input = this.input(data);
+        if (!this.placed(input)) this.removeSource(this.inputs, input);
         return {};
+      }
       default:
         return this.writeInput(requestType, data);
     }
@@ -274,6 +278,12 @@ export class FakeObs implements ObsTransport {
     this.removeSource(this.scenes, scene);
     if (this.programSceneName === scene.sceneName) this.programSceneName = undefined;
     this.freeUnplacedInputs();
+  }
+
+  private placed(input: FakeObsInput): boolean {
+    return this.scenes.some((scene) =>
+      scene.items.some((item) => item.sourceUuid === input.inputUuid),
+    );
   }
 
   /** OBS frees an input when the last scene item showing it goes, as scene items own inputs. */

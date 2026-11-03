@@ -110,8 +110,10 @@ async function executeBatch(
 const RESOURCE_NOT_FOUND = 600;
 
 /**
- * A removal of something OBS no longer has is done: an operator may delete it between observation
- * and execution, and removing a scene frees the inputs only its items showed.
+ * A removal of something OBS no longer has is done. OBS frees an input when the last scene item
+ * showing it goes, so `RemoveInput` after removing a gone input's items finds nothing; and an
+ * operator may delete something between observation and execution. (`RemoveInput` alone is no
+ * help: OBS 33 answers success and keeps an input that scene items still show.)
  */
 function alreadyGone(operation: ObsOperation, code: number): boolean {
   return operation.phase.startsWith("remove-") && code === RESOURCE_NOT_FOUND;
