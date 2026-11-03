@@ -104,6 +104,46 @@ importers:
         specifier: 19.2.17
         version: 19.2.17
 
+  examples/soak:
+    dependencies:
+      '@hono/node-server':
+        specifier: 2.0.10
+        version: 2.0.10(hono@4.12.30)
+      '@vignette/moq':
+        specifier: workspace:*
+        version: link:../../packages/moq
+      hono:
+        specifier: 4.12.30
+        version: 4.12.30
+      obs-websocket-js:
+        specifier: 5.0.8
+        version: 5.0.8
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: 19.2.7
+        version: 19.2.7(react@19.2.7)
+      vignette:
+        specifier: workspace:*
+        version: link:../../packages/vignette
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@fontsource/nunito':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      vite:
+        specifier: 8.1.4
+        version: 8.1.4(@types/node@26.1.1)
+
   packages/moq:
     dependencies:
       '@moq/watch':
