@@ -19,6 +19,7 @@ import {
   type CompileResult,
   type ComposerPhase,
 } from "./machine.js";
+import { clearReactMeasures } from "./react-measures.js";
 
 export type { ComposerPhase } from "./machine.js";
 
@@ -137,8 +138,13 @@ export function compose(
   actor.start();
   const live = () => actor.getSnapshot().status === "active";
 
-  /** Setup precedes the first update and is republished only when a new kind appears. */
+  /**
+   * Setup precedes the first update and is republished only when a new kind appears. Each publish
+   * also drops what React's development build measured for the commit, which would otherwise pile
+   * up in a long-running server.
+   */
   function publish(snapshot: Snapshot): void {
+    clearReactMeasures();
     const kinds = snapshot.sources.map((source) => source.kind);
     if (setup === undefined || kinds.some((kind) => !setup?.kinds.includes(kind))) {
       setup = setupFor(snapshot, [...(setup?.kinds ?? []), ...kinds], options);
