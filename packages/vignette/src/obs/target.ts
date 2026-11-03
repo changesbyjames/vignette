@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+
 import {
   createActor,
   fromCallback,
@@ -14,6 +18,7 @@ import { createTarget, type Target, type TargetSourcePlugin } from "../target/ke
 import type { TargetConnection } from "../target/status.js";
 import { fileAssetStore } from "./asset-store.js";
 import { bootstrapObsState } from "./bootstrap.js";
+import { defaultObsDirectory } from "./directory.js";
 import { ObsPreflightError } from "./errors.js";
 import { subscribeToObsEvents } from "./events.js";
 import { executeObsPlan } from "./executor.js";
@@ -30,12 +35,10 @@ import { videoObs } from "./sources/video.js";
 import type { ObsTransport } from "./transport.js";
 import { ObsWebSocketTransport } from "./websocket-transport.js";
 
-/** Local overrides for where assets come from and where they are kept. */
+/** A local override for where assets come from. */
 export interface ObsAssetOptions {
   /** Downloads one asset; defaults to `serve.assets` + name from the stream's setup. */
   readonly fetch?: AssetFetcher;
-  /** Keeps downloads here; default is a temporary directory removed on dispose. */
-  readonly dir?: string;
 }
 
 /** Backoff for reconnects and "not ready" retries. */
@@ -64,6 +67,12 @@ export interface ObsTargetOptions {
   readonly url?: string;
   readonly password?: string;
   readonly assets?: ObsAssetOptions;
+  /**
+   * Keeps the files OBS loads: downloaded assets in `assets/`, plugin files such as text pages in
+   * `sources/`. They outlive the target, because OBS reloads its saved inputs whenever it starts.
+   * Default `vignette/obs` in the user's cache directory.
+   */
+  readonly dir?: string;
   /** The page URL of a frame source; defaults to `serve.frames` and `serve.stream` from setup. */
   readonly frames?: (frame: string, sourceId: string) => string;
   /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
@@ -146,11 +155,12 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
     ...(options.builtins === false ? [] : BUILTIN_PLUGINS),
     ...(options.sources ?? []),
   ];
-  const reloads = reloadFramesWhenConverged(actor, transport);
+  const reloads = reloadPagesWhenConverged(actor, transport);
+  const dir = options.dir ?? defaultObsDirectory();
   const target = createTarget<ObsHandle, ObsPluginContext>({
     kind: "obs",
     sources: plugins.map((plugin) => afterObservation(plugin, actor)),
-    assets: fileAssetStore(options.assets?.dir),
+    assets: fileAssetStore(join(dir, "assets")),
     fetchAsset: options.assets?.fetch,
     connection(report) {
       let last: TargetConnection | undefined = undefined;
@@ -172,6 +182,15 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
         return new Set(actor.getSnapshot().context.observed?.inputKinds);
       },
       port: freePort,
+      async sourceFile(sourceId, extension) {
+        const { show } = actor.getSnapshot().context;
+        if (show === undefined) throw new Error("The target has no show yet.");
+        // The input name is unique per show and source; its digest is a safe file name.
+        const name = createHash("sha256").update(managedSourceName(show, sourceId)).digest("hex");
+        const sources = join(dir, "sources");
+        await mkdir(sources, { recursive: true });
+        return join(sources, `${name.slice(0, 32)}${extension}`);
+      },
       async request(sourceId, requestType, data) {
         const { context } = actor.getSnapshot();
         const connected = actor.getSnapshot().matches({ connection: "connected" });
@@ -209,41 +228,54 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
   };
 }
 
-/** Frame reloads the OBS target asks for: `request` after a setup, `stop` on dispose. */
-interface FrameReloads {
+/** Page reloads the OBS target asks for: `request` after a setup, `stop` on dispose. */
+interface PageReloads {
   request(): void;
   stop(): void;
 }
 
 /**
- * Reloads each frame page once OBS has converged it live after OBS connects and after each stream
- * setup. OBS loads a browser source's page when it starts, and a page it loaded while the show's
- * server was down stays an error page: its URL never changes, so convergence alone never reloads
- * it. Frame pages rebuild themselves from the stream, so a reload costs a blink, not state.
+ * Reloads browser pages OBS may be showing stale, once OBS has converged them live:
+ *
+ * - Frame pages, after OBS connects and after each stream setup. OBS loads a page when it starts,
+ *   and a page it loaded while the show's server was down stays an error page: its URL never
+ *   changes, so convergence alone never reloads it. Frame pages rebuild themselves from the
+ *   stream, so a reload costs a blink, not state.
+ * - Text pages, after OBS connects: changes pushed while OBS was unreachable never arrived, and
+ *   the page file, which the plugin rewrote, has them.
  */
-function reloadFramesWhenConverged(actor: ObsActor, transport: ObsTransport): FrameReloads {
-  // Each request is a generation; a frame is reloaded once per generation. Connecting starts
-  // one, which also covers the target's start: OBS may have started before the server.
-  let generation = 0;
-  const reloaded = new Map<string, number>();
+function reloadPagesWhenConverged(actor: ObsActor, transport: ObsTransport): PageReloads {
+  // Each connect and each setup starts a generation; a page is reloaded once per generation of
+  // its kind. Connecting also covers the target's start: OBS may have started before the server.
+  let connects = 0;
+  let setups = 0;
+  const generations = new Map<string, () => string>([
+    ["frame", () => `${String(connects)}.${String(setups)}`],
+    ["text", () => String(connects)],
+  ]);
+  const reloaded = new Map<string, string>();
   let connected = false;
   let seen: ObsOutcome | undefined = undefined;
   const subscription = actor.subscribe((snapshot) => {
     const nowConnected = snapshot.matches({ connection: "connected" });
-    if (nowConnected && !connected) generation += 1;
+    if (nowConnected && !connected) connects += 1;
     connected = nowConnected;
     const { outcome, show } = snapshot.context;
     const fresh = outcome !== seen;
     seen = outcome;
-    // Only a newly settled convergence, while connected, places frames worth reloading.
+    // Only a newly settled convergence, while connected, places pages worth reloading.
     if (!fresh || !connected || show === undefined || outcome?.error !== undefined) return;
-    if (outcome !== undefined) reloadFrames(outcome.desired, show);
+    if (outcome !== undefined) reloadPages(outcome.desired, show);
   });
-  // Presses refresh on each live frame not yet reloaded in this generation; failures are moot,
-  // because the next generation tries again.
-  function reloadFrames({ snapshot, handles }: ObsDesired, show: string): void {
+  /**
+   * Presses refresh on each live page not yet reloaded in its kind's generation; failures are
+   * moot, because the next generation tries again.
+   */
+  function reloadPages({ snapshot, handles }: ObsDesired, show: string): void {
     for (const source of snapshot.sources) {
-      if (source.kind !== "frame" || !handles.has(source.id)) continue;
+      // Skips kinds without pages, sources not live yet, and pages reloaded in this generation.
+      const generation = generations.get(source.kind)?.();
+      if (generation === undefined || !handles.has(source.id)) continue;
       if (reloaded.get(source.id) === generation) continue;
       reloaded.set(source.id, generation);
       const inputName = managedSourceName(show, source.id);
@@ -254,7 +286,7 @@ function reloadFramesWhenConverged(actor: ObsActor, transport: ObsTransport): Fr
   }
   return {
     request() {
-      generation += 1;
+      setups += 1;
     },
     stop() {
       subscription.unsubscribe();

@@ -40,7 +40,8 @@ Options:
   --password <value>   obs-websocket password
   --source <module>    Load OBS source plugins exported by a module, e.g.
                        @vignette/moq/obs (repeatable; resolved from the current directory)
-  --assets-dir <dir>   Keep downloaded assets here (default: a temporary directory)
+  --dir <dir>          Keep the files OBS loads here, such as downloaded assets
+                       (default: vignette/obs in the user's cache directory)
   --help               Show this help`;
 
 export const PREVIEW_HELP = `Usage: vignette preview <stream-url> [options]
@@ -91,7 +92,7 @@ export interface ObsCommand {
   readonly password?: string;
   /** Plugin module specifiers passed with `--source`, in order. */
   readonly sources: readonly string[];
-  readonly assetsDir?: string;
+  readonly dir?: string;
 }
 
 export interface PreviewCommand {
@@ -147,7 +148,7 @@ const SPECS = {
   obs: {
     help: OBS_HELP,
     positional: "<stream-url>",
-    valueFlags: new Set(["--obs-url", "--password", "--assets-dir"]),
+    valueFlags: new Set(["--obs-url", "--password", "--dir"]),
     repeatableFlags: new Set(["--source"]),
   },
   preview: {
@@ -226,7 +227,7 @@ function obsCommand(parsed: ParsedCommand): ObsCommand {
     obsUrl: parsed.values.get("--obs-url"),
     password: parsed.values.get("--password"),
     sources: parsed.repeated.get("--source") ?? [],
-    assetsDir: parsed.values.get("--assets-dir"),
+    dir: parsed.values.get("--dir"),
   };
 }
 

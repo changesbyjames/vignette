@@ -35,6 +35,12 @@ export interface ObsPluginContext extends PluginContextBase {
   /** A free local TCP port, for plugins that spawn processes OBS reads from. */
   port(): Promise<number>;
   /**
+   * A path for a file OBS loads for a source, e.g. a page: the same on every run, and never
+   * deleted, so the scene collection OBS saved still finds it when the target is not running.
+   * `extension` includes the dot. Creates the file's directory, not the file.
+   */
+  sourceFile(sourceId: string, extension: string): Promise<string>;
+  /**
    * Sends one obs-websocket request about a source's managed input, with its `inputName` filled
    * in, e.g. `TriggerMediaInputAction`. Rejects while OBS is disconnected.
    */
