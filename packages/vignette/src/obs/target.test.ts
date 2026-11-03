@@ -219,6 +219,19 @@ describe("obsTarget", () => {
     await target.dispose();
   });
 
+  it("names the close code when OBS drops the connection without a reason", async () => {
+    const { obs, target } = harness();
+    target.apply(setup());
+    target.apply(update(1));
+    await until(target, converged(1));
+
+    // What obs-websocket-js reports when OBS exits abruptly.
+    obs.emit("ConnectionClosed", Object.assign(new Error(""), { code: 1006 }));
+    await until(target, (status) => status.connection?.phase === "retry-wait");
+    expect(target.status.connection?.error?.message).toBe("The OBS connection closed (code 1006).");
+    await target.dispose();
+  });
+
   it("prunes scenes, items and inputs the snapshot no longer has", async () => {
     const { obs, target } = harness();
     target.apply(setup());
