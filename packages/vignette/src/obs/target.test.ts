@@ -259,6 +259,40 @@ describe("obsTarget", () => {
     await target.dispose();
   });
 
+  it("counts an input OBS frees while the target reads it as absent, without reconnecting", async () => {
+    const { obs, target, connections } = harness();
+    target.apply(setup());
+    target.apply(update(1));
+    await until(target, converged(1));
+
+    // OBS frees an input a moment after its last scene item goes, so a GetInputList can still list
+    // an input whose settings can no longer be read. List `bg` once more after it is gone.
+    const bg = obs.inputs.find((input) => input.inputName === "vignette/show/bg");
+    const call = obs.call.bind(obs);
+    let vanished = false;
+    obs.call = async (requestType, requestData) => {
+      // Every request passes through; the first GetInputList after `bg` is freed still lists it.
+      const response = await call(requestType, requestData);
+      const gone = bg !== undefined && !obs.inputs.includes(bg);
+      if (requestType !== "GetInputList" || vanished || !gone) return response;
+      vanished = true;
+      const listed = { inputName: bg.inputName, inputUuid: bg.inputUuid, inputKind: bg.inputKind };
+      return {
+        ...response,
+        inputs: [...(Array.isArray(response.inputs) ? response.inputs : []), listed],
+      };
+    };
+    target.apply(
+      update(2, { sources: [chat], scenes: [{ id: "main", items: [item("main.1", "chat", 0)] }] }),
+    );
+    await until(target, converged(2));
+
+    expect(vanished).toBe(true);
+    expect(connections).toEqual(["connecting", "open"]);
+    expect(itemsOf(obs, "vignette/show/main")).toEqual(["vignette/show/chat"]);
+    await target.dispose();
+  });
+
   it("sets the program scene when activeScene changes, and not again when the operator switches", async () => {
     const { obs, target } = harness();
     target.apply(setup());

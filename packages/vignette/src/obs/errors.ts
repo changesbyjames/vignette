@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/**
+ * obs-websocket's `ResourceNotFound` status. OBS frees an input when the last scene item showing it
+ * goes, a moment after the request that removed the item, so a resource can vanish between two
+ * requests about it.
+ */
+export const RESOURCE_NOT_FOUND = 600;
+
 /** The snapshot cannot be represented safely in the connected OBS; retrying will not help. */
 export class ObsPreflightError extends Error {
   constructor(message: string) {

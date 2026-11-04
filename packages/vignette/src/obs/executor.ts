@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ObsExecutionError, ObsRequestError } from "./errors.js";
+import { ObsExecutionError, ObsRequestError, RESOURCE_NOT_FOUND } from "./errors.js";
 import { managedSceneName, managedSourceName, registrySceneName } from "./naming.js";
 import {
   OBS_PHASES,
@@ -105,9 +105,6 @@ async function executeBatch(
     }
   }
 }
-
-/** obs-websocket's `ResourceNotFound` status. */
-const RESOURCE_NOT_FOUND = 600;
 
 /**
  * A removal of something OBS no longer has is done. OBS frees an input when the last scene item
