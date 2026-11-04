@@ -1,4 +1,3 @@
-import { asError } from "../target/kernel-machine.js";
 import { readObsErrorCode } from "./errors.js";
 import type { ObsTransportEvent } from "./machine.js";
 import type { ObsTransport } from "./transport.js";
@@ -32,8 +31,8 @@ export function subscribeToObsEvents(
       send({ type: "collectionChanged" });
     }),
     transport.on("ConnectionClosed", (cause) => {
-      const error = asError(cause, "The OBS connection closed.");
-      send({ type: "closed", code: readObsErrorCode(cause), error });
+      const code = readObsErrorCode(cause);
+      send({ type: "closed", code, error: closeError(cause, code) });
     }),
     ...REMOTE_STATE_EVENTS.map((event) =>
       transport.on(event, () => {
@@ -44,4 +43,14 @@ export function subscribeToObsEvents(
   return () => {
     for (const unsubscribe of unsubscribers) unsubscribe();
   };
+}
+
+/**
+ * The error a closed connection reports. An abrupt close, such as OBS exiting or the network
+ * dropping (code 1006), arrives without a reason; name the code instead of an empty message.
+ */
+function closeError(cause: unknown, code: number | undefined): Error {
+  if (cause instanceof Error && cause.message !== "") return cause;
+  const suffix = code === undefined ? "" : ` (code ${String(code)})`;
+  return new Error(`The OBS connection closed${suffix}.`, { cause });
 }
