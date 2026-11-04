@@ -69,7 +69,7 @@ function strategy(transition: Transition): string {
       end
     end
   end
-  local function make(from, vel0)
+  local function make(from, vel0, _continuous)
     local solvers = {}
     for _, d in ipairs(DIMS) do solvers[d] = spring(from[d], vel0[d], TO[d]) end
     return function(t)
@@ -108,10 +108,13 @@ function strategy(transition: Transition): string {
         5 * A * t ^ 4 + 4 * B * t ^ 3 + 3 * C * t * t + a0 * t + v0
     end
   end
-  local function make(from, vel0)
+  -- Only a continued motion carries an offset: a tween from rest starts on its own curve.
+  local function make(from, vel0, continuous)
     local _, slope0 = ease(0)
     local offsets = {}
-    for _, d in ipairs(DIMS) do offsets[d] = inertial(vel0[d] - (TO[d] - from[d]) * slope0, BLEND) end
+    for _, d in ipairs(DIMS) do
+      offsets[d] = inertial(continuous and (vel0[d] - (TO[d] - from[d]) * slope0) or 0, BLEND)
+    end
     return function(t)
       local p = math.max(0, math.min((t - DELAY) / DURATION, 1))
       local e, slope = ease(p)
@@ -194,7 +197,7 @@ ${strategy(spec.transition)}
   local from = inherited and inherited.pos or FROM or read()
   local vel0 = inherited and inherited.vel or { cx = 0, cy = 0, w = 0, h = 0, rot = 0, op = 0 }
   if inherited == nil and FROM ~= nil then write(FROM) end
-  local solve = make(from, vel0)
+  local solve = make(from, vel0, inherited ~= nil)
   local t, released = 0, false
   local last_pos, last_vel = from, vel0
 
@@ -235,5 +238,7 @@ export function settleSeconds(transition: Transition): number {
   const { stiffness, damping, mass } = springPhysics(transition);
   const w0 = Math.sqrt(stiffness / mass);
   const zeta = damping / (2 * Math.sqrt(stiffness * mass));
-  return Math.min(10, 6.9 / (Math.min(zeta, 1) * w0));
+  // The envelope reaching the rest thresholds on a canvas-sized move, speed included: e^-9.5
+  // of 1920 px is 0.14 px, and of its initial speed well under 2 px/s.
+  return Math.min(10, 9.5 / (Math.min(zeta, 1) * w0));
 }
