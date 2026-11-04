@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ObsRequestError } from "./errors.js";
+import { ObsRequestError, readObsErrorCode, RESOURCE_NOT_FOUND } from "./errors.js";
 import { parseManagedName } from "./naming.js";
 import type {
   ObservedObsInput,
@@ -140,10 +140,10 @@ export async function bootstrapObsState(
     Promise.all(managedInputs.map(async (input) => readInput(transport, input))),
     Promise.all(
       managedScenes.map(async (scene) => {
-        const list: SceneItemList = await read(transport, "GetSceneItemList", SceneItemListSchema, {
-          sceneUuid: scene.sceneUuid,
-        });
-        return list.sceneItems.map((item) => sceneItem(scene.sceneUuid, item));
+        const list: SceneItemList | undefined = await unlessGone(
+          read(transport, "GetSceneItemList", SceneItemListSchema, { sceneUuid: scene.sceneUuid }),
+        );
+        return (list?.sceneItems ?? []).map((item) => sceneItem(scene.sceneUuid, item));
       }),
     ),
   ]);
@@ -154,20 +154,27 @@ export async function bootstrapObsState(
     missingRequests: REQUIRED_OBS_REQUESTS.filter((request) => !available.has(request)),
     programSceneName: program.currentProgramSceneName,
     scenes,
-    inputs,
+    // An input OBS freed after listing it is absent, as the next observation will show.
+    inputs: inputs.filter((input) => input !== undefined),
     sceneItems: itemLists.flat(),
   };
 }
 
-/** Settings and mute state in one batch; inputs without audio fail `GetInputMute`, which is fine. */
+/**
+ * Settings and mute state in one batch; inputs without audio fail `GetInputMute`, which is fine.
+ * `undefined` when OBS freed the input after listing it.
+ */
 async function readInput(
   transport: ObsTransport,
   input: InputList["inputs"][number],
-): Promise<ObservedObsInput> {
+): Promise<ObservedObsInput | undefined> {
   const [settingsResponse, muteResponse] = await transport.callBatch([
     { requestType: "GetInputSettings", requestData: { inputUuid: input.inputUuid } },
     { requestType: "GetInputMute", requestData: { inputUuid: input.inputUuid } },
   ]);
+  if (settingsResponse?.ok === false && settingsResponse.code === RESOURCE_NOT_FOUND) {
+    return undefined;
+  }
   const settings: InputSettings = InputSettingsSchema.parse(responseData(settingsResponse));
   const mute: InputMute | undefined =
     muteResponse?.ok === true ? InputMuteSchema.parse(muteResponse.responseData ?? {}) : undefined;
@@ -209,6 +216,16 @@ function parseTransform(
   value: SceneItemList["sceneItems"][number]["sceneItemTransform"],
 ): Transform | undefined {
   return TransformSchema.safeParse(value).data;
+}
+
+/** What `read` resolves to, or `undefined` when OBS no longer has the resource it names. */
+async function unlessGone<T>(read: Promise<T>): Promise<T | undefined> {
+  try {
+    return await read;
+  } catch (cause) {
+    if (readObsErrorCode(cause) === RESOURCE_NOT_FOUND) return undefined;
+    throw cause;
+  }
 }
 
 /** Calls one request and decodes its response; a malformed response is a failed observation. */

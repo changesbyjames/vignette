@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ObsExecutionError, ObsRequestError } from "./errors.js";
+import { ObsExecutionError, ObsRequestError, RESOURCE_NOT_FOUND } from "./errors.js";
 import { managedSceneName, managedSourceName, registrySceneName } from "./naming.js";
 import {
   OBS_PHASES,
@@ -97,13 +97,23 @@ async function executeBatch(
         new Error("OBS returned too few batch responses."),
       );
     }
-    if (!response.ok) {
+    if (!response.ok && !alreadyGone(operation, response.code)) {
       throw new ObsExecutionError(
         operation.key,
         new ObsRequestError(response.requestType, response.code, response.comment),
       );
     }
   }
+}
+
+/**
+ * A removal of something OBS no longer has is done. OBS frees an input when the last scene item
+ * showing it goes, so `RemoveInput` after removing a gone input's items finds nothing; and an
+ * operator may delete something between observation and execution. (`RemoveInput` alone is no
+ * help: OBS 33 answers success and keeps an input that scene items still show.)
+ */
+function alreadyGone(operation: ObsOperation, code: number): boolean {
+  return operation.phase.startsWith("remove-") && code === RESOURCE_NOT_FOUND;
 }
 
 async function executeOperation(

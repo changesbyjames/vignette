@@ -91,6 +91,28 @@ describe("executeObsPlan", () => {
     expect(obs.requests.map((request) => request.requestType)).toEqual(["CreateSceneItem"]);
   });
 
+  it("counts removing something OBS no longer has as done", async () => {
+    const obs = await connectedObs();
+    const removal: ObsPlan = {
+      show: "show",
+      revision: 4,
+      operations: [
+        {
+          kind: "remove-input",
+          key: "input:remove:gone",
+          phase: "remove-inputs",
+          dependsOn: [],
+          destructive: true,
+          inputUuid: "no-such-input",
+        },
+      ],
+    };
+
+    await expect(executeObsPlan(obs, removal, () => true)).resolves.toEqual({
+      interrupted: false,
+    });
+  });
+
   it("names the operation whose request failed", async () => {
     const obs = await connectedObs();
     obs.fail("SetCurrentProgramScene", new Error("refused"));
