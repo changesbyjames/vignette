@@ -62,6 +62,9 @@ importers:
       '@strangecyan/vignette-moq':
         specifier: workspace:*
         version: link:../../packages/moq
+      '@strangecyan/vignette-motion':
+        specifier: workspace:*
+        version: link:../../packages/motion
       '@tanstack/react-query':
         specifier: 5.105.0
         version: 5.105.0(@types/react@19.2.17)(react@19.2.7)

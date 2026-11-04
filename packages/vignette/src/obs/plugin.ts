@@ -81,8 +81,8 @@ export interface ObsPlacementContext {
   readonly sceneName: string;
   readonly sceneItemId: number;
   readonly source: Source;
-  /** The source's live handle. */
-  readonly handle: ObsHandle;
+  /** The source's live handle; absent on a release after the source left the show. */
+  readonly handle?: ObsHandle;
   /** The item this plugin last placed under the same scene and layer ID, if any. */
   readonly previous?: Item;
   /** The transform the planner would converge for a plain layer: the item's rest state. */
