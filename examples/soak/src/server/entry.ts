@@ -11,7 +11,7 @@ import { streamSSE } from "hono/streaming";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { AssetManifestSchema, compose, toSseEvent } from "vignette";
+import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "vignette";
 import { obsTarget } from "vignette/obs";
 
 import show from "../show.js";
@@ -45,7 +45,9 @@ await composer.ready();
 const app = new Hono();
 app.get("/stream", (context) =>
   streamSSE(context, async (sse) => {
-    for await (const message of composer.stream(context.req.raw.signal)) {
+    // A frame page asks for its one source with `?source=`.
+    const options = streamOptions(context.req.url);
+    for await (const message of composer.stream(context.req.raw.signal, options)) {
       await sse.writeSSE(toSseEvent(message));
     }
   }),
