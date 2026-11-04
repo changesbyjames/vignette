@@ -679,8 +679,10 @@ setup ──▶ fetch missing assets ──▶ verify ──▶ connect ──�
 ```
 
 The cache is a directory keyed by hash, so OBS inputs get local file paths and a show that changes
-one logo re-downloads one file. Entries no longer in the manifest are evicted on the next setup; the
-directory is removed on dispose unless you pinned it.
+one logo re-downloads one file. Entries no longer in the manifest are evicted on the next setup. The
+files OBS loads (assets, and pages such as text sources write) live in `dir`, by default
+`vignette/obs` in the user's cache directory, and stay after the target stops: OBS saves their paths
+in its scene collection and asks for any missing file when it starts.
 
 **Locations come from the stream.** The host published `serve.stream`, `serve.assets` and
 `serve.frames` when it composed; the target reads them from setup. Frame pages are opened at
@@ -690,7 +692,7 @@ networks where OBS reaches the host at a different address than the one publishe
 | Option         | From the stream                 | Local override                                        |
 | -------------- | ------------------------------- | ----------------------------------------------------- |
 | `assets.fetch` | `serve.assets`                  | any function from name and hash to bytes              |
-| `assets.dir`   |                                 | a directory; default is a temp dir removed on dispose |
+| `dir`          |                                 | a directory; default `vignette/obs` in the user cache |
 | `frames`       | `serve.frames` + `serve.stream` | any function from frame name and source ID to a URL   |
 | `sources`      |                                 | plugins for custom source kinds (section 7)           |
 
@@ -882,6 +884,7 @@ converges around it. A rejected `create` is a source-level error in status, not 
 | `inputKinds`     |                 |     | ✓   | input kinds this OBS advertises, so a plugin can choose |
 | `port()`         |                 |     | ✓   | a free local port for plugins that spawn processes      |
 | `request()`      |                 |     | ✓   | one obs-websocket request about the source's own input  |
+| `sourceFile()`   |                 |     | ✓   | a lasting file path for the source, same on every run   |
 | `signal`         | unmount         | ✓   | ✓   | aborts when the target is disposed                      |
 
 ### The built-ins are plugins too

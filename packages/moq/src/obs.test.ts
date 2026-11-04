@@ -28,6 +28,7 @@ function context(inputKinds: readonly string[]): ObsPluginContext {
     assets: { resolve: (name) => Promise.resolve(name) },
     frames: () => "",
     port: () => Promise.resolve(0),
+    sourceFile: (sourceId, extension) => Promise.resolve(`${sourceId}${extension}`),
     request: () => Promise.resolve({}),
   };
 }

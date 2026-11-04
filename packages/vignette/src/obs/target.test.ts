@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -111,6 +113,7 @@ function harness(options: Partial<ObsTargetOptions> = {}): Harness {
     transport: obs,
     clock,
     assets: { fetch: () => Promise.resolve(logoBytes) },
+    dir: mkdtempSync(join(tmpdir(), "vignette-obs-test-")),
     ...options,
   });
   const phases: TargetStatus["phase"][] = [];
@@ -192,8 +195,9 @@ describe("obsTarget", () => {
       .parse(obs.inputs.find((input) => input.inputKind === "image_source")?.inputSettings.file);
     expect(readFileSync(file, "utf8")).toBe("not really a png");
 
+    // The image input OBS saved still finds its file after the target stops.
     await target.dispose();
-    expect(existsSync(file)).toBe(false);
+    expect(readFileSync(file, "utf8")).toBe("not really a png");
   });
 
   it("settles a revision once OBS converges, and fails it when OBS invalidates the session", async () => {
@@ -344,8 +348,9 @@ describe("obsTarget", () => {
     await target.dispose();
   });
 
-  it("renders text as a local page, pushing changes into it and falling back to a new page", async () => {
-    const { obs, target } = harness();
+  it("renders text as a lasting local page, pushing changes into it or reloading it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "vignette-obs-test-"));
+    const { obs, target } = harness({ dir });
     const title = (revision: number, text: string): StreamMessage =>
       update(revision, {
         sources: [
@@ -365,10 +370,13 @@ describe("obsTarget", () => {
       return z.string().parse(input?.inputSettings.local_file);
     };
 
+    const reloads = () => obs.calls("PressInputPropertiesButton").length;
+
     target.apply(setup("show", ["text"]));
     target.apply(title(1, "Fish & <chips>"));
     await until(target, converged(1));
     const first = page();
+    expect(first.startsWith(join(dir, "sources"))).toBe(true);
     const html = readFileSync(first, "utf8");
     expect(html).toContain("Fish &amp; &lt;chips&gt;");
     expect(html).toContain("text-wrap: balance;");
@@ -386,16 +394,27 @@ describe("obsTarget", () => {
       requestData: { event_name: "vignette-text", event_data: { text: "Up next" } },
     });
 
-    // Without obs-browser's events, the change becomes a new page that OBS navigates to.
+    // Without obs-browser's events, OBS reloads the same page, which has the change.
+    await until(target, () => reloads() === 1);
     obs.fail("CallVendorRequest", new Error("No vendor."));
     target.apply(title(3, "Live"));
     await until(target, converged(3));
-    const second = page();
-    expect(second).not.toBe(first);
-    expect(existsSync(first)).toBe(false);
-    expect(readFileSync(second, "utf8")).toContain("Live");
+    expect(page()).toBe(first);
+    expect(readFileSync(first, "utf8")).toContain("Live");
+    expect(reloads()).toBe(2);
+
+    // OBS saved the path in its scene collection, so the page outlives the target, and the
+    // next run of the same show writes the same file.
     await target.dispose();
-    expect(existsSync(second)).toBe(false);
+    expect(readFileSync(first, "utf8")).toContain("Live");
+    const next = harness({ dir });
+    next.target.apply(setup("show", ["text"]));
+    next.target.apply(title(1, "Again"));
+    await until(next.target, converged(1));
+    const input = next.obs.inputs.find((entry) => entry.inputName === "vignette/show/title");
+    expect(input?.inputSettings.local_file).toBe(first);
+    expect(readFileSync(first, "utf8")).toContain("Again");
+    await next.target.dispose();
   });
 
   it("refuses a stream for a different show without touching OBS", async () => {

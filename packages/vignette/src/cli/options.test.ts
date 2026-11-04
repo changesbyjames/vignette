@@ -61,7 +61,7 @@ describe("parseCommandLine", () => {
         "ws://127.0.0.1:4455",
         "--password",
         "secret",
-        "--assets-dir",
+        "--dir",
         "cache",
       ]),
     ).toEqual({
@@ -70,7 +70,7 @@ describe("parseCommandLine", () => {
       obsUrl: "ws://127.0.0.1:4455",
       password: "secret",
       sources: [],
-      assetsDir: "cache",
+      dir: "cache",
     });
   });
 

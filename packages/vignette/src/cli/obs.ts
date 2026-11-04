@@ -13,8 +13,8 @@ export interface RunObsOptions {
   readonly password?: string;
   /** Plugin module specifiers, resolved from the working directory. */
   readonly sources: readonly string[];
-  /** Keeps downloaded assets here instead of a temporary directory. */
-  readonly assetsDir?: string;
+  /** Keeps the files OBS loads here instead of the user's cache directory. */
+  readonly dir?: string;
   /** Runs until this aborts, then disposes the target. */
   readonly signal: AbortSignal;
   /** Internal: how requests reach OBS. Tests pass `FakeObs`. */
@@ -31,7 +31,7 @@ export async function runObs(options: RunObsOptions): Promise<void> {
     url: options.obsUrl,
     password: options.password,
     sources: await loadPlugins([...options.sources], process.cwd()),
-    assets: options.assetsDir === undefined ? undefined : { dir: options.assetsDir },
+    dir: options.dir,
     transport: options.transport,
   });
   let last = "";

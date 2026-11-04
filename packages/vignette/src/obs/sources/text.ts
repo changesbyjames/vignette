@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { extname, join } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { extname } from "node:path";
 
 import {
   cssText,
@@ -23,19 +22,18 @@ const UPDATE_EVENT = "vignette-text";
  * embedded, so OBS needs neither the font installed nor a server. A change is pushed into the
  * open page through obs-browser's `emit_event`, so the page never reloads: a navigation would show
  * an empty frame, most visibly when the change lands with a cut to the text's scene. The page file
- * is rewritten too, for whenever OBS loads it afresh; if OBS cannot be reached, the change goes to
- * a new file instead, which OBS navigates to once it converges.
+ * is rewritten too, for whenever OBS loads it afresh. Its path is the same on every run and the
+ * file is never deleted: OBS saves the path in its scene collection and asks for a missing file
+ * when it starts. A change that cannot be pushed reloads the page, now or when OBS reconnects.
  */
 export const textObs: ObsSourcePlugin<typeof Text> = {
   kind: "text",
   async create(source, context) {
-    const directory = await mkdtemp(join(tmpdir(), "vignette-text-"));
+    const file = await context.sourceFile(source.id, ".html");
     // Every text page hears every event; the token picks out this page's.
     const token = randomUUID();
     let current = source;
     let page = await renderPage(source.props, context);
-    let generation = 0;
-    let file = join(directory, "text-0.html");
     await writeFile(file, pageHtml(page, token));
     return {
       get input() {
@@ -46,7 +44,7 @@ export const textObs: ObsSourcePlugin<typeof Text> = {
         current = next;
         page = await renderPage(next.props, context);
         await writeFile(file, pageHtml(page, token));
-        const pushed = await context
+        await context
           .request(next.id, "CallVendorRequest", {
             vendorName: "obs-browser",
             requestType: "emit_event",
@@ -55,19 +53,13 @@ export const textObs: ObsSourcePlugin<typeof Text> = {
               event_data: pageUpdate(previous, page, token),
             },
           })
-          .then(
-            () => true,
-            () => false,
-          );
-        if (pushed) return;
-        const stale = file;
-        generation += 1;
-        file = join(directory, `text-${String(generation)}.html`);
-        await writeFile(file, pageHtml(page, token));
-        await rm(stale, { force: true });
-      },
-      async dispose() {
-        await rm(directory, { recursive: true, force: true });
+          .catch(() =>
+            // Disconnected, this rejects too; the target reloads text pages once OBS reconnects.
+            context.request(next.id, "PressInputPropertiesButton", {
+              propertyName: "refreshnocache",
+            }),
+          )
+          .catch(() => undefined);
       },
     };
   },
