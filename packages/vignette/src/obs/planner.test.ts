@@ -25,6 +25,8 @@ function item(id: string, sourceId: string, overrides: Partial<Item> = {}): Item
     visible: true,
     opacity: 1,
     rotation: 0,
+    kind: "layer",
+    props: {},
     ...overrides,
   };
 }
@@ -122,6 +124,8 @@ function sceneItem(
       positionX: 0,
       positionY: 0,
       rotation: 0,
+      kind: "layer",
+      props: {},
       alignment: 5,
       boundsType: "OBS_BOUNDS_STRETCH",
       boundsAlignment: 5,

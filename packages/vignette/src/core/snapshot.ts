@@ -220,6 +220,12 @@ export const ItemSchema = z
     visible: z.boolean(),
     opacity: z.number(),
     rotation: z.number(),
+    /**
+     * The layer kind that placed the source (`"layer"` for a plain `<Layer>`) and that kind's
+     * validated props, as JSON; a target's layer plugin for the kind places the item.
+     */
+    kind: z.string().min(1),
+    props: SourcePropsSchema,
   })
   .readonly();
 /** One laid-out layer that places a source. */

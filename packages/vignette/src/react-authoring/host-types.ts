@@ -1,3 +1,4 @@
+import type { LayerDefinition, LayerInput } from "../core/define-layer.js";
 import type { SourceHostProps } from "../core/define-source.js";
 import type { Canvas, LayerProps, LayoutStyle } from "../core/snapshot.js";
 
@@ -20,6 +21,9 @@ export interface SceneHostProps {
 export interface LayerHostProps extends LayerProps {
   readonly id?: string;
   readonly style?: LayoutStyle;
+  /** Set by a `defineLayer` component: the kind and its raw props, validated when lowered. */
+  readonly definition?: LayerDefinition;
+  readonly props?: LayerInput;
 }
 
 /** Props of the `use` host element rendered by `<Use>`. */

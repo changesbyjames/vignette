@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AssetEntry } from "../core/assets.js";
-import type { Snapshot, Source } from "../core/snapshot.js";
+import type { Item, Snapshot, Source } from "../core/snapshot.js";
 import { createAsyncQueue } from "../stream/async-queue.js";
 import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
 import { createAssetStore, type AssetStore } from "./asset-store.js";
@@ -36,7 +36,11 @@ function source(id: string, asset?: string): Source {
   };
 }
 
-function update(revision: number, sources: readonly Source[]): StreamMessage {
+function update(
+  revision: number,
+  sources: readonly Source[],
+  items: readonly Item[] = [],
+): StreamMessage {
   return {
     kind: "update",
     snapshot: {
@@ -44,8 +48,28 @@ function update(revision: number, sources: readonly Source[]): StreamMessage {
       id: "show",
       canvas: { width: 1920, height: 1080 },
       sources,
-      scenes: [{ id: "main", items: [] }],
+      scenes: [{ id: "main", items }],
     },
+  };
+}
+
+/** An item placing `sourceId` through the layer kind `kind`. */
+function item(id: string, sourceId: string, kind: string): Item {
+  const frame = { x: 0, y: 0, width: 10, height: 10 };
+  return {
+    id,
+    sourceId,
+    frame,
+    placement: {
+      destination: frame,
+      sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignment: { horizontal: "center", vertical: "center" },
+    },
+    visible: true,
+    opacity: 1,
+    rotation: 0,
+    kind,
+    props: {},
   };
 }
 
@@ -211,6 +235,29 @@ describe("createTarget", () => {
     target.apply(update(2, [source("a")]));
     await waitFor(() => target.status.phase === "settled" && target.status.sources.a === "live");
     expect(target.status.error).toBeUndefined();
+    await target.dispose();
+  });
+
+  it("fails a revision placing an item through a layer kind without a plugin", async () => {
+    const rendered: number[] = [];
+    const target = createTarget<RecordingHandle>({
+      kind: "test",
+      sources: [recordingPlugin],
+      layers: [{ kind: "motion" }],
+      update(snapshot) {
+        rendered.push(snapshot.revision);
+      },
+    });
+    target.apply(setup());
+    // Plain layers and layer kinds with a plugin render.
+    target.apply(update(1, [source("a")], [item("p", "a", "layer"), item("m", "a", "motion")]));
+    await target.settled(1);
+    target.apply(update(2, [source("a")], [item("s", "a", "spin")]));
+    await expect(target.settled(2)).rejects.toThrow('missing layer plugin for kind "spin"');
+    expect(target.status).toMatchObject({ phase: "error" });
+    // Revision 1 renders (again once its handle arrives); revision 2 never reaches the medium.
+    expect(rendered).not.toContain(2);
+    expect(rendered).toContain(1);
     await target.dispose();
   });
 

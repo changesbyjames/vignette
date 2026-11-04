@@ -12,6 +12,7 @@ import {
 
 import type { AssetEntry } from "../core/assets.js";
 import type { Snapshot, Source } from "../core/snapshot.js";
+import { PLAIN_LAYER_KIND } from "../core/define-layer.js";
 import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
 import type { TargetHandle } from "./kernel.js";
 import type { SourceStatus, TargetAssetProgress, TargetConnection } from "./status.js";
@@ -26,6 +27,12 @@ export interface KernelInput {
    * of a kind with no plugin fails alone, as its `create` does.
    */
   readonly plugins?: ReadonlySet<string>;
+  /**
+   * The layer kinds the target has plugins for, checked alongside {@link plugins}: a snapshot
+   * placing an item of any other kind (other than the plain `"layer"`) fails its revision the
+   * same way. Ignored without `plugins`.
+   */
+  readonly layers?: ReadonlySet<string>;
 }
 
 /** One source's plugin handle, by source ID. */
@@ -546,15 +553,25 @@ function liveHandles<Handle>(handles: ReadonlyMap<string, HandleEntry<Handle>>):
   return liveEntries(handles).map(([, handle]) => handle);
 }
 
-/** Why the pending snapshot cannot be rendered: kinds it uses that no plugin renders. */
+/** Why the pending snapshot cannot be rendered: source and layer kinds no plugin renders. */
 function unrenderable<Handle>(context: KernelContext<Handle>): Error | undefined {
   const { pending, input } = context;
   if (pending === undefined || input.plugins === undefined) return undefined;
-  const absent = [...new Set(pending.sources.map((source) => source.kind))]
+  const sources = [...new Set(pending.sources.map((source) => source.kind))]
     .filter((kind) => input.plugins?.has(kind) !== true)
     .sort();
-  if (absent.length === 0) return undefined;
-  return new Error(absent.map((kind) => `missing source plugin for kind "${kind}"`).join("; "));
+  const layers = [
+    ...new Set(pending.scenes.flatMap((scene) => scene.items.map((item) => item.kind))),
+  ]
+    .filter((kind) => kind !== PLAIN_LAYER_KIND && input.layers?.has(kind) !== true)
+    .sort();
+  if (sources.length === 0 && layers.length === 0) return undefined;
+  return new Error(
+    [
+      ...sources.map((kind) => `missing source plugin for kind "${kind}"`),
+      ...layers.map((kind) => `missing layer plugin for kind "${kind}"`),
+    ].join("; "),
+  );
 }
 
 function assetCount<Handle>(context: KernelContext<Handle>): number {

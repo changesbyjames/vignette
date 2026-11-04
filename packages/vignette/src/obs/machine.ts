@@ -9,7 +9,7 @@ import {
   type EventObject,
 } from "xstate";
 
-import type { Snapshot } from "../core/snapshot.js";
+import type { Item, Snapshot } from "../core/snapshot.js";
 import { asError } from "../target/kernel-machine.js";
 import { ObsPreflightError, readObsErrorCode } from "./errors.js";
 import type { ObservedObsState } from "./observed-state.js";
@@ -27,6 +27,10 @@ export const NOT_READY = 207;
 export interface ObsDesired {
   readonly snapshot: Snapshot;
   readonly handles: ReadonlyMap<string, ObsHandle>;
+  /** Layer kinds with a plugin, whose items are handed over rather than transformed. */
+  readonly layers?: ReadonlySet<string>;
+  /** What each handed-over placement was last placed with; the target's placement runner keeps it. */
+  readonly placed?: ReadonlyMap<string, Item>;
 }
 
 /** Fixed at creation. */
@@ -151,7 +155,7 @@ export const obsMachine = setup({
       error: ({ event }) => asError("error" in event ? event.error : undefined, "OBS failed."),
     }),
     plan: assign({
-      result: ({ context: { desired, observed, settledActiveScene } }) =>
+      result: ({ context: { desired, observed, settledActiveScene, outcome } }) =>
         desired === undefined || observed === undefined
           ? missing()
           : planObsUpdate({
@@ -159,6 +163,9 @@ export const obsMachine = setup({
               handles: desired.handles,
               observed,
               settledActiveScene,
+              layers: desired.layers,
+              placed: desired.placed,
+              previous: outcome?.desired.snapshot,
             }),
     }),
   },
@@ -169,7 +176,12 @@ export const obsMachine = setup({
   on: {
     apply: {
       actions: assign({
-        desired: ({ event: { snapshot, handles } }) => ({ snapshot, handles }),
+        desired: ({ event: { snapshot, handles, layers, placed } }) => ({
+          snapshot,
+          handles,
+          layers,
+          placed,
+        }),
         show: ({ context, event }) => context.show ?? event.snapshot.id,
       }),
     },

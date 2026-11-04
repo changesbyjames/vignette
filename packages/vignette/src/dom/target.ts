@@ -1,7 +1,7 @@
 import type { Item, Snapshot, SnapshotScene, Source } from "../core/snapshot.js";
 import { createTarget, type Target } from "../target/kernel.js";
 import { objectUrlAssetStore } from "./asset-store.js";
-import type { DomHandle, DomPluginContext, DomSourcePlugin } from "./plugin.js";
+import type { DomHandle, DomLayerPlugin, DomPluginContext, DomSourcePlugin } from "./plugin.js";
 import { applyContentPlacement } from "./placement.js";
 import { browserDom } from "./sources/browser.js";
 import { colorDom } from "./sources/color.js";
@@ -18,6 +18,8 @@ export interface DomTargetOptions {
   readonly scene?: string;
   /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
   readonly sources?: readonly DomSourcePlugin[];
+  /** Plugins for layer kinds; a plain `<Layer>` needs none. Later entries win per kind. */
+  readonly layers?: readonly DomLayerPlugin[];
   /** Registers the built-in color, image, video, browser, frame and text plugins. Default `true`. */
   readonly builtins?: boolean;
 }
@@ -41,10 +43,12 @@ const BUILTIN_PLUGINS: readonly DomSourcePlugin[] = [
  */
 export function domTarget(container: HTMLElement, options: DomTargetOptions = {}): Target {
   const document = container.ownerDocument;
-  const renderer = createSceneRenderer(container, options.scene);
+  const layers = new Map((options.layers ?? []).map((plugin) => [plugin.kind, plugin]));
+  const renderer = createSceneRenderer(container, options.scene, layers);
   return createTarget<DomHandle, DomPluginContext>({
     kind: "dom",
     sources: [...(options.builtins === false ? [] : BUILTIN_PLUGINS), ...(options.sources ?? [])],
+    layers: [...layers.values()],
     assets: objectUrlAssetStore(),
     context: (base) => ({ ...base, document }),
     update: renderer.update,
@@ -57,6 +61,8 @@ interface LayerRecord {
   readonly wrapper: HTMLDivElement;
   readonly content: HTMLDivElement;
   sourceId: string;
+  /** The item last placed, for layer plugins. */
+  item?: Item;
 }
 
 /** Renders snapshots into the stage. */
@@ -65,7 +71,11 @@ interface SceneRenderer {
   readonly dispose: () => void;
 }
 
-function createSceneRenderer(container: HTMLElement, sceneId: string | undefined): SceneRenderer {
+function createSceneRenderer(
+  container: HTMLElement,
+  sceneId: string | undefined,
+  layerPlugins: ReadonlyMap<string, DomLayerPlugin>,
+): SceneRenderer {
   const document = container.ownerDocument;
   const stage = new DomStage(container);
   const parking = document.createElement("div");
@@ -80,6 +90,8 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
   });
   stage.viewport.append(parking);
   let layers = new Map<string, LayerRecord>();
+  /** Boxes a layer plugin is still releasing; a returning item takes its box back. */
+  const leaving = new Map<string, LayerRecord>();
   let shown = new Set<string>();
 
   /**
@@ -97,9 +109,9 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
     const placed = new Set<string>();
     const sources = new Map(snapshot.sources.map((source) => [source.id, source]));
     for (const [order, item] of (scene?.items ?? []).entries()) {
-      const record = takeLayer(stale, item, document);
+      const record = takeLayer(stale, leaving, item, document);
       next.set(item.id, record);
-      placeLayer(stage.stage, record, item, order);
+      placeItem(record, item, order);
       removeDisposed(record.content, live);
       const shows = placeContent(
         record,
@@ -110,12 +122,39 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
       if (shows) placed.add(item.sourceId);
     }
     park(next, handles, live);
-    for (const record of stale.values()) record.wrapper.remove();
+    for (const [id, record] of stale) release(id, record);
     layers = next;
     for (const id of placed) {
       if (!shown.has(id)) handles.get(id)?.activate?.();
     }
     shown = placed;
+  }
+
+  /** Puts the item's box on the stage: the kind's plugin places it, else the stage does. */
+  function placeItem(record: LayerRecord, item: Item, order: number): void {
+    const plugin = layerPlugins.get(item.kind);
+    if (plugin === undefined) placeLayer(stage.stage, record, item, order);
+    else {
+      attachLayer(stage.stage, record, item);
+      plugin.place(item, { box: record.wrapper, order, previous: record.item });
+    }
+    record.item = item;
+  }
+
+  /** Removes a gone layer's box, after its layer plugin (if any) has released it. */
+  function release(id: string, record: LayerRecord): void {
+    const plugin = record.item === undefined ? undefined : layerPlugins.get(record.item.kind);
+    if (plugin === undefined || record.item === undefined) {
+      record.wrapper.remove();
+      return;
+    }
+    leaving.set(id, record);
+    void plugin.remove(record.item, { box: record.wrapper, order: 0 }).then(() => {
+      // The item may have come back and taken its box meanwhile.
+      if (leaving.get(id) !== record) return;
+      leaving.delete(id);
+      record.wrapper.remove();
+    });
   }
 
   /** Moves every handle the shown scene does not place into the hidden parking container. */
@@ -125,7 +164,9 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
     live: ReadonlySet<Element>,
   ): void {
     for (const [id, handle] of handles) {
-      if (!isPlaced(placedLayers, id, handle)) moveInto(parking, handle.element);
+      if (!isPlaced(placedLayers, id, handle) && !isPlaced(leaving, id, handle)) {
+        moveInto(parking, handle.element);
+      }
     }
     removeDisposed(parking, live);
   }
@@ -163,9 +204,15 @@ function selectScene(snapshot: Snapshot, sceneId: string | undefined): SnapshotS
 }
 
 /** The item's own wrapper, else a gone layer's wrapper holding its source, else a new one. */
-function takeLayer(stale: Map<string, LayerRecord>, item: Item, document: Document): LayerRecord {
-  const own = stale.get(item.id);
+function takeLayer(
+  stale: Map<string, LayerRecord>,
+  leaving: Map<string, LayerRecord>,
+  item: Item,
+  document: Document,
+): LayerRecord {
+  const own = stale.get(item.id) ?? leaving.get(item.id);
   stale.delete(item.id);
+  leaving.delete(item.id);
   return own ?? adopt(stale, item.sourceId) ?? createLayer(document);
 }
 
@@ -189,9 +236,14 @@ function createLayer(document: Document): LayerRecord {
 }
 
 function placeLayer(stage: HTMLElement, record: LayerRecord, item: Item, order: number): void {
-  record.sourceId = item.sourceId;
   applyItemFrame(record.wrapper, item);
   record.wrapper.style.zIndex = String(order);
+  attachLayer(stage, record, item);
+}
+
+/** Labels the box with its item and puts it on the stage; the frame is set separately. */
+function attachLayer(stage: HTMLElement, record: LayerRecord, item: Item): void {
+  record.sourceId = item.sourceId;
   record.wrapper.dataset.vignetteLayer = item.id;
   record.wrapper.dataset.vignetteSource = item.sourceId;
   if (record.wrapper.parentNode !== stage) stage.append(record.wrapper);

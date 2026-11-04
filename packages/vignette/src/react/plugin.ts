@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
+import type { ItemOf } from "../core/define-layer.js";
 import type { Item } from "../core/snapshot.js";
-import type { SourceOf, SourcePluginBase } from "../target/plugins.js";
+import type { LayerPluginBase, SourceOf, SourcePluginBase } from "../target/plugins.js";
 
 /** What a source's `View` receives: the source, typed by its kind, and the item placing it. */
 export interface ReactSourceViewProps<Def = unknown> {
@@ -29,3 +30,26 @@ interface SourceViewSignature<Def> {
  * to the `ReactSourcePlugin` that `<Stream sources>` takes.
  */
 type SourceView<Def> = SourceViewSignature<Def>["View"];
+
+/** What a layer kind's `Place` receives: the item, its stacking order, and the item's content. */
+export interface ReactPlaceProps<Def = unknown> {
+  readonly item: ItemOf<Def>;
+  readonly order: number;
+  readonly children: ReactNode;
+}
+
+/**
+ * Places items of one layer kind in `@strangecyan/vignette/react`. `Place` renders the item's box
+ * where the stage would render a plain layer's; it owns the frame, visibility and opacity.
+ * `Presence`, when given, wraps a scene's items so a removed item can play an exit before it
+ * unmounts (e.g. Motion's `AnimatePresence`).
+ */
+export interface ReactLayerPlugin<Def = unknown> extends LayerPluginBase {
+  readonly Place: (props: ReactPlaceProps<Def>) => ReactNode;
+  readonly Presence?: (props: ReactPresenceProps) => ReactNode;
+}
+
+/** What a layer kind's `Presence` receives: a scene's item boxes. */
+export interface ReactPresenceProps {
+  readonly children: ReactNode;
+}
