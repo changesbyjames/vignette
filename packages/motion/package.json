@@ -32,6 +32,10 @@
     "./obs": {
       "types": "./dist/obs.d.ts",
       "default": "./dist/obs.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
     }
   },
   "scripts": {
@@ -44,8 +48,8 @@
     "zod": "4.6.5"
   },
   "peerDependencies": {
-    "react": "^19.2.0",
-    "@strangecyan/vignette": "^1.0.0"
+    "@strangecyan/vignette": "^1.0.0",
+    "react": "^19.2.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -53,8 +57,10 @@
     }
   },
   "devDependencies": {
+    "@strangecyan/vignette": "workspace:*",
     "@types/react": "19.2.17",
     "react": "19.2.7",
-    "@strangecyan/vignette": "workspace:*"
+    "wasmoon": "1.16.0",
+    "@types/node": "26.1.1"
   }
 }
