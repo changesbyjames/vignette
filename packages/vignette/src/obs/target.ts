@@ -462,18 +462,20 @@ function createPlacementRunner(options: PlacementRunnerOptions): ObsPlacementRun
   const { actor, transport, layerPlugins, placed, dir, signal } = options;
   const loads = new Map<string, Promise<void>>();
 
-  // Every lookup can miss only while the machine is between snapshots; then nothing is placed.
+  // A released item's source may have left the show: it is then found in the last settled
+  // snapshot, and its handle is gone. Lookups miss only between snapshots; then nothing is placed.
   function placement(item: Item, sceneId: string, sceneItemId: number): Placement {
     const plugin = layerPlugins.get(item.kind);
-    const { desired, show } = actor.getSnapshot().context;
-    const source = desired?.snapshot.sources.find((candidate) => candidate.id === item.sourceId);
+    const { desired, outcome, show } = actor.getSnapshot().context;
+    const isSource = (candidate: Source) => candidate.id === item.sourceId;
+    const source =
+      desired?.snapshot.sources.find(isSource) ?? outcome?.desired.snapshot.sources.find(isSource);
     const handle = desired?.handles.get(item.sourceId);
     if (
       plugin === undefined ||
       desired === undefined ||
       show === undefined ||
-      source === undefined ||
-      handle === undefined
+      source === undefined
     ) {
       throw new Error(`Layer '${item.id}' of kind '${item.kind}' cannot be placed.`);
     }

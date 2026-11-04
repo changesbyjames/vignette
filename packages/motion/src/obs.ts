@@ -252,9 +252,21 @@ async function ensureLoader(dir: string): Promise<void> {
   if (current !== LOADER_LUA) await writeFile(path, LOADER_LUA);
 }
 
+/**
+ * Writes the file in one step. The loader reads it every frame, and on Windows a file being read
+ * cannot be replaced, so the rename is retried for a few frames.
+ */
 async function writeAtomic(path: string, text: string): Promise<void> {
   await writeFile(`${path}.tmp`, text);
-  await rename(`${path}.tmp`, path);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rename(`${path}.tmp`, path);
+      return;
+    } catch (error) {
+      if (attempt >= 50) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 4));
+    }
+  }
 }
 
 /** What the loader writes to `state.json`. */
