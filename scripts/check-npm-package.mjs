@@ -52,6 +52,8 @@ if (!process.argv.includes("--skip-dry-run")) {
   execFileSync("pnpm", ["publish", "--dry-run", "--no-git-checks"], {
     cwd: resolve(root, directory),
     stdio: "inherit",
+    // Windows runs `pnpm.cmd`, which only a shell can start.
+    shell: process.platform === "win32",
   });
   // The dry run builds the package (prepack), so every exported file must now exist.
   for (const [subpath, conditions] of Object.entries(manifest.exports)) {

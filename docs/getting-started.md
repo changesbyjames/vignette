@@ -12,9 +12,9 @@ pnpm add -D playwright            # vignette preview only
 A host that only composes and drives OBS needs `vignette` and `react` alone.
 
 ```sh
-corepack pnpm install
-corepack pnpm build
-corepack pnpm test
+pnpm install
+pnpm build
+pnpm test
 ```
 
 ## Examples
@@ -25,7 +25,7 @@ corepack pnpm test
   [README](../examples/kitchen-sink/README.md).
 
 ```sh
-corepack pnpm --filter @vignette/kitchen-sink start   # after pnpm build; http://127.0.0.1:3000
+pnpm --filter @vignette/kitchen-sink start   # after pnpm build; http://127.0.0.1:3000
 ```
 
 ## Checks
@@ -41,7 +41,7 @@ VIGNETTE_ALLOW_INTEGRATION=1 \
 VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
 VIGNETTE_OBS_PASSWORD='runtime-only' \
 VIGNETTE_OBS_TEST_COLLECTION='Vignette Tests' \
-corepack pnpm test:obs-integration
+pnpm test:obs-integration
 ```
 
 See [`obs-safety.md`](obs-safety.md) for what it may touch.

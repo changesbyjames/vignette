@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: {
     // The kitchen sink's production server: the built show, its bundle and the preview app.
     // Run `pnpm build` first (`pnpm ready` does).
-    command: "corepack pnpm --filter @vignette/kitchen-sink start",
+    command: "pnpm --filter @vignette/kitchen-sink start",
     env: { PORT: String(port) },
     url: baseURL,
     reuseExistingServer: false,

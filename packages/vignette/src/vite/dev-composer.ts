@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 
 import {
   createElement,
@@ -158,7 +158,9 @@ class DevComposerImpl implements DevComposer {
     return true;
   }
 
-  fileChanged(file: string): void {
+  fileChanged(changed: string): void {
+    // Watchers report native paths; Vite's module graphs key files by `/`-separated paths.
+    const file = sep === "\\" ? changed.replaceAll("\\", "/") : changed;
     // Vite invalidates its own transform cache only after awaiting plugin hooks; do it first so
     // the reload below never re-imports the stale transform.
     this.server.environments.ssr.moduleGraph.onFileChange(file);
