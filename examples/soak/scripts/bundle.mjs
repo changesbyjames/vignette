@@ -1,5 +1,5 @@
 // Bundle the frames and assets the show uses into public/vignette, as the kitchen sink does.
-import { bundle } from "vignette/bundle";
+import { bundle } from "@strangecyan/vignette/bundle";
 
 const result = await bundle("src/show.tsx", { out: "public/vignette" });
 console.log(

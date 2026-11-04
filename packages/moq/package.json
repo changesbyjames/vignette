@@ -48,7 +48,7 @@
   },
   "peerDependencies": {
     "react": "^19.2.0",
-    "vignette": "^0.5.1"
+    "@strangecyan/vignette": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -62,6 +62,6 @@
     "jsdom": "29.1.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "vignette": "workspace:*"
+    "@strangecyan/vignette": "workspace:*"
   }
 }

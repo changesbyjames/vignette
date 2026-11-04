@@ -16,12 +16,12 @@ afterAll(async () => {
   await Promise.all(directories.map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-/** A show project in a temp folder that resolves `vignette` and React like an installed one. */
+/** A show project in a temp folder that resolves `@strangecyan/vignette` and React like an installed one. */
 async function createProject(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "vignette-bundle-"));
   directories.push(dir);
-  await mkdir(join(dir, "node_modules"));
-  await symlink(packageRoot, join(dir, "node_modules", "vignette"), "dir");
+  await mkdir(join(dir, "node_modules", "@strangecyan"), { recursive: true });
+  await symlink(packageRoot, join(dir, "node_modules", "@strangecyan", "vignette"), "dir");
   for (const name of ["react", "react-dom"])
     await symlink(join(packageRoot, "node_modules", name), join(dir, "node_modules", name), "dir");
   await mkdir(join(dir, "assets"));
@@ -29,7 +29,7 @@ async function createProject(): Promise<string> {
   await writeFile(join(dir, "show.tsx"), "export default null;\n");
   await writeFile(
     join(dir, "x.frame.tsx"),
-    `import { frame } from "vignette/frame";
+    `import { frame } from "@strangecyan/vignette/frame";
 export const X = frame({ name: "XFrameName", view: () => <div>x</div> });
 `,
   );
@@ -37,7 +37,7 @@ export const X = frame({ name: "XFrameName", view: () => <div>x</div> });
 }
 
 describe("bundle", () => {
-  // Builds `vignette/frame` from `dist`, so `pnpm build` must have run.
+  // Builds `@strangecyan/vignette/frame` from `dist`, so `pnpm build` must have run.
   it("writes the assets, their manifest, frames.html and frames.js", async () => {
     const dir = await createProject();
     const out = join(dir, "public", "vignette");

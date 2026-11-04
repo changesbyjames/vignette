@@ -1,5 +1,5 @@
 /**
- * The `moq` kind for `vignette/obs`. An OBS with the MoQ plugin gets its native `moq_source` input.
+ * The `moq` kind for `@strangecyan/vignette/obs`. An OBS with the MoQ plugin gets its native `moq_source` input.
  * Any other OBS gets a stock media source (`ffmpeg_source`) playing RTMP from a local
  * [`moq`](https://github.com/moq-dev/moq) CLI that subscribes to the broadcast and serves it.
  *
@@ -14,7 +14,12 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { connect } from "node:net";
 import process from "node:process";
-import type { ObsHandle, ObsInput, ObsPluginContext, ObsSourcePlugin } from "vignette/obs";
+import type {
+  ObsHandle,
+  ObsInput,
+  ObsPluginContext,
+  ObsSourcePlugin,
+} from "@strangecyan/vignette/obs";
 
 import type { Moq } from "./index.js";
 

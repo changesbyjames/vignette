@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { ContentSizeSchema, defineSource } from "vignette";
+import { ContentSizeSchema, defineSource } from "@strangecyan/vignette";
 import { z } from "zod";
 
 /**

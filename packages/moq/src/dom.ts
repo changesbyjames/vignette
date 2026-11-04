@@ -1,5 +1,5 @@
 /**
- * The `moq` kind for `vignette/dom`: a `<moq-watch>` element from `@moq/watch`.
+ * The `moq` kind for `@strangecyan/vignette/dom`: a `<moq-watch>` element from `@moq/watch`.
  *
  * ```ts
  * domTarget(element, { sources: [moqDom] });
@@ -7,7 +7,7 @@
  *
  * @module
  */
-import type { DomSourcePlugin } from "vignette/dom";
+import type { DomSourcePlugin } from "@strangecyan/vignette/dom";
 
 import type { Moq } from "./index.js";
 import {

@@ -1,6 +1,6 @@
 {
-  "name": "vignette",
-  "version": "0.5.1",
+  "name": "@strangecyan/vignette",
+  "version": "1.0.0",
   "description": "Describe a broadcast scene in React. Render it in the browser and in OBS from the same code.",
   "license": "MIT",
   "repository": {

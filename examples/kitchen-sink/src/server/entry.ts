@@ -10,8 +10,8 @@ import { streamSSE } from "hono/streaming";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "vignette";
-import { obsTarget } from "vignette/obs";
+import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
+import { obsTarget } from "@strangecyan/vignette/obs";
 
 import show from "../show.js";
 

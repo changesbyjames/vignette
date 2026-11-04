@@ -19,25 +19,26 @@ afterAll(async () => {
   await Promise.all(directories.map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-/** A show with one frame and one asset, in a temp project resolving `vignette` like an install. */
+/** A show with one frame and one asset, in a temp project resolving `@strangecyan/vignette` like an install. */
 async function createProject(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "vignette-build-"));
   directories.push(dir);
-  await mkdir(join(dir, "node_modules", "@tanstack"), { recursive: true });
-  await symlink(packageRoot, join(dir, "node_modules", "vignette"), "dir");
+  for (const scope of ["@strangecyan", "@tanstack"])
+    await mkdir(join(dir, "node_modules", scope), { recursive: true });
+  await symlink(packageRoot, join(dir, "node_modules", "@strangecyan", "vignette"), "dir");
   for (const name of ["react", "react-dom", "@tanstack/react-query"])
     await symlink(join(packageRoot, "node_modules", name), join(dir, "node_modules", name), "dir");
   await mkdir(join(dir, "assets"));
   await writeFile(join(dir, "assets", "logo.png"), "logo");
   await writeFile(
     join(dir, "score.frame.tsx"),
-    `import { frame } from "vignette/frame";
+    `import { frame } from "@strangecyan/vignette/frame";
 export const Score = frame({ name: "Score", view: () => <div>score</div> });
 `,
   );
   await writeFile(
     join(dir, "show.tsx"),
-    `import { Frame, Image, Layer, Scene, Show } from "vignette";
+    `import { Frame, Image, Layer, Scene, Show } from "@strangecyan/vignette";
 import { Score } from "./score.frame.js";
 
 export default (
@@ -94,7 +95,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("runBuild", () => {
-  // Builds `vignette` from `dist`, so `pnpm build` must have run.
+  // Builds `@strangecyan/vignette` from `dist`, so `pnpm build` must have run.
   it("writes a server that streams the show and serves the bundle", async () => {
     // Build, check the files, then run server.js and read its stream and files over HTTP.
     const dir = await createProject();

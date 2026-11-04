@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { fromSse, type StreamMessage } from "vignette";
+import { fromSse, type StreamMessage } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);

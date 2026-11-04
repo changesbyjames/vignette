@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const directory = "packages/vignette";
-const name = "vignette";
+const name = "@strangecyan/vignette";
 const repository = "git+https://github.com/changesbyjames/vignette.git";
 const expectedExports = [
   ".",

@@ -12,7 +12,7 @@ it does not run.
 | `@vignette/moq/obs`   | `moqObs`  | `obsTarget({ sources: [moqObs] })`, or `--source @vignette/moq/obs` |
 
 ```tsx
-import { Layer, Scene, Show, Use } from "vignette";
+import { Layer, Scene, Show, Use } from "@strangecyan/vignette";
 import { Moq } from "@vignette/moq";
 
 export default (

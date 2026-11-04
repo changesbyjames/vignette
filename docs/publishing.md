@@ -1,12 +1,12 @@
 # Publishing to npm
 
-One package is published: `vignette`, from `packages/vignette`, as compiled ESM and declarations
-from `dist` plus the vendored Yoga wasm. Its `package.json` is the publication contract.
-`@vignette/moq` and the examples are not published by the release workflow.
+One package is published: `@strangecyan/vignette`, from `packages/vignette`, as compiled ESM and
+declarations from `dist` plus the vendored Yoga wasm. Its `package.json` is the publication
+contract. `@vignette/moq` and the examples are not published by the release workflow.
 
 ## Trusted publishing
 
-`vignette` on npm must trust this GitHub Actions publisher:
+`@strangecyan/vignette` on npm must trust this GitHub Actions publisher:
 
 - Organization or user: `changesbyjames`
 - Repository: `vignette`

@@ -1,6 +1,6 @@
 import { Moq } from "@vignette/moq";
 import { useEffect, useState, type ReactElement } from "react";
-import { Color, Frame, Image, Layer, Scene, Show, Text, Use } from "vignette";
+import { Color, Frame, Image, Layer, Scene, Show, Text, Use } from "@strangecyan/vignette";
 
 import { Clock } from "./clock.frame.js";
 import { Label } from "./label.frame.js";

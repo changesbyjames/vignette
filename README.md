@@ -3,7 +3,7 @@
 Describe a broadcast scene in React. Render it in the browser and in OBS from the same code.
 
 ```tsx
-import { Show, Scene, Layer, Color, Image, Browser } from "vignette";
+import { Show, Scene, Layer, Color, Image, Browser } from "@strangecyan/vignette";
 
 export default (
   <Show id="weekly" canvas={{ width: 1920, height: 1080 }}>
@@ -48,27 +48,28 @@ The composer never knows what targets exist. Targets never know what React is.
 ## 1. Project setup
 
 ```sh
-pnpm add vignette react react-dom @tanstack/react-query
+pnpm add @strangecyan/vignette react react-dom @tanstack/react-query
 pnpm add -D vite                  # for vignette dev, build and bundle
 ```
 
-A host that only composes and drives OBS needs `vignette` and `react` alone. `react-dom` and
-`@tanstack/react-query` are for frames and browser clients; `vite` (for `dev`, `build` and `bundle`)
-and `playwright` (for `preview`) are optional peers, loaded only by the commands that use them.
+A host that only composes and drives OBS needs `@strangecyan/vignette` and `react` alone.
+`react-dom` and `@tanstack/react-query` are for frames and browser clients; `vite` (for `dev`,
+`build` and `bundle`) and `playwright` (for `preview`) are optional peers, loaded only by the
+commands that use them.
 
 One package, Node 22 or newer. Subpath exports keep each environment's code separate:
 
-| Import                 | Contents                                                                                                        | Runs in                            |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `vignette`             | show primitives, `compose`, `defineSource`, snapshot types, `createTarget`, `toSseEvent`, `fromSse`, `loadYoga` | Node, Bun, Deno, Workers, Electron |
-| `vignette/react`       | `Stream`, `Stage`, hooks, the built-in views (`ColorView`, …); needs `@tanstack/react-query`                    | browsers                           |
-| `vignette/dom`         | `domTarget` for pages without React, the built-in plugins (`colorDom`, …)                                       | browsers                           |
-| `vignette/obs`         | `obsTarget`, the built-in plugins (`colorObs`, …)                                                               | Node, Bun, Electron main           |
-| `vignette/obs/testing` | `FakeObs` and `ManualClock`, for testing OBS plugins and hosts                                                  | Node                               |
-| `vignette/frame`       | `frame`, for shows to import                                                                                    | Node and browsers                  |
-| `vignette/frame/mount` | `mountFrames`, the frame page's entry; `bundle` imports it                                                      | browsers                           |
-| `vignette/bundle`      | `bundle()`: frames page, frame bundle, hashed assets; `scanAssets`                                              | Node                               |
-| `vignette/vite`        | Vite plugin, for frontends that already use Vite                                                                | Node                               |
+| Import                              | Contents                                                                                                        | Runs in                            |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `@strangecyan/vignette`             | show primitives, `compose`, `defineSource`, snapshot types, `createTarget`, `toSseEvent`, `fromSse`, `loadYoga` | Node, Bun, Deno, Workers, Electron |
+| `@strangecyan/vignette/react`       | `Stream`, `Stage`, hooks, the built-in views (`ColorView`, …); needs `@tanstack/react-query`                    | browsers                           |
+| `@strangecyan/vignette/dom`         | `domTarget` for pages without React, the built-in plugins (`colorDom`, …)                                       | browsers                           |
+| `@strangecyan/vignette/obs`         | `obsTarget`, the built-in plugins (`colorObs`, …)                                                               | Node, Bun, Electron main           |
+| `@strangecyan/vignette/obs/testing` | `FakeObs` and `ManualClock`, for testing OBS plugins and hosts                                                  | Node                               |
+| `@strangecyan/vignette/frame`       | `frame`, for shows to import                                                                                    | Node and browsers                  |
+| `@strangecyan/vignette/frame/mount` | `mountFrames`, the frame page's entry; `bundle` imports it                                                      | browsers                           |
+| `@strangecyan/vignette/bundle`      | `bundle()`: frames page, frame bundle, hashed assets; `scanAssets`                                              | Node                               |
+| `@strangecyan/vignette/vite`        | Vite plugin, for frontends that already use Vite                                                                | Node                               |
 
 A minimal project:
 
@@ -81,8 +82,8 @@ my-show/
 ```
 
 No config file is needed for `vignette dev` and `vignette build`. One copy of React must be shared
-between the show and `vignette`; most bundlers do this by default, and `dedupe: ["react"]` fixes the
-ones that do not.
+between the show and `@strangecyan/vignette`; most bundlers do this by default, and
+`dedupe: ["react"]` fixes the ones that do not.
 
 ---
 
@@ -304,7 +305,7 @@ page, so they can animate and hold their own state.
 ```tsx
 // scoreboard.frame.tsx
 import { z } from "zod";
-import { frame } from "vignette/frame";
+import { frame } from "@strangecyan/vignette/frame";
 
 export const Scoreboard = frame({
   name: "Scoreboard",
@@ -385,9 +386,10 @@ node dist/server.js                 # serves the preview at /, /stream, and publ
 ```
 
 `dist/show.js` is the show compiled for Node; `dist/public/` is what `bundle` writes plus the
-preview page. Keep `dist` inside the project: both scripts import `vignette` and React from its
-`node_modules`. `PORT` and `HOST` choose where it listens, and `PUBLIC_ORIGIN` is the address the
-stream publishes, which must be set when OBS reaches the server through a proxy or another name.
+preview page. Keep `dist` inside the project: both scripts import `@strangecyan/vignette` and React
+from its `node_modules`. `PORT` and `HOST` choose where it listens, and `PUBLIC_ORIGIN` is the
+address the stream publishes, which must be set when OBS reaches the server through a proxy or
+another name.
 
 Then on the machine with OBS:
 
@@ -427,15 +429,15 @@ public/vignette/
 Serve that directory statically from anywhere: your server, a CDN, an S3 bucket. Nothing in it knows
 where it will be hosted or where the stream is. `bundle` compiles frames with Vite, so it needs
 `vite` installed. The same thing is available as a function for build scripts,
-`bundle(showPath, { out })` from `vignette/bundle`. If your frontend already uses Vite,
-`vignette({ show })` from `vignette/vite` composes the show inside `vite dev` and serves its stream,
-frame page and assets there; production builds still run `bundle`.
+`bundle(showPath, { out })` from `@strangecyan/vignette/bundle`. If your frontend already uses Vite,
+`vignette({ show })` from `@strangecyan/vignette/vite` composes the show inside `vite dev` and
+serves its stream, frame page and assets there; production builds still run `bundle`.
 
 **Step 3. Run the composer** in your process and tell it where things will be served: step 2's
 output, and the stream itself.
 
 ```ts
-import { compose } from "vignette";
+import { compose } from "@strangecyan/vignette";
 import manifest from "./public/vignette/assets.json" with { type: "json" };
 import show from "./show.js";
 
@@ -452,7 +454,7 @@ await composer.ready();
 
 | Option    | Purpose                                                                                                                                                                                                                                                                                              |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `assets`  | the manifest from `bundle`, or `scanAssets(dir)` from `vignette/bundle` at startup if you skipped bundling assets. Required if the show uses an `Image` or `Video`; a name missing from it is a compile diagnostic                                                                                   |
+| `assets`  | the manifest from `bundle`, or `scanAssets(dir)` from `@strangecyan/vignette/bundle` at startup if you skipped bundling assets. Required if the show uses an `Image` or `Video`; a name missing from it is a compile diagnostic                                                                      |
 | `serve`   | absolute URLs where the stream, assets and `frames.html` are served. Published in the stream's setup message so targets need no local configuration. `stream` and `frames` are required if the show uses a `Frame`, `assets` if it uses an `Image` or `Video`; a missing one is a compile diagnostic |
 | `layout`  | a layout engine from `loadYoga(wasm)`, for hosts that cannot compile wasm at runtime (see below)                                                                                                                                                                                                     |
 | `onError` | render and compile errors; also available as `status`                                                                                                                                                                                                                                                |
@@ -487,12 +489,13 @@ reads all three locations from the stream and opens
 `frames.html?frame=Scoreboard&source=<id>&stream=<serve.stream>`; the page connects to that stream,
 finds its source, and renders. The static files never learn where they live.
 
-What the library needs from the host: `vignette` needs ES2023, `react` and WebAssembly. Yoga ships
-embedded and is compiled when the composer first lays out; a host that cannot compile wasm at
-runtime, such as Cloudflare Workers, passes a precompiled module:
-`import wasm from "vignette/yoga.wasm"` and `compose(show, { layout: await loadYoga(wasm) })`.
-`vignette/obs` needs WebSocket, `fetch` and a writable directory. No package reads `process.env`,
-touches the file system unprompted, or opens a socket you did not ask for.
+What the library needs from the host: `@strangecyan/vignette` needs ES2023, `react` and WebAssembly.
+Yoga ships embedded and is compiled when the composer first lays out; a host that cannot compile
+wasm at runtime, such as Cloudflare Workers, passes a precompiled module:
+`import wasm from "@strangecyan/vignette/yoga.wasm"` and
+`compose(show, { layout: await loadYoga(wasm) })`. `@strangecyan/vignette/obs` needs WebSocket,
+`fetch` and a writable directory. No package reads `process.env`, touches the file system
+unprompted, or opens a socket you did not ask for.
 
 ### Complete example: Express
 
@@ -509,8 +512,8 @@ touches the file system unprompted, or opens a socket you did not ask for.
 ```ts
 // src/server.ts
 import express from "express";
-import { compose, streamOptions, toSseEvent } from "vignette";
-import { obsTarget } from "vignette/obs";
+import { compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
+import { obsTarget } from "@strangecyan/vignette/obs";
 import manifest from "../public/vignette/assets.json" with { type: "json" };
 import show from "./show.js";
 
@@ -565,7 +568,7 @@ reports.
 
 ```tsx
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stage, Stream, useStreamStatus } from "vignette/react";
+import { Stage, Stream, useStreamStatus } from "@strangecyan/vignette/react";
 
 function Preview() {
   return (
@@ -623,11 +626,11 @@ reloads iframes outside Chromium) and back to a hidden host when no stage shows 
 
 ### DOM, without React
 
-`vignette/dom` is a separate target for pages without React. It shares the source definitions and
-nothing else.
+`@strangecyan/vignette/dom` is a separate target for pages without React. It shares the source
+definitions and nothing else.
 
 ```ts
-import { domTarget, fromSse } from "vignette/dom";
+import { domTarget, fromSse } from "@strangecyan/vignette/dom";
 
 const stage = document.querySelector<HTMLElement>("#stage");
 if (stage === null) throw new Error("#stage is missing");
@@ -654,7 +657,7 @@ Every target, built in or yours, has the same shape:
 ## 6. The OBS runtime
 
 ```ts
-import { fromSse, obsTarget } from "vignette/obs";
+import { fromSse, obsTarget } from "@strangecyan/vignette/obs";
 
 const obs = obsTarget({ url: "ws://127.0.0.1:4455", password });
 obs.follow(fromSse("https://show.example.com/stream")); // reconnects with backoff
@@ -684,24 +687,24 @@ setup ──▶ fetch missing assets ──▶ verify ──▶ connect ──�
 The cache is a directory keyed by hash, so OBS inputs get local file paths and a show that changes
 one logo re-downloads one file. Entries no longer in the manifest are evicted on the next setup. The
 files OBS loads (assets, and pages such as text sources write) live in `dir`, by default
-`vignette/obs` in the user's cache directory, and stay after the target stops: OBS saves their paths
-in its scene collection and asks for any missing file when it starts.
+`@strangecyan/vignette/obs` in the user's cache directory, and stay after the target stops: OBS
+saves their paths in its scene collection and asks for any missing file when it starts.
 
 **Locations come from the stream.** The host published `serve.stream`, `serve.assets` and
 `serve.frames` when it composed; the target reads them from setup. Frame pages are opened at
 `serve.frames?frame=…&source=…&stream=serve.stream`. The only local options are overrides for
 networks where OBS reaches the host at a different address than the one published:
 
-| Option         | From the stream                 | Local override                                        |
-| -------------- | ------------------------------- | ----------------------------------------------------- |
-| `assets.fetch` | `serve.assets`                  | any function from name and hash to bytes              |
-| `dir`          |                                 | a directory; default `vignette/obs` in the user cache |
-| `frames`       | `serve.frames` + `serve.stream` | any function from frame name and source ID to a URL   |
-| `sources`      |                                 | plugins for custom source kinds (section 7)           |
+| Option         | From the stream                 | Local override                                                     |
+| -------------- | ------------------------------- | ------------------------------------------------------------------ |
+| `assets.fetch` | `serve.assets`                  | any function from name and hash to bytes                           |
+| `dir`          |                                 | a directory; default `@strangecyan/vignette/obs` in the user cache |
+| `frames`       | `serve.frames` + `serve.stream` | any function from frame name and source ID to a URL                |
+| `sources`      |                                 | plugins for custom source kinds (section 7)                        |
 
 The remaining options are `url` (default `ws://127.0.0.1:4455`), `password`, `builtins` (as in
 section 7) and `retry` (reconnect backoff), plus `transport` and `clock` for tests, which
-`vignette/obs/testing` fills with `FakeObs` and `ManualClock`.
+`@strangecyan/vignette/obs/testing` fills with `FakeObs` and `ManualClock`.
 
 There is no convention tier: the target never guesses a path, and it does not matter whether the
 stream came from a URL, a socket, or an in-process call.
@@ -732,7 +735,7 @@ Vignette has one extension seam per layer of the pipeline:
 
 ```ts
 // moq/index.ts
-import { defineSource } from "vignette";
+import { defineSource } from "@strangecyan/vignette";
 import { z } from "zod";
 
 export const Moq = defineSource({
@@ -773,7 +776,7 @@ stage provides. Hooks, `use()`, Suspense and effects all work.
 ```tsx
 // moq/react.tsx
 import { lazy, Suspense } from "react";
-import type { ReactSourcePlugin } from "vignette/react";
+import type { ReactSourcePlugin } from "@strangecyan/vignette/react";
 import type { Moq } from "./index.js";
 
 const MoqWatch = lazy(() => import("./moq-watch-element.js"));
@@ -799,7 +802,7 @@ the source definition.
 
 ```ts
 // moq/dom.ts
-import type { DomSourcePlugin } from "vignette/dom";
+import type { DomSourcePlugin } from "@strangecyan/vignette/dom";
 import type { Moq } from "./index.js";
 
 export const moqDom: DomSourcePlugin<typeof Moq> = {
@@ -830,7 +833,7 @@ A plugin that needs an external process starts it in `create` and stops it in `d
 
 ```ts
 // moq/obs.ts
-import type { ObsSourcePlugin } from "vignette/obs";
+import type { ObsSourcePlugin } from "@strangecyan/vignette/obs";
 import type { Moq } from "./index.js";
 
 /** Relay the MoQ broadcast through the `moq` CLI as RTMP, which a stock media source plays. */
@@ -893,8 +896,8 @@ converges around it. A rejected `create` is a source-level error in status, not 
 ### The built-ins are plugins too
 
 Nothing in the composer or the targets knows about images, videos, browsers or colors. Each built-in
-is a `defineSource` in `vignette` and one plugin per target, written against the same public
-interfaces as above. This is the whole of `Color`:
+is a `defineSource` in `@strangecyan/vignette` and one plugin per target, written against the same
+public interfaces as above. This is the whole of `Color`:
 
 ```tsx
 // vignette
@@ -980,7 +983,7 @@ A target consumes a stream and produces side effects. `createTarget` provides se
 asset stage, status, settlement and the plugin lifetime; you supply the medium.
 
 ```ts
-import { createTarget } from "vignette";
+import { createTarget } from "@strangecyan/vignette";
 
 export function canvasTarget(canvas: HTMLCanvasElement, plugins: CanvasSourcePlugin[]) {
   return createTarget<CanvasHandle>({

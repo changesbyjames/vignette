@@ -17,7 +17,7 @@ export interface FrameParamsParser<Params> {
 
 /**
  * What `<Frame of>` needs from a frame definition: its name and params schema. Every `frame()`
- * from `vignette/frame` satisfies it.
+ * from `@strangecyan/vignette/frame` satisfies it.
  */
 export interface FrameReference<Params> {
   readonly name: string;

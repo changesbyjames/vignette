@@ -83,7 +83,7 @@ export function vignette(options: VignetteOptions): VignettePlugin {
     config: () => ({
       // Yoga embeds its wasm with top-level await, which the dependency optimizer cannot bundle.
       optimizeDeps: { exclude: ["yoga-layout"] },
-      // The show, `vignette` and frames must share one React.
+      // The show, `@strangecyan/vignette` and frames must share one React.
       resolve: { dedupe: ["react", "react-dom"] },
     }),
     configResolved(config) {

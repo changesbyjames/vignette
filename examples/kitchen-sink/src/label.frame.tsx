@@ -1,4 +1,4 @@
-import { frame } from "vignette/frame";
+import { frame } from "@strangecyan/vignette/frame";
 import { z } from "zod";
 
 /** A card label whose text comes from the show as params. */

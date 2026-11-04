@@ -21,7 +21,7 @@ afterAll(async () => {
 /** A show whose color comes from a hook, so it only renders with the composer's React. */
 function showSource(color: string, id = "dev"): string {
   return `import { useState } from "react";
-import { Color, Layer, Scene, Show } from "vignette";
+import { Color, Layer, Scene, Show } from "@strangecyan/vignette";
 
 export default function Demo() {
   const [color] = useState(${JSON.stringify(color)});
@@ -38,12 +38,13 @@ export default function Demo() {
 `;
 }
 
-/** A show project in a temp folder that resolves `vignette` and React like an installed one. */
+/** A show project in a temp folder that resolves `@strangecyan/vignette` and React like an installed one. */
 async function createProject(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "vignette-dev-"));
   directories.push(dir);
-  await mkdir(join(dir, "node_modules", "@tanstack"), { recursive: true });
-  await symlink(packageRoot, join(dir, "node_modules", "vignette"), "dir");
+  for (const scope of ["@strangecyan", "@tanstack"])
+    await mkdir(join(dir, "node_modules", scope), { recursive: true });
+  await symlink(packageRoot, join(dir, "node_modules", "@strangecyan", "vignette"), "dir");
   for (const name of ["react", "react-dom", "@tanstack/react-query"])
     await symlink(join(packageRoot, "node_modules", name), join(dir, "node_modules", name), "dir");
   await mkdir(join(dir, "assets"));
@@ -51,7 +52,7 @@ async function createProject(): Promise<string> {
   await writeFile(join(dir, "show.tsx"), showSource("#112233"));
   await writeFile(
     join(dir, "x.frame.tsx"),
-    `import { frame } from "vignette/frame";
+    `import { frame } from "@strangecyan/vignette/frame";
 export const X = frame({ name: "X", view: () => <div>x</div> });
 `,
   );
@@ -103,7 +104,7 @@ function colorOf(message: StreamMessage): string | undefined {
 }
 
 describe("dev composer", () => {
-  // Resolves `vignette` from `dist`, so `pnpm build` must have run.
+  // Resolves `@strangecyan/vignette` from `dist`, so `pnpm build` must have run.
   it("streams the show with serve URLs on the dev origin and recomposes on edits", async () => {
     const dir = await createProject();
     const { server, origin } = await startServer(dir);

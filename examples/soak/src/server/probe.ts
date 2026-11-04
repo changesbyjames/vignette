@@ -1,6 +1,6 @@
 import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import process from "node:process";
-import type { Composer, Target, TargetStatus } from "vignette";
+import type { Composer, Target, TargetStatus } from "@strangecyan/vignette";
 
 /** What the server tells the harness: a periodic sample, or one thing that happened. */
 export type ProbeMessage = ProbeSampleMessage | ProbeEventMessage;

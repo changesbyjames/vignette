@@ -32,7 +32,7 @@ const INSTALL_HINT =
 
 /**
  * `vignette preview <stream-url>`: renders scenes of a running stream to PNG. Reads the first
- * snapshot for the canvas and scene list, then opens the preview page (`vignette/react`'s
+ * snapshot for the canvas and scene list, then opens the preview page (`@strangecyan/vignette/react`'s
  * `<Stream url><Stage scene /></Stream>`, as `vignette dev` serves it) in headless Chromium at
  * canvas size, waits until the stream is settled, its assets are loaded and its frame pages have
  * rendered, and screenshots the stage with a transparent background.
@@ -177,7 +177,7 @@ async function waitUntilReady(page: Playwright.Page): Promise<void> {
 
 /**
  * Compiles the preview page following `stream` with Vite: React DOM, TanStack Query and the built
- * `vignette/react`, resolved from this package's directory so it works from an installed package.
+ * `@strangecyan/vignette/react`, resolved from this package's directory so it works from an installed package.
  */
 async function buildPreviewScript(stream: string): Promise<string> {
   const packageRoot = fileURLToPath(new URL("../../", import.meta.url));

@@ -1,4 +1,4 @@
-import type { SourcePropsOf } from "vignette";
+import type { SourcePropsOf } from "@strangecyan/vignette";
 
 import type { Moq } from "./index.js";
 

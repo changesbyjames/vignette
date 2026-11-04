@@ -79,7 +79,7 @@ export function generateFrameEntry(frames: readonly string[]): string {
   );
   const spread = frames.map((_, index) => `...f${String(index)}`).join(", ");
   return `${imports.join("\n")}
-import { mountFrames } from "vignette/frame/mount";
+import { mountFrames } from "@strangecyan/vignette/frame/mount";
 mountFrames({ ${spread} });
 `;
 }

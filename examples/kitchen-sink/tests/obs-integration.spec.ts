@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { moqObs } from "@vignette/moq/obs";
 import { OBSWebSocket } from "obs-websocket-js";
 import process from "node:process";
-import { fromSse } from "vignette";
-import { obsTarget } from "vignette/obs";
+import { fromSse } from "@strangecyan/vignette";
+import { obsTarget } from "@strangecyan/vignette/obs";
 import { z } from "zod";
 
 const enabled = process.env.VIGNETTE_ALLOW_INTEGRATION === "1";

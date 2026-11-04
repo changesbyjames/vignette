@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { frame } from "vignette/frame";
+import { frame } from "@strangecyan/vignette/frame";
 import { z } from "zod";
 
 import { elapsed } from "./time.js";

@@ -1,5 +1,5 @@
 /**
- * The `moq` kind for `vignette/react`: a `<moq-watch>` element from `@moq/watch`, loaded on first
+ * The `moq` kind for `@strangecyan/vignette/react`: a `<moq-watch>` element from `@moq/watch`, loaded on first
  * use. Suspends until the element is registered.
  *
  * ```tsx
@@ -9,7 +9,7 @@
  * @module
  */
 import { createElement, use, useLayoutEffect, useRef, type ReactNode } from "react";
-import type { ReactSourcePlugin, ReactSourceViewProps } from "vignette/react";
+import type { ReactSourcePlugin, ReactSourceViewProps } from "@strangecyan/vignette/react";
 
 import type { Moq } from "./index.js";
 import {

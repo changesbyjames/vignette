@@ -17,7 +17,7 @@
     "obs-websocket-js": "5.0.8",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "vignette": "workspace:*",
+    "@strangecyan/vignette": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {

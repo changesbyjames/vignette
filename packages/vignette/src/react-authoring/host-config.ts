@@ -64,7 +64,7 @@ let currentUpdatePriority = DEFAULT_EVENT_PRIORITY;
 
 export const hostConfig: RendererHostConfig = {
   rendererVersion: "0.0.0",
-  rendererPackageName: "vignette",
+  rendererPackageName: "@strangecyan/vignette",
   extraDevToolsConfig: null,
   supportsMutation: true,
   supportsPersistence: false,
