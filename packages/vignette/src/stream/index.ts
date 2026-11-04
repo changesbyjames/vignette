@@ -1,6 +1,12 @@
 export { createAsyncQueue, type AsyncQueue } from "./async-queue.js";
 export { StreamHub } from "./hub.js";
 export {
+  sourceStream,
+  STREAM_SOURCE_PARAM,
+  streamOptions,
+  type StreamOptions,
+} from "./source-stream.js";
+export {
   EventMessageSchema,
   ServeSchema,
   SetupMessageSchema,

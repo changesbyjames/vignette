@@ -296,7 +296,7 @@ describe("<Stream> and <Stage>", () => {
     await settle();
     const page = layer(container, "s")?.querySelector("iframe");
     expect(page?.getAttribute("src")).toBe(
-      "http://show.test/frames.html?frame=Score&source=s&stream=http%3A%2F%2Fshow.test%2Fstream",
+      "http://show.test/frames.html?frame=Score&source=s&stream=http%3A%2F%2Fshow.test%2Fstream%3Fsource%3Ds",
     );
 
     queue.push(update(2, [score(2)], [item("s", "s", 0)]));

@@ -300,6 +300,33 @@ describe("Composer.settled", () => {
     const afterDispose = composer.stream()[Symbol.asyncIterator]();
     await expect(afterDispose.next()).resolves.toEqual({ done: true, value: undefined });
   });
+
+  it("narrows a stream to one source, sent only when that source changes", async () => {
+    const left = createStore("#111111");
+    const right = createStore("#222222");
+    const composer = compose(<PairShow left={left} right={right} />, { layout: fakeLayout });
+    await composer.ready();
+    const controller = new AbortController();
+    const narrowed = composer.stream(controller.signal, { source: "right" });
+    const iterator = narrowed[Symbol.asyncIterator]();
+
+    expect((await next(iterator)).kind).toBe("setup");
+    expect(narrowedTo(await next(iterator))).toEqual({ sources: ['right:"#222222"'], scenes: 0 });
+
+    // Another source changing, and events for it, send this page nothing.
+    left.set("#333333");
+    await composer.settled();
+    composer.emit({ kind: "media:restart", sourceId: "left" });
+    composer.emit({ kind: "flash" });
+    expect(await next(iterator)).toEqual({ kind: "event", event: { kind: "flash" } });
+
+    right.set("#444444");
+    expect(narrowedTo(await next(iterator))).toEqual({ sources: ['right:"#444444"'], scenes: 0 });
+    right.set("gone");
+    expect(narrowedTo(await next(iterator))).toEqual({ sources: [], scenes: 0 });
+    controller.abort();
+    composer.dispose();
+  });
 });
 
 interface StoreShowProps {
@@ -316,6 +343,44 @@ function StoreShow(props: StoreShowProps) {
       </Scene>
     </Show>
   );
+}
+
+interface PairShowProps {
+  readonly left: ReturnType<typeof createStore>;
+  readonly right: ReturnType<typeof createStore>;
+}
+
+/** Two shared colors from two stores; `gone` drops the right one. */
+function PairShow(props: PairShowProps) {
+  const left = useSyncExternalStore(props.left.subscribe, props.left.get);
+  const right = useSyncExternalStore(props.right.subscribe, props.right.get);
+  return (
+    <Show id="weekly" canvas={canvas}>
+      <Color id="left" color={left} />
+      {right === "gone" ? null : <Color id="right" color={right} />}
+      <Scene id="main">
+        <Layer>
+          <Use source="left" />
+        </Layer>
+        {right === "gone" ? null : (
+          <Layer>
+            <Use source="right" />
+          </Layer>
+        )}
+      </Scene>
+    </Show>
+  );
+}
+
+/** An update's sources as `id:color`, and how many scenes it carries. */
+function narrowedTo(message: StreamMessage) {
+  if (message.kind !== "update") throw new Error(`Expected an update, got ${message.kind}.`);
+  return {
+    sources: message.snapshot.sources.map(
+      (source) => `${source.id}:${JSON.stringify(source.props.color)}`,
+    ),
+    scenes: message.snapshot.scenes.length,
+  };
 }
 
 /** `daily` changes the show's id and `wide` its canvas; anything else is the `weekly` show. */

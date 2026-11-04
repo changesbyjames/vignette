@@ -471,6 +471,9 @@ await composer.ready();
 **Step 4. Put the stream on a wire.** `composer.stream()` yields plain objects. `toSseEvent` and
 `fromSse` are helpers for the common case, not requirements. `fromSse(url, { onConnection })`
 reconnects with capped backoff and reports each `connecting`, `open`, `retry-wait` and `closed`.
+Each frame page asks for its one source with `?source=`; pass `streamOptions(request.url)` as the
+second argument and it gets only that source, only when it changes. A host that ignores the query
+still works; every page just receives the whole snapshot every revision.
 
 ```ts
 for await (const m of composer.stream(signal)) await sse.writeSSE(toSseEvent(m)); // SSE
@@ -506,7 +509,7 @@ touches the file system unprompted, or opens a socket you did not ask for.
 ```ts
 // src/server.ts
 import express from "express";
-import { compose, toSseEvent } from "vignette";
+import { compose, streamOptions, toSseEvent } from "vignette";
 import { obsTarget } from "vignette/obs";
 import manifest from "../public/vignette/assets.json" with { type: "json" };
 import show from "./show.js";
@@ -528,7 +531,7 @@ app.get("/show/stream", (req, res) => {
   const abort = new AbortController();
   req.on("close", () => abort.abort());
   (async () => {
-    for await (const m of composer.stream(abort.signal)) {
+    for await (const m of composer.stream(abort.signal, streamOptions(req.url))) {
       const { id, event, data } = toSseEvent(m);
       res.write(`id: ${id}\nevent: ${event}\ndata: ${data}\n\n`);
     }

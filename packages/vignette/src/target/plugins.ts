@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type { HasSourceDefinition, SourcePropsSchemaType } from "../core/define-source.js";
 import type { Canvas, Source } from "../core/snapshot.js";
 import type { SetupMessage } from "../stream/messages.js";
+import { STREAM_SOURCE_PARAM } from "../stream/source-stream.js";
 
 /** What every target's source plugin has: the kind it renders. */
 export interface SourcePluginBase {
@@ -37,13 +38,17 @@ export interface PluginContextBase<Resolved = string> {
   readonly signal: AbortSignal;
   readonly assets: PluginAssets<Resolved>;
   /**
-   * The page URL of a frame source: `serve.frames?frame=…&source=…&stream=serve.stream`, from
-   * the setup. Throws when the setup does not publish `serve.frames` and `serve.stream`.
+   * The page URL of a frame source: `serve.frames?frame=…&source=…&stream=…`, from the setup,
+   * whose stream is `serve.stream?source=…`, narrowed to the source. Throws when the setup does
+   * not publish `serve.frames` and `serve.stream`.
    */
   readonly frames: (frame: string, sourceId: string) => string;
 }
 
-/** `serve.frames?frame=…&source=…&stream=serve.stream`. */
+/**
+ * `serve.frames?frame=…&source=…&stream=…`. The page's stream asks for its one source with
+ * `?source=`; a host that serves the whole stream regardless still works.
+ */
 export function frameUrl(setup: SetupMessage, frame: string, sourceId: string): string {
   const { frames, stream } = setup.serve;
   if (frames === undefined || stream === undefined) {
@@ -54,6 +59,8 @@ export function frameUrl(setup: SetupMessage, frame: string, sourceId: string): 
   const url = new URL(frames);
   url.searchParams.set("frame", frame);
   url.searchParams.set("source", sourceId);
-  url.searchParams.set("stream", stream);
+  const own = new URL(stream);
+  own.searchParams.set(STREAM_SOURCE_PARAM, sourceId);
+  url.searchParams.set("stream", own.href);
   return url.href;
 }

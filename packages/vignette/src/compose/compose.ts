@@ -12,6 +12,7 @@ import type { HostContainer } from "../react-authoring/host-types.js";
 import { lowerShow } from "../react-authoring/lower.js";
 import { reconciler } from "../react-authoring/reconciler.js";
 import { StreamHub } from "../stream/hub.js";
+import { sourceStream, type StreamOptions } from "../stream/source-stream.js";
 import type { Serve, SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
 import {
   composerMachine,
@@ -55,8 +56,9 @@ export interface Composer {
    * the composer is disposed. Setup is published before the first update, once the first commit
    * has compiled (its show ID, canvas and kinds come from the show), and again only when the
    * show starts using a source kind no setup listed. A disposed composer's stream is empty.
+   * `options.source` narrows it to one source, as a frame page's `?source=` asks.
    */
-  stream(signal?: AbortSignal): AsyncIterable<StreamMessage>;
+  stream(signal?: AbortSignal, options?: StreamOptions): AsyncIterable<StreamMessage>;
   /** The latest compiled snapshot. */
   readonly snapshot: Snapshot | undefined;
   /** Resolves after the first successful compile; rejects if the first render or compile fails. */
@@ -219,7 +221,10 @@ export function compose(
   }
 
   return {
-    stream: (signal) => hub.subscribe(signal),
+    stream: (signal, options) =>
+      options?.source === undefined
+        ? hub.subscribe(signal)
+        : sourceStream(hub.subscribe(signal), options.source),
     get snapshot() {
       return actor.getSnapshot().context.snapshot;
     },

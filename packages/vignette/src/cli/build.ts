@@ -114,7 +114,7 @@ import { createServer } from "node:http";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compose, encodeStreamMessageSse } from "vignette";
+import { compose, encodeStreamMessageSse, streamOptions } from "vignette";
 
 import show from "./show.js";
 
@@ -152,7 +152,7 @@ async function stream(request, response) {
   const abort = new AbortController();
   response.on("close", () => abort.abort());
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-  for await (const message of composer.stream(abort.signal)) {
+  for await (const message of composer.stream(abort.signal, streamOptions(request.url))) {
     response.write(encodeStreamMessageSse(message));
   }
   response.end();
