@@ -18,6 +18,7 @@ import { loadVite } from "../bundle/load-vite.js";
 import { createAssetManifest, scanAssets } from "../bundle/scan-assets.js";
 import { compose, type Composer } from "../compose/compose.js";
 import type { AssetManifest } from "../core/assets.js";
+import { streamOptions } from "../stream/source-stream.js";
 import { encodeStreamMessageSse } from "../stream/sse-codec.js";
 import { ASSETS_PATH, FRAMES_HTML_PATH } from "./pages.js";
 
@@ -147,7 +148,8 @@ class DevComposerImpl implements DevComposer {
     });
     try {
       const signal = AbortSignal.any([abort.signal, active.abort.signal]);
-      for await (const message of active.composer.stream(signal)) {
+      const options = streamOptions(request.url ?? "/");
+      for await (const message of active.composer.stream(signal, options)) {
         response.write(encodeStreamMessageSse(message));
       }
     } catch {
