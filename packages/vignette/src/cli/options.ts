@@ -39,7 +39,7 @@ Options:
   --obs-url <url>      obs-websocket URL (default: ws://127.0.0.1:4455)
   --password <value>   obs-websocket password
   --source <module>    Load OBS source plugins exported by a module, e.g.
-                       @vignette/moq/obs (repeatable; resolved from the current directory)
+                       @strangecyan/vignette-moq/obs (repeatable; resolved from the current directory)
   --dir <dir>          Keep the files OBS loads here, such as downloaded assets
                        (default: vignette/obs in the user's cache directory)
   --help               Show this help`;

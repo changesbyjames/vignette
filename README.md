@@ -857,8 +857,8 @@ export const moqObs: ObsSourcePlugin<typeof Moq> = {
 };
 ```
 
-For an OBS with the native `moq_source` input, the plugin is three lines. `@vignette/moq/obs`
-chooses between the two by `inputKinds`:
+For an OBS with the native `moq_source` input, the plugin is three lines.
+`@strangecyan/vignette-moq/obs` chooses between the two by `inputKinds`:
 
 ```ts
 export const moqObsNative: ObsSourcePlugin<typeof Moq> = {
@@ -964,7 +964,7 @@ obsTarget({ url, password, sources: [colorObs], builtins: false });  // only wha
 ```
 
 ```sh
-npx vignette obs https://show.example.com/stream --source @vignette/moq/obs
+npx vignette obs https://show.example.com/stream --source @strangecyan/vignette-moq/obs
 ```
 
 The setup message lists the kinds the show uses. A target missing a plugin for one of them reports
@@ -973,9 +973,9 @@ OBS machine fails loudly and leaves OBS alone. A client that should render what 
 (`<Stream checkPlugins={false}>`, `createTarget({ checkPlugins: false })`) marks only the sources of
 that kind `error`.
 
-Published source packages ship the definition and one entry per target, for example `@vignette/moq`,
-`@vignette/moq/react`, `@vignette/moq/dom`, `@vignette/moq/obs`, so a show never bundles browser or
-Node code it does not run.
+Published source packages ship the definition and one entry per target, for example
+`@strangecyan/vignette-moq`, `@strangecyan/vignette-moq/react`, `@strangecyan/vignette-moq/dom`,
+`@strangecyan/vignette-moq/obs`, so a show never bundles browser or Node code it does not run.
 
 ### A new target
 

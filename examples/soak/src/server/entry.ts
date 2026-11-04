@@ -5,7 +5,7 @@
  */
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { moqObs } from "@vignette/moq/obs";
+import { moqObs } from "@strangecyan/vignette-moq/obs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { readFile } from "node:fs/promises";

@@ -59,12 +59,12 @@ importers:
       '@strangecyan/vignette':
         specifier: workspace:*
         version: link:../../packages/vignette
+      '@strangecyan/vignette-moq':
+        specifier: workspace:*
+        version: link:../../packages/moq
       '@tanstack/react-query':
         specifier: 5.105.0
         version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
-      '@vignette/moq':
-        specifier: workspace:*
-        version: link:../../packages/moq
       hono:
         specifier: 4.12.30
         version: 4.12.30
@@ -112,7 +112,7 @@ importers:
       '@strangecyan/vignette':
         specifier: workspace:*
         version: link:../../packages/vignette
-      '@vignette/moq':
+      '@strangecyan/vignette-moq':
         specifier: workspace:*
         version: link:../../packages/moq
       hono:

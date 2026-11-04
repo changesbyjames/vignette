@@ -1,19 +1,19 @@
-# @vignette/moq
+# @strangecyan/vignette-moq
 
 A Media over QUIC source kind for Vignette, and the reference for writing your own (README §7). One
 definition, one plugin per target, each in its own entry so a show never bundles code for a target
 it does not run.
 
-| Entry                 | Export    | Use                                                                 |
-| --------------------- | --------- | ------------------------------------------------------------------- |
-| `@vignette/moq`       | `Moq`     | the source component, in a show                                     |
-| `@vignette/moq/react` | `MoqView` | `<Stream sources={[MoqView]}>`                                      |
-| `@vignette/moq/dom`   | `moqDom`  | `domTarget(element, { sources: [moqDom] })`                         |
-| `@vignette/moq/obs`   | `moqObs`  | `obsTarget({ sources: [moqObs] })`, or `--source @vignette/moq/obs` |
+| Entry                             | Export    | Use                                                                             |
+| --------------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `@strangecyan/vignette-moq`       | `Moq`     | the source component, in a show                                                 |
+| `@strangecyan/vignette-moq/react` | `MoqView` | `<Stream sources={[MoqView]}>`                                                  |
+| `@strangecyan/vignette-moq/dom`   | `moqDom`  | `domTarget(element, { sources: [moqDom] })`                                     |
+| `@strangecyan/vignette-moq/obs`   | `moqObs`  | `obsTarget({ sources: [moqObs] })`, or `--source @strangecyan/vignette-moq/obs` |
 
 ```tsx
 import { Layer, Scene, Show, Use } from "@strangecyan/vignette";
-import { Moq } from "@vignette/moq";
+import { Moq } from "@strangecyan/vignette-moq";
 
 export default (
   <Show id="demo" canvas={{ width: 1920, height: 1080 }}>

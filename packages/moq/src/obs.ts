@@ -4,7 +4,7 @@
  * [`moq`](https://github.com/moq-dev/moq) CLI that subscribes to the broadcast and serves it.
  *
  * ```sh
- * vignette obs https://show.example.com/stream --source @vignette/moq/obs
+ * vignette obs https://show.example.com/stream --source @strangecyan/vignette-moq/obs
  * ```
  *
  * The relay runs `moq` from `PATH`, or the executable named by `VIGNETTE_MOQ_CLI`.
@@ -178,7 +178,7 @@ async function startRelay(
       if (Date.now() - running.startedAt >= 10_000) delay = 1_000;
       const reason = exitSignal ?? `code ${String(code)}`;
       process.stderr.write(
-        `@vignette/moq: relay for source '${sourceId}' exited (${reason}); restarting in ${String(delay / 1_000)} s. ${running.tail()}\n`,
+        `@strangecyan/vignette-moq: relay for source '${sourceId}' exited (${reason}); restarting in ${String(delay / 1_000)} s. ${running.tail()}\n`,
       );
       restart = setTimeout(() => {
         if (stopped) return;

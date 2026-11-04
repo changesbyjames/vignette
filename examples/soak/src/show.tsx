@@ -1,4 +1,4 @@
-import { Moq } from "@vignette/moq";
+import { Moq } from "@strangecyan/vignette-moq";
 import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { Color, Frame, Image, Layer, Scene, Show, Text, Use } from "@strangecyan/vignette";
 

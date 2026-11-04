@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { moqObs } from "@vignette/moq/obs";
+import { moqObs } from "@strangecyan/vignette-moq/obs";
 import { OBSWebSocket } from "obs-websocket-js";
 import process from "node:process";
 import { fromSse } from "@strangecyan/vignette";
@@ -11,7 +11,7 @@ const show = "kitchen-sink";
 const prefix = `vignette/${show}`;
 
 /**
- * What `vignette obs <stream> --source @vignette/moq/obs` does, in process: follow the example
+ * What `vignette obs <stream> --source @strangecyan/vignette-moq/obs` does, in process: follow the example
  * server's stream with `obsTarget` and converge a real, disposable OBS scene collection.
  */
 test("obsTarget converges the kitchen-sink stream in OBS", async ({ baseURL }) => {

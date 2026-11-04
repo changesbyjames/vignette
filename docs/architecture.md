@@ -26,8 +26,8 @@ under `src/`.
 | `bundle`          | `bundle()`, `scanAssets`, the `frames.html` template                                                       | `@strangecyan/vignette/bundle`                                     |
 | `vite`, `cli`     | the Vite plugin and the `vignette` command                                                                 | `@strangecyan/vignette/vite`, bin                                  |
 
-`packages/moq` (`@vignette/moq`) is a source kind built only on the public plugin interfaces, the
-worked example of [README §7](../README.md#7-making-your-own-sources-and-plugins).
+`packages/moq` (`@strangecyan/vignette-moq`) is a source kind built only on the public plugin
+interfaces, the worked example of [README §7](../README.md#7-making-your-own-sources-and-plugins).
 
 ## Boundaries
 

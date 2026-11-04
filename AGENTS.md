@@ -57,8 +57,8 @@ is a pure data transformation; transport and retries live outside it.
 `@strangecyan/vignette/obs/testing` (`FakeObs`, `ManualClock`) exists for tests; production code
 never imports it.
 
-`packages/moq` (`@vignette/moq`) and `examples/*` use only `@strangecyan/vignette`'s public entries,
-like any other consumer.
+`packages/moq` (`@strangecyan/vignette-moq`) and `examples/*` use only `@strangecyan/vignette`'s
+public entries, like any other consumer.
 
 ## Vocabulary
 
