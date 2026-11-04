@@ -391,6 +391,19 @@ describe("planObsUpdate", () => {
       ]);
       expect(result.plan.operations[0]).toMatchObject({ sceneId: "main", item: { id: "main.0" } });
     });
+
+    it("leaves an item alone while its plugin plays the exit", () => {
+      const result = plan({
+        desired: snapshot({ scenes: [{ id: "main", items: [] }] }),
+        observed: placedObserved(),
+        layers: new Set(["motion"]),
+        placed: new Map(),
+        leaving: new Set(["main:main.0"]),
+        previous: desired(),
+      });
+      if (!result.ok) throw new Error(result.problems.join(" "));
+      expect(result.plan.operations.map((operation) => operation.kind)).toEqual([]);
+    });
   });
 
   it("refuses snapshots OBS cannot represent safely", () => {

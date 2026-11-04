@@ -107,6 +107,7 @@ export function KitchenSink(): ReactElement {
               <Use source="demo" />
             </Layer>
             {(["#f97316", "#3b82f6", "#22c55e"] as const).map((color, index) => (
+              // Lifted, tilted and enlarged while its card is active; each is its own ternary.
               <MotionLayer
                 key={color}
                 id={`swatch-${String(index)}`}

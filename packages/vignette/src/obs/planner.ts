@@ -43,6 +43,8 @@ export interface ObsPlannerInput {
   readonly layers?: ReadonlySet<string>;
   /** The item each handed-over placement (`scene:layer`) was last placed with. */
   readonly placed?: ReadonlyMap<string, Item>;
+  /** Handed-over placements whose plugin is still releasing them: left alone until removed. */
+  readonly leaving?: ReadonlySet<string>;
   /** The last snapshot this target settled, which still describes the items it is removing. */
   readonly previous?: Snapshot;
 }
@@ -502,11 +504,14 @@ function pruneItems(
         : !planning.matched.has(itemIdentity(scene.sceneUuid, item.sceneItemId)) &&
           parseManagedName(item.sourceName, show) !== undefined;
     for (const item of (managed.itemsByScene.get(scene.sceneUuid) ?? []).filter(stale)) {
+      // A handed-over item is released by its plugin (or left alone while leaving); others removed.
       const key = `placement:remove:${scene.sceneUuid}:${String(item.sceneItemId)}`;
       removals.push(key);
       const sceneId = sceneIdOf.get(scene.sceneUuid);
       const handed = sceneId === undefined ? undefined : handedOverItem(planning, sceneId, item);
       if (sceneId !== undefined && handed !== undefined) {
+        // Its exit is playing; the plugin removes it when that ends, and a re-observation follows.
+        if (planning.input.leaving?.has(placementKey(sceneId, handed.id))) continue;
         planning.operations.push({
           kind: "release-placement",
           key,
@@ -549,7 +554,12 @@ function handedOverItem(
   const scene = planning.input.previous?.scenes.find((candidate) => candidate.id === sceneId);
   const item = scene?.items.find((candidate) => candidate.sourceId === sourceId);
   if (item === undefined || !planning.input.layers?.has(item.kind)) return undefined;
-  return planning.input.placed?.has(placementKey(sceneId, item.id)) ? item : undefined;
+  return isHandedOver(planning.input, placementKey(sceneId, item.id)) ? item : undefined;
+}
+
+/** Whether a placement is with its plugin: placed, or leaving (placed, now playing its exit). */
+function isHandedOver(input: ObsPlannerInput, key: string): boolean {
+  return input.placed?.has(key) === true || input.leaving?.has(key) === true;
 }
 
 /**
