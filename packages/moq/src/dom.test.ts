@@ -8,6 +8,11 @@ import type { MoqProps } from "./watch.js";
 
 const size = { width: 1280, height: 720 };
 
+interface RenditionTarget {
+  readonly name?: string;
+  readonly width?: number;
+}
+
 function source(props: Partial<MoqProps>) {
   return {
     id: "live",
@@ -47,7 +52,8 @@ describe("moqDom", () => {
     expect(watch.tagName.toLowerCase()).toBe("moq-watch");
     expect(watch.getAttribute("url")).toBe("https://cdn.moq.dev/demo");
     expect(watch.getAttribute("name")).toBe("bbb.hang");
-    expect(watch.getAttribute("latency")).toBe("250");
+    expect(watch.getAttribute("delay")).toBe("250ms");
+    expect(watch.hasAttribute("latency")).toBe(false);
     expect(watch.hasAttribute("muted")).toBe(true);
     expect(watch.getAttribute("visible")).toBe("always");
     expect(watch.dataset.vignetteMoqQuality).toBe("auto");
@@ -56,6 +62,7 @@ describe("moqDom", () => {
     await handle.update?.(source({ broadcast: "other", quality: "hd" }));
     expect(handle.element).toBe(watch);
     expect(watch.getAttribute("name")).toBe("other");
+    expect(watch.getAttribute("delay")).toBe("100ms");
     expect(watch.hasAttribute("muted")).toBe(false);
     expect(watch.getAttribute("visible")).toBe("0px");
     expect(watch.dataset.vignetteMoqQuality).toBe("hd");
@@ -68,5 +75,33 @@ describe("moqDom", () => {
   it("never downloads video when the video track is off", async () => {
     const handle = await moqDom.create(source({ video: false }), context());
     expect(handle.element.getAttribute("visible")).toBe("never");
+  });
+
+  it("changes renditions through the player's controls without losing its size target", async () => {
+    // Select, reapply, then release a manual rendition while keeping the player's sizing target.
+    const handle = await moqDom.create(source({}), context());
+    type Target = RenditionTarget | undefined;
+    let target: Target = { width: 640 };
+    Object.defineProperty(handle.element, "controls", {
+      value: {
+        target: {
+          update(update: (current: Target) => Target) {
+            target = update(target);
+          },
+        },
+      },
+    });
+
+    await handle.update?.(source({ quality: "hd", latencyMs: 0 }));
+    expect(target).toEqual({ width: 640, name: "hd" });
+    expect(handle.element.getAttribute("delay")).toBe("0ms");
+
+    const unchanged = target;
+    await handle.update?.(source({ quality: "hd" }));
+    expect(target).toBe(unchanged);
+
+    await handle.update?.(source({ quality: "auto" }));
+    expect(target).toEqual({ width: 640, name: undefined });
+    await handle.dispose?.();
   });
 });

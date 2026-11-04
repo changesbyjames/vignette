@@ -43,7 +43,7 @@
     "publish:check": "pnpm publish --dry-run --no-git-checks"
   },
   "dependencies": {
-    "@moq/watch": "0.3.0",
+    "@moq/watch": "0.6.6",
     "zod": "4.6.5"
   },
   "peerDependencies": {
