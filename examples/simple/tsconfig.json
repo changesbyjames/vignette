@@ -6,6 +6,6 @@
     "outDir": "dist",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/react" }],
+  "references": [{ "path": "../../packages/vignette" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

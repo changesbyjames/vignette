@@ -1,7 +1,7 @@
 {
   "name": "@strangecyan/vignette-moq",
-  "version": "0.5.1",
-  "description": "Media over QUIC source extension for Vignette, DOM, and OBS targets.",
+  "version": "1.0.0",
+  "description": "Media over QUIC source kind for Vignette, with React, DOM and OBS plugins.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -44,13 +44,11 @@
   },
   "dependencies": {
     "@moq/watch": "0.3.0",
-    "@strangecyan/vignette-core": "workspace:^",
-    "@strangecyan/vignette": "workspace:^",
-    "@strangecyan/vignette-target-dom": "workspace:^",
-    "@strangecyan/vignette-target-obs": "workspace:^"
+    "zod": "4.6.5"
   },
   "peerDependencies": {
-    "react": "^19.2.0"
+    "react": "^19.2.0",
+    "@strangecyan/vignette": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -58,7 +56,12 @@
     }
   },
   "devDependencies": {
+    "@tanstack/react-query": "5.105.0",
     "@types/react": "19.2.17",
-    "react": "19.2.7"
+    "@types/react-dom": "19.2.3",
+    "jsdom": "29.1.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "@strangecyan/vignette": "workspace:*"
   }
 }

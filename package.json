@@ -1,6 +1,6 @@
 {
   "name": "vignette-workspace",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "private": true,
   "repository": {
     "type": "git",
@@ -12,7 +12,7 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "build": "tsc -b && pnpm --filter @strangecyan/vignette-kitchen-sink build:app",
+    "build": "tsc -b && pnpm --filter @vignette/kitchen-sink build:app",
     "clean": "tsc -b --clean && pnpm -r --if-present clean",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
@@ -22,12 +22,11 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "publish:check": "node scripts/check-docs.mjs && node scripts/check-npm-packages.mjs",
-    "publish:npm": "node scripts/publish-npm-packages.mjs",
+    "publish:check": "node scripts/check-docs.mjs && node scripts/check-npm-package.mjs",
+    "publish:npm": "node scripts/publish-npm-package.mjs",
     "ready": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm format:check && pnpm publish:check && pnpm test:e2e"
   },
   "devDependencies": {
-    "@strangecyan/vignette-cli": "workspace:*",
     "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
     "jsdom": "29.1.1",

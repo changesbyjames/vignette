@@ -16,7 +16,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `corepack pnpm --filter @strangecyan/vignette-kitchen-sink exec vite --host 127.0.0.1 --port ${String(port)} --strictPort`,
+    // The kitchen sink's production server: the built show, its bundle and the preview app.
+    // Run `pnpm build` first (`pnpm ready` does).
+    command: "pnpm --filter @vignette/kitchen-sink start",
+    env: { PORT: String(port) },
     url: baseURL,
     reuseExistingServer: false,
     timeout: 60_000,

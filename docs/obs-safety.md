@@ -1,27 +1,28 @@
 # OBS safety model
 
-The library exclusively owns resources whose names begin with `vignette::<projectId>::`. Each
-project has a registry scene, managed scenes, and managed source inputs. The planner never schedules
-an operation against an unmanaged UUID or name.
+The OBS target owns exactly one namespace per show and nothing else. The behaviour is specified in
+[README §6](../README.md#6-the-obs-runtime); this page is the operator's summary.
 
-The runtime's configured project ID (`vignette obs --project`) is the boundary; the stream never
-chooses it. A setup message for a different project puts the runtime in its `error` phase before it
-connects to OBS, and the scheduler rejects any snapshot whose `projectId` differs from its own.
+- **Names.** The registry scene is `vignette/<show>`, scenes are `vignette/<show>/<scene>`, inputs
+  are `vignette/<show>/<source>`. Scene items have no names; an item is its source's input placed in
+  its scene. Anything else (other shows, operator scenes, inputs and filters) is invisible to the
+  planner and never modified.
+- **One show per target.** A target binds to the first show ID it sees; a snapshot for another show
+  fails its apply before any request is sent.
+- **Convergence.** The target observes OBS, plans the difference, executes it in dependency order
+  and observes again until nothing is left to do. Manual edits to managed transforms are drift and
+  are overwritten. Inputs whose kind changed underneath it are reported, not replaced, so operator
+  filters are never lost silently.
+- **Program scene.** Set only when the snapshot's `activeScene` changes. Omit `activeScene` and the
+  operator switches scenes freely.
+- **Failures are status.** Disconnects, retries, missing plugins and failed plugin `create`s show in
+  `status`; they never throw into the composer.
+- **Secrets.** Pass the password as an option. No package reads environment variables or logs
+  credentials; do not ship obs-websocket passwords to browsers.
 
-Manual edits to managed transforms are treated as drift and overwritten on the next convergence
-pass. Duplicate same-source placements are ambiguous in V1; they raise a diagnostic and suppress
-destructive work. Reconnects and scene collection changes invalidate cached UUIDs and numeric item
-IDs, force a fresh observation, and replan from OBS truth.
+## Integration tests
 
-OBS passwords are runtime secrets. The library accepts them as constructor data and never reads
-environment variables, logs settings, or persists credentials. Do not embed credentials in browser
-bundles for remote deployment. A production remote control plane should use a trusted local service.
-
-The real-OBS probe requires `VIGNETTE_ALLOW_INTEGRATION=1` and an exact expected disposable
-collection name. Project cleanup must match the full managed prefix; never switch or delete a user's
-collection as part of a test.
-
-The probe creates one plainly named unmanaged sentinel scene and verifies that convergence and
-managed cleanup leave it intact. The harness removes only that sentinel explicitly in its own final
-cleanup. Static parity captures are diagnostic artifacts under ignored `test-results/parity/` and
-contain no credentials, host paths, or connection URLs.
+`examples/kitchen-sink/tests/obs-integration.spec.ts` drives a real OBS. It runs only with
+`VIGNETTE_ALLOW_INTEGRATION=1` and refuses to start unless OBS's current scene collection is the one
+named by `VIGNETTE_OBS_TEST_COLLECTION`. Cleanup removes only scenes under the show's managed
+prefix; never point it at a collection you care about.

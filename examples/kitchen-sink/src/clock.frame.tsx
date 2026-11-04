@@ -1,8 +1,10 @@
-import { frame } from "@strangecyan/vignette-frame";
 import { useEffect, useState } from "react";
+import { frame } from "@strangecyan/vignette/frame";
 import { z } from "zod";
 
-export const clockFrame = frame({
+/** A clock that ticks in the page: frames hold their own state and animate. */
+export const Clock = frame({
+  name: "Clock",
   params: z.object({ title: z.string() }),
   view: ({ title }) => {
     const [now, setNow] = useState<Date | null>(null);
@@ -21,7 +23,7 @@ export const clockFrame = frame({
     return (
       <div
         data-testid="clock-frame"
-        data-hydrated={String(now !== null)}
+        data-mounted={String(now !== null)}
         style={{
           width: "100%",
           height: "100%",
@@ -35,8 +37,13 @@ export const clockFrame = frame({
           fontFamily: "Arial, Helvetica, sans-serif",
         }}
       >
-        <div style={{ fontSize: 24, fontWeight: 700 }}>{title}</div>
-        <div style={{ fontSize: 46, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.04em" }}>
+        <div data-testid="clock-title" style={{ fontSize: 24, fontWeight: 700 }}>
+          {title}
+        </div>
+        <div
+          data-testid="clock-time"
+          style={{ fontSize: 46, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.04em" }}
+        >
           {now?.toLocaleTimeString("en-GB") ?? "--:--:--"}
         </div>
       </div>

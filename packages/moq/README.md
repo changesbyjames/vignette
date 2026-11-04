@@ -1,64 +1,49 @@
 # @strangecyan/vignette-moq
 
-Media over QUIC source extension for Vignette. It provides one source model plus separate React,
-DOM, and OBS facets so each architecture layer depends only on the contracts it needs.
+A Media over QUIC source kind for Vignette, and the reference for writing your own (README §7). One
+definition, one plugin per target, each in its own entry so a show never bundles code for a target
+it does not run.
 
-## Install
-
-```sh
-pnpm add @strangecyan/vignette-moq
-```
-
-## One source kind, four entrypoints
-
-Every entrypoint implements the same `source:moq` kind (`MOQ_SOURCE_KIND`). They are separate so
-each layer depends only on the contracts it needs:
-
-| Entrypoint                        | Export            | Register with                                                                          |
-| --------------------------------- | ----------------- | -------------------------------------------------------------------------------------- |
-| `@strangecyan/vignette-moq`       | `moqSourceModule` | `defineComposition({ extensions })`                                                    |
-| `@strangecyan/vignette-moq/react` | `<MoqSource>`     | use in the composition's component                                                     |
-| `@strangecyan/vignette-moq/dom`   | `moqDomRenderer`  | `useStage` / `DOMRuntime` `extensions`                                                 |
-| `@strangecyan/vignette-moq/obs`   | `moqObsCodec`     | `OBSRuntime` `extensions`, or `vignette obs --extension @strangecyan/vignette-moq/obs` |
+| Entry                             | Export    | Use                                                                             |
+| --------------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `@strangecyan/vignette-moq`       | `Moq`     | the source component, in a show                                                 |
+| `@strangecyan/vignette-moq/react` | `MoqView` | `<Stream sources={[MoqView]}>`                                                  |
+| `@strangecyan/vignette-moq/dom`   | `moqDom`  | `domTarget(element, { sources: [moqDom] })`                                     |
+| `@strangecyan/vignette-moq/obs`   | `moqObs`  | `obsTarget({ sources: [moqObs] })`, or `--source @strangecyan/vignette-moq/obs` |
 
 ```tsx
-import { defineComposition } from "@strangecyan/vignette";
-import { moqSourceModule } from "@strangecyan/vignette-moq";
-import { MoqSource } from "@strangecyan/vignette-moq/react";
+import { Layer, Scene, Show, Use } from "@strangecyan/vignette";
+import { Moq } from "@strangecyan/vignette-moq";
 
-function Show() {
-  return (
-    <MoqSource
+export default (
+  <Show id="demo" canvas={{ width: 1920, height: 1080 }}>
+    <Moq
       id="camera"
       url="https://cdn.moq.dev/demo"
       broadcast="bbb.hang"
-      size={{ width: 1920, height: 1080 }}
+      size={{ width: 1280, height: 720 }}
     />
-  );
-}
-
-export const composition = defineComposition({
-  id: "demo",
-  canvas: { width: 1920, height: 1080 },
-  extensions: [moqSourceModule],
-  component: Show,
-});
+    <Scene id="main">
+      <Layer style={{ flex: 1 }} fit="cover">
+        <Use source="camera" />
+      </Layer>
+    </Scene>
+  </Show>
+);
 ```
 
-```tsx
-import { moqDomRenderer } from "@strangecyan/vignette-moq/dom";
+Props: `url`, `broadcast`, `size` (the broadcast's resolution, used for `fit`), `latencyMs` (default
+100), and optional `video`, `audio`, `quality` (`auto` or a rendition name) and `disableWhenHidden`.
 
-useStage({ sceneId: "main", stream, extensions: [moqDomRenderer] });
-```
+The React and DOM plugins render `@moq/watch`'s `<moq-watch>`, loaded on first use.
 
-`moqSourceModule` names the `/dom` and `/obs` entrypoints in its `entrypoints` metadata. The
-composer advertises `source:moq` in its stream's setup, so a DOM or OBS target that has not
-registered the matching facet enters its `error` phase with a message naming the entrypoint to
-register. The DOM facet uses `@moq/watch`. The OBS facet requires an installed input plugin exposing
-`moq_source`; unsupported capabilities are reported by the target rather than silently emulated.
-
-Latency defaults to 100 ms. Optional `video`, `audio`, `quality`, and `disableWhenHidden` settings
-map to both target implementations where supported.
-
-The package carries `MoqSource` explicitly through Vignette's generic extension contracts. It does
-not modify core's built-in source types or install global TypeScript declarations.
+The OBS plugin creates the native `moq_source` input when the connected OBS has the MoQ plugin. Any
+other OBS gets a stock media source playing RTMP from a [`moq` CLI](https://github.com/moq-dev/moq)
+relay that the plugin runs on a free local port for the source's lifetime:
+`moq --connect <url> --broadcast <broadcast> export rtmp --listen <port>`. Install `moq` (moq-cli
+0.14 or later; prebuilt binaries are on its GitHub releases) on the machine running `vignette obs`,
+or point `VIGNETTE_MOQ_CLI` at it. `latencyMs` becomes `--max-age`, a `quality` other than `auto`
+becomes `--video-name`, `audio: false` mutes the input, and `disableWhenHidden` closes the stream
+while the source is off air. A media source always shows the video track, so `video: false` applies
+only to the native input. Without `moq` the source reports an error and the rest of the scene
+converges.

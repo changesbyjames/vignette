@@ -1,323 +1,69 @@
-import { z } from "zod";
-import { omitUndefined } from "@strangecyan/vignette-core";
 import { expect, test } from "@playwright/test";
-import {
-  consumeStream,
-  StreamHub,
-  type CompiledItem,
-  type CompiledSnapshot,
-  type CompiledSource,
-  type BrowserSource,
-} from "@strangecyan/vignette-core";
-import {
-  Broadcast,
-  ColorSource,
-  Layer,
-  Scene,
-  Sources,
-  createComposerRoot,
-  defineComposition,
-} from "@strangecyan/vignette";
-import { managedSceneName, managedSourceName, OBSRuntime } from "@strangecyan/vignette-target-obs";
+import { moqObs } from "@strangecyan/vignette-moq/obs";
 import { OBSWebSocket } from "obs-websocket-js";
-import { mkdir, writeFile } from "node:fs/promises";
 import process from "node:process";
-import { createElement } from "react";
-
-import {
-  comparePngBuffers,
-  createComparisonStrip,
-  createParityReportHtml,
-  MAX_DIFFERENCE_RATIO,
-} from "./parity.js";
-
-interface IsolateFrameSnapshot {
-  snapshot: CompiledSnapshot;
-  source: CompiledSource;
-  item: CompiledItem;
-}
+import { fromSse } from "@strangecyan/vignette";
+import { obsTarget } from "@strangecyan/vignette/obs";
+import { z } from "zod";
 
 const enabled = process.env.VIGNETTE_ALLOW_INTEGRATION === "1";
+const show = "kitchen-sink";
+const prefix = `vignette/${show}`;
 
-test("embedded OBS runtime consumes the in-memory snapshot stream", async () => {
+/**
+ * What `vignette obs <stream> --source @strangecyan/vignette-moq/obs` does, in process: follow the example
+ * server's stream with `obsTarget` and converge a real, disposable OBS scene collection.
+ */
+test("obsTarget converges the kitchen-sink stream in OBS", async ({ baseURL }) => {
   test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   const url = requiredEnvironment("VIGNETTE_OBS_URL");
   const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
   const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
-  const project = `integration-${String(Date.now())}`;
-  const prefix = `vignette::${project}::`;
-  const sceneName = managedSceneName(project, "main");
-
   await assertDisposableCollection(url, password, expectedCollection);
-
-  const hub = new StreamHub();
-  hub.publish({
-    kind: "setup",
-    projectId: project,
-    manifest: { version: 1, assets: [] },
-    extensions: [],
-  });
-  const runtime = new OBSRuntime({ id: "integration-obs", url, password, projectId: project });
-  const consuming = consumeStream(runtime, hub.subscribe());
-  const root = createComposerRoot(
-    defineComposition({
-      id: project,
-      canvas: { width: 1920, height: 1080, frameRate: 60 },
-      component: () => show("#112233"),
-    }),
-  );
-  const unsubscribe = root.subscribe((snapshot) => {
-    hub.publish({ kind: "update", snapshot });
-  });
-
-  try {
-    const first = await root.render();
-    await waitForRuntime(runtime, first.compiledRevision, "initial convergence");
-    expect(await sceneExists(url, password, sceneName)).toBe(true);
-
-    const second = await root.render(show("#334455"));
-    await waitForRuntime(runtime, second.compiledRevision, "update convergence");
-    expect(runtime.getStatus()).toMatchObject({
-      phase: "settled",
-      settledRevision: second.compiledRevision,
-    });
-  } finally {
-    unsubscribe();
-    hub.close();
-    await consuming;
-    await runtime.dispose();
-    await root.dispose();
-    await cleanupManagedPrefix(url, password, prefix);
-  }
-});
-
-test("View frame has pixel-aligned DOM and OBS browser viewports", async ({
-  page,
-  baseURL,
-}, testInfo) => {
-  test.skip(!enabled, "Set VIGNETTE_ALLOW_INTEGRATION=1 for a disposable local OBS instance.");
-  test.setTimeout(60_000);
-  const url = requiredEnvironment("VIGNETTE_OBS_URL");
-  const password = requiredEnvironment("VIGNETTE_OBS_PASSWORD");
-  const expectedCollection = requiredEnvironment("VIGNETTE_OBS_TEST_COLLECTION");
-  const project = `frame-parity-${String(Date.now())}`;
-  const prefix = `vignette::${project}::`;
-
-  await assertDisposableCollection(url, password, expectedCollection);
-  const exampleSnapshot = await readExampleSnapshot(new URL("/stream", baseURL));
-  const { snapshot, source, item } = isolateFrameSnapshot(exampleSnapshot, project);
-  const width = Math.round(item.frame.width);
-  const height = Math.round(item.frame.height);
-  const runtime = new OBSRuntime({
-    id: "frame-parity-obs",
-    url,
-    password,
-    projectId: project,
-    // The snapshot's frame URL is root-relative; OBS loads it from the Playwright web server.
-    baseUrl: new URL("/", baseURL).href,
-  });
   const previousProgramScene = await currentProgramScene(url, password);
 
+  const obs = obsTarget({ url, password, sources: [moqObs] });
+  const stop = obs.follow(fromSse(new URL("/stream", baseURL).href));
   try {
-    await runtime.setup({
-      projectId: project,
-      manifest: { version: 1, assets: [] },
-      extensions: [],
-    });
-    runtime.update(snapshot);
-    await waitForRuntime(runtime, snapshot.revision, "frame parity convergence");
-
-    const inputName = managedSourceName(project, source.id);
-    const settings = await inputSettings(url, password, inputName);
-    expect(settings).toMatchObject({ width, height });
-    await setProgramScene(url, password, managedSceneName(project, "main"));
-
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto("/?parity=frame");
-    await expect(page.getByTestId("dom-status")).toHaveText("settled");
-    await expect(page.locator("body")).toHaveClass(/parity-page/u);
-    const frame = page.locator(`iframe[data-vignette-source="${source.id}"]`);
-    await expect(frame).toHaveCount(1);
     await expect
-      .poll(async () => {
-        const box = await frame.boundingBox();
-        return box === null ? undefined : [Math.round(box.width), Math.round(box.height)];
-      })
-      .toEqual([width, height]);
-    await expect(
-      page.frameLocator(`iframe[data-vignette-source="${source.id}"]`).getByTestId("clock-frame"),
-    ).toHaveAttribute("data-hydrated", "true");
+      .poll(() => obs.status.phase, { timeout: 60_000, message: JSON.stringify(obs.status) })
+      .toBe("settled");
+    expect(obs.status.sources["main.clock"]).toBe("live");
+    expect(obs.status.connection).toEqual({ phase: "open" });
 
-    const domPng = await frame.screenshot({ animations: "disabled", type: "png" });
-    const obsCandidates = await captureObsCandidates(url, password, inputName, 5);
-    const comparisons = obsCandidates.map((obsPng) => ({
-      obsPng,
-      result: comparePngBuffers(domPng, obsPng, {
-        masks: [{ x: 0, y: Math.floor(height * 0.6), width, height: Math.ceil(height * 0.28) }],
-      }),
-    }));
-    const best = comparisons.sort(
-      (left, right) => left.result.differenceRatio - right.result.differenceRatio,
-    )[0];
-    if (best === undefined) throw new Error("OBS did not return a frame screenshot.");
+    const scenes = await sceneNames(url, password);
+    expect(scenes).toEqual(expect.arrayContaining([`${prefix}/main`, `${prefix}/focus`]));
 
-    const output = testInfo.outputPath("frame-parity");
-    await mkdir(output, { recursive: true });
-    const strip = createComparisonStrip(domPng, best.obsPng, best.result.diffPng);
-    const report = createParityReportHtml(domPng, best.obsPng, best.result);
-    await Promise.all([
-      writeFile(`${output}/dom.png`, domPng),
-      writeFile(`${output}/obs.png`, best.obsPng),
-      writeFile(`${output}/diff.png`, best.result.diffPng),
-      writeFile(`${output}/side-by-side.png`, strip),
-      writeFile(`${output}/index.html`, report),
-    ]);
-    await testInfo.attach("frame-parity-side-by-side", {
-      body: strip,
-      contentType: "image/png",
-    });
-    await testInfo.attach("frame-parity-report", {
-      body: Buffer.from(report),
-      contentType: "text/html",
-    });
-    console.info(
-      `Frame parity: ${String(best.result.differingPixels)} differing pixels (${(best.result.differenceRatio * 100).toFixed(4)}%).`,
-    );
-
-    expect(best.result.differenceRatio).toBeLessThanOrEqual(MAX_DIFFERENCE_RATIO);
+    const clock = await inputSettings(url, password, `${prefix}/main.clock`);
+    expect(clock).toMatchObject({ width: 1760, height: 130 });
+    const page = new URL(z.string().parse(clock.url));
+    expect(page.pathname).toBe("/vignette/frames.html");
+    expect(page.searchParams.get("frame")).toBe("Clock");
+    expect(page.searchParams.get("source")).toBe("main.clock");
+    expect(page.searchParams.get("stream")).toBe(new URL("/stream", baseURL).href);
   } finally {
+    stop();
+    await obs.dispose();
     await setProgramScene(url, password, previousProgramScene);
-    await runtime.dispose();
-    await cleanupManagedPrefix(url, password, prefix);
+    await removeManagedScenes(url, password);
   }
 });
 
-function show(color: string) {
-  return createElement(
-    Broadcast,
-    null,
-    createElement(
-      Sources,
-      null,
-      createElement(ColorSource, {
-        id: "background",
-        color,
-        size: { width: 1920, height: 1080 },
-      }),
-    ),
-    createElement(
-      Scene,
-      { id: "main" },
-      createElement(Layer, {
-        id: "background",
-        sourceId: "background",
-        style: { width: "100%", height: "100%" },
-      }),
-    ),
-  );
-}
+const ObsInputSettingsSchema = z.record(z.string(), z.json());
+type ObsInputSettings = z.output<typeof ObsInputSettingsSchema>;
+const ObsSceneHeaderSchema = z.object({ sceneName: z.string(), sceneUuid: z.string().optional() });
+type ObsSceneHeader = z.output<typeof ObsSceneHeaderSchema>;
 
-/** Read complete SSE records until an update arrives, retaining incomplete bytes between chunks. */
-async function readExampleSnapshot(url: URL): Promise<CompiledSnapshot> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 10_000);
-  const response = await fetch(url, { signal: controller.signal });
-  if (!response.ok || response.body === null) {
-    clearTimeout(timeout);
-    throw new Error(`Kitchen-sink composer stream returned ${String(response.status)}.`);
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffered = "";
-  try {
-    // Read complete SSE records until an update arrives, retaining incomplete bytes between chunks.
-
-    for (;;) {
-      // Read complete SSE records until an update arrives, retaining incomplete bytes between chunks.
-
-      const chunk = await reader.read();
-      buffered += decoder.decode(chunk.value, { stream: !chunk.done });
-      const blocks = buffered.split("\n\n");
-      buffered = blocks.pop() ?? "";
-      for (const block of blocks) {
-        const lines = block.split("\n");
-        if (
-          lines
-            .find((line) => line.startsWith("event:"))
-            ?.slice(6)
-            .trim() !== "update"
-        ) {
-          continue;
-        }
-        const data = lines
-          .filter((line) => line.startsWith("data:"))
-          .map((line) => line.slice(5).trimStart())
-          .join("\n");
-        return /* SAFETY: The update event is emitted by the Vignette runtime snapshot encoder. */ JSON.parse(
-          data,
-        ) as CompiledSnapshot;
-      }
-      if (chunk.done) throw new Error("Kitchen-sink composer stream ended before an update.");
-    }
-  } finally {
-    clearTimeout(timeout);
-    await reader.cancel();
-  }
-}
-
-/** Select the frame browser source and its placement, then build an isolated managed project for comparison. */
-function isolateFrameSnapshot(
-  example: CompiledSnapshot,
-  project: string,
-): Readonly<IsolateFrameSnapshot> {
-  const source = example.sources.find(
-    (candidate) =>
-      candidate.definition.kind === "source:browser" &&
-      /* SAFETY: This fixture or kind-selected source factory supplies the complete built-in definition inspected here. */ (
-        candidate.definition as BrowserSource
-      ).url.includes("/__vignette/frame/"),
-  );
-  if (source === undefined) throw new Error("Kitchen-sink snapshot has no <View> browser source.");
-  const originalItem = example.scenes
-    .flatMap((candidate) => candidate.items)
-    .find(
-      (candidate) =>
-        candidate.content.kind === "source" && candidate.content.sourceId === source.id,
-    );
-  if (originalItem === undefined) throw new Error("Kitchen-sink snapshot has no <View> layer.");
-  const destination = originalItem.placement?.destination ?? originalItem.frame;
-  const item: CompiledItem = {
-    id: "frame-view",
-    content: { kind: "source", sourceId: source.id },
-    frame: { x: 0, y: 0, width: destination.width, height: destination.height },
-    ...omitUndefined({
-      placement:
-        originalItem.placement === undefined
-          ? undefined
-          : {
-              ...originalItem.placement,
-              destination: { x: 0, y: 0, width: destination.width, height: destination.height },
-            },
-    }),
-    visible: true,
-    opacity: 1,
-    rotation: 0,
-  };
-  return {
-    source,
-    item,
-    snapshot: {
-      revision: 1,
-      projectId: project,
-      canvas: { width: destination.width, height: destination.height, frameRate: 60 },
-      sources: [source],
-      scenes: [{ id: "main", items: [item] }],
-      warnings: [],
-    },
-  };
+async function assertDisposableCollection(
+  url: string,
+  password: string,
+  expectedCollection: string,
+): Promise<void> {
+  await withClient(url, password, async (client) => {
+    const response = await client.call("GetSceneCollectionList");
+    expect(response.currentSceneCollectionName).toBe(expectedCollection);
+  });
 }
 
 async function inputSettings(
@@ -344,86 +90,24 @@ async function setProgramScene(url: string, password: string, sceneName: string)
   });
 }
 
-async function captureObsCandidates(
-  url: string,
-  password: string,
-  sourceName: string,
-  count: number,
-): Promise<readonly Buffer[]> {
-  return withClient(url, password, async (client) => {
-    const results: Buffer[] = [];
-    for (let index = 0; index < count; index += 1) {
-      const response = await client.call("GetSourceScreenshot", {
-        sourceName,
-        imageFormat: "png",
-        imageCompressionQuality: 100,
-      });
-      results.push(
-        Buffer.from(response.imageData.replace(/^data:image\/png;base64,/u, ""), "base64"),
-      );
-      if (index + 1 < count) {
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, 250);
-        });
-      }
-    }
-    return results;
+async function managedScenes(client: OBSWebSocket): Promise<readonly ObsSceneHeader[]> {
+  const response = await client.call("GetSceneList");
+  return response.scenes.flatMap((value) => {
+    const parsed = ObsSceneHeaderSchema.safeParse(value);
+    return parsed.success && parsed.data.sceneName.startsWith(prefix) ? [parsed.data] : [];
   });
 }
 
-async function waitForRuntime(runtime: OBSRuntime, revision: number, label: string): Promise<void> {
-  let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
-  try {
-    await Promise.race([
-      runtime.whenSettled(revision),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => {
-          reject(
-            new Error(
-              `Timed out during ${label} at revision ${String(revision)}: ${JSON.stringify(runtime.getStatus())}`,
-            ),
-          );
-        }, 15_000);
-      }),
-    ]);
-  } finally {
-    if (timeout !== undefined) clearTimeout(timeout);
-  }
+async function sceneNames(url: string, password: string): Promise<readonly string[]> {
+  return withClient(url, password, async (client) =>
+    (await managedScenes(client)).map((scene) => scene.sceneName),
+  );
 }
 
-async function assertDisposableCollection(
-  url: string,
-  password: string,
-  expectedCollection: string,
-): Promise<void> {
+/** Removes only this show's managed scenes; their inputs go with the registry scene. */
+async function removeManagedScenes(url: string, password: string): Promise<void> {
   await withClient(url, password, async (client) => {
-    const response = await client.call("GetSceneCollectionList");
-    expect(response.currentSceneCollectionName).toBe(expectedCollection);
-  });
-}
-
-const ObsInputSettingsSchema = z.record(z.string(), z.json());
-type ObsInputSettings = z.output<typeof ObsInputSettingsSchema>;
-const ObsSceneHeaderSchema = z.object({ sceneName: z.string(), sceneUuid: z.string().optional() });
-type ObsSceneHeader = z.output<typeof ObsSceneHeaderSchema>;
-
-async function sceneExists(url: string, password: string, sceneName: string): Promise<boolean> {
-  return withClient(url, password, async (client) => {
-    const response = await client.call("GetSceneList");
-    return response.scenes.some(
-      (value) => ObsSceneHeaderSchema.safeParse(value).data?.sceneName === sceneName,
-    );
-  });
-}
-
-async function cleanupManagedPrefix(url: string, password: string, prefix: string): Promise<void> {
-  await withClient(url, password, async (client) => {
-    const scenes = await client.call("GetSceneList");
-    // Cleanup only successfully decoded scenes owned by this integration run's namespace.
-    for (const value of scenes.scenes) {
-      const parsed = ObsSceneHeaderSchema.safeParse(value);
-      if (!parsed.success || !parsed.data.sceneName.startsWith(prefix)) continue;
-      const scene: ObsSceneHeader = parsed.data;
+    for (const scene of await managedScenes(client)) {
       if (scene.sceneUuid === undefined) throw new Error("Managed scene has no UUID.");
       await client.call("RemoveScene", { sceneUuid: scene.sceneUuid });
     }

@@ -1,98 +1,47 @@
 # Getting started
 
-Install Node.js 22 or newer, then install and verify the workspace:
+Working in this repository. For using Vignette, start with [`README.md`](../README.md). A project
+that uses it installs:
 
 ```sh
-corepack pnpm install
-corepack pnpm build
-corepack pnpm test
-corepack pnpm --filter @strangecyan/vignette-simple-example start
+pnpm add @strangecyan/vignette react react-dom @tanstack/react-query
+pnpm add -D vite                  # vignette dev, build and bundle
+pnpm add -D playwright            # vignette preview only
 ```
 
-This prints a compiled snapshot without starting any services: the simple example's host is a
-one-shot `await compile(composition)`. For the complete application:
+A host that only composes and drives OBS needs `@strangecyan/vignette` and `react` alone.
 
 ```sh
-corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
+pnpm install
+pnpm build
+pnpm test
 ```
 
-Open `http://127.0.0.1:4173`. `src/show.tsx` exports the composition definition — project ID,
-canvas, extensions, and top-level component — as `composition`; every host calls
-`createComposerRoot(composition)` and `root.render()`. In development the Vignette Vite plugin is
-that host (`vignette({ composition: "./src/show.tsx" })`): it owns a persistent custom React root
-and re-renders it when the module or its imports change. A timer inside the composed React component
-updates `useState`, producing a new complete snapshot every second. The backend streams setup and
-update messages — the composer **stream** — over `/stream`; the browser contains only a `DOMRuntime`
-target runtime.
+## Examples
 
-The browser shell mounts that runtime on a **stage** with one hook:
-
-```tsx
-const [ref, stage] = useStage({
-  sceneId: "main",
-  stream: sseStream("/stream"),
-});
-
-return <div ref={ref} data-phase={stage.phase} />;
-```
-
-See [`dom-stage-hook.md`](dom-stage-hook.md) for custom streams, status fields, SSR behavior, and
-direct `DOMRuntime` external-store usage.
-
-The kitchen sink's `onComposerRoot` hook attaches the in-memory OBS example to the dev composer:
-
-```ts
-const runtime = new OBSRuntime({ projectId: composition.id, url, password });
-await consumeStream(runtime, root.messages(signal));
-```
-
-Enable it while running the kitchen sink with:
+- `examples/simple`: the smallest show. `pnpm --filter @vignette/simple-example start` prints the
+  snapshot from `compose(show).once()` with no server, browser or OBS.
+- `examples/kitchen-sink`: everything else, hosted as in README §4. See its
+  [README](../examples/kitchen-sink/README.md).
 
 ```sh
-VIGNETTE_ENABLE_EMBEDDED=1 \
-VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
-VIGNETTE_OBS_PASSWORD='runtime-only' \
-corepack pnpm --filter @strangecyan/vignette-kitchen-sink dev
+pnpm --filter @vignette/kitchen-sink start   # after pnpm build; http://127.0.0.1:3000
 ```
 
-A standalone OBS process uses the same `OBSRuntime`; only `root.messages(signal)` changes to an SSE
-source such as `sseStream(url)`.
+## Checks
 
-## Target runtime lifecycle
+`AGENTS.md` lists the six gates (`build`, `typecheck`, `test`, `lint`, `format:check`, plus
+`publish:check`). `pnpm ready` runs them all, then the Playwright suite (`pnpm test:e2e`, which
+needs `pnpm exec playwright install chromium` once).
 
-Both target runtimes (`DOMRuntime`, `OBSRuntime`) follow the same ordering:
-
-```ts
-await runtime.setup({ projectId, manifest, extensions });
-runtime.update(completeSnapshot);
-await runtime.event(command);
-await runtime.dispose();
-```
-
-The composer does not attach target runtimes or inspect their status. Each runtime may expose local
-status and settlement APIs for its own operator, tests, and UI.
-
-## Real React DOM content
-
-The kitchen sink's panels are defined with `frame({ params, view })` and placed with `<View>`. Their
-URLs are a normal browser source in the compiled snapshot, but the backend serves server-rendered
-HTML and a hydration modules for the original React components. Open the kitchen sink and inspect
-the clock; its seconds counter is state owned by the iframe React root.
-
-See [`react-frames.md`](react-frames.md) for the typed API, Vite setup, lifecycle, and security
-constraints.
-
-## Guarded OBS integration probe
-
-Use only a disposable OBS profile and scene collection:
+The OBS suite needs a disposable OBS scene collection:
 
 ```sh
 VIGNETTE_ALLOW_INTEGRATION=1 \
 VIGNETTE_OBS_URL=ws://127.0.0.1:4455 \
 VIGNETTE_OBS_PASSWORD='runtime-only' \
 VIGNETTE_OBS_TEST_COLLECTION='Vignette Tests' \
-corepack pnpm test:obs-integration
+pnpm test:obs-integration
 ```
 
-The probe consumes an in-memory composer stream, exercises initial and updated complete snapshots,
-and cleans its uniquely managed OBS namespace.
+See [`obs-safety.md`](obs-safety.md) for what it may touch.

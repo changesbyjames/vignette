@@ -1,5 +1,10 @@
 # Implementation Plans
 
+> **Superseded architecture.** [Plan 014](014-vision-refactor.md) refactors Vignette to
+> [`README.vision.md`](../README.vision.md) and supersedes the architecture plans 001–013 describe
+> (packages, `defineComposition`, `DOMRuntime`/`OBSRuntime`, `useStage`, hydrated frames). They stay
+> as history; read 014 for how the code is organised now.
+
 Generated on 2026-07-15 from a greenfield repository. Execute in the order
 below unless dependencies say otherwise. Each executor must read its plan fully,
 honor its STOP conditions, run every verification gate, and update its status

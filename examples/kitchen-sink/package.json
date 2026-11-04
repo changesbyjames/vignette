@@ -1,35 +1,30 @@
 {
-  "name": "@strangecyan/vignette-kitchen-sink",
+  "name": "@vignette/kitchen-sink",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter '@strangecyan/vignette-kitchen-sink^...' build && pnpm typecheck && pnpm build:app",
-    "build:app": "vite build && vite build --config vite.ssr.config.ts",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "dev": "vite --host 127.0.0.1",
-    "preview": "pnpm start:host",
-    "start": "pnpm start:host",
-    "start:host": "node dist/server/host.js",
-    "start:obs": "node dist/server/obs-worker.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --root ../.. examples/kitchen-sink"
+    "build": "tsc -b && pnpm build:app",
+    "build:app": "node scripts/fonts.mjs && node scripts/bundle.mjs && vite build",
+    "clean": "rm -rf dist public tsconfig.tsbuildinfo",
+    "dev": "vite",
+    "dev:show": "node scripts/fonts.mjs && vignette dev src/show.tsx",
+    "obs": "vignette obs http://127.0.0.1:3000/stream --source @strangecyan/vignette-moq/obs",
+    "start": "node dist/server/entry.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@strangecyan/vignette-core": "workspace:^",
-    "@strangecyan/vignette-frame": "workspace:^",
-    "@strangecyan/vignette-moq": "workspace:^",
-    "@strangecyan/vignette": "workspace:^",
-    "@strangecyan/vignette-target-dom": "workspace:^",
-    "@strangecyan/vignette-target-obs": "workspace:^",
-    "@strangecyan/vignette-vite": "workspace:^",
     "@hono/node-server": "2.0.10",
+    "@tanstack/react-query": "5.105.0",
+    "@strangecyan/vignette-moq": "workspace:*",
     "hono": "4.12.30",
     "react": "19.2.7",
     "react-dom": "19.2.7",
+    "@strangecyan/vignette": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@fontsource/nunito": "5.3.0",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "vite": "8.1.4"

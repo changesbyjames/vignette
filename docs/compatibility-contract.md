@@ -1,93 +1,52 @@
 # Cross-target compatibility contract
 
-## Guaranteed common behavior
+What the React client, the DOM target and the OBS target render the same, and what they do not. The
+authoring side is in [README §2](../README.md#2-making-a-show).
 
-For nodes supported by both targets, a compiled revision defines:
+## The same everywhere
 
-- one fixed-resolution canvas coordinate system;
-- absolute layer frames and canonical bottom-to-top order;
-- contain, cover, and fill content fitting;
-- explicit crop and content alignment;
-- visibility and leaf rotation;
-- clipping inherited from virtual layout containers;
-- deterministic target-local diagnostics for unsupported runtime capabilities.
+- One canvas coordinate system; Yoga computes every layer's frame once, in the composer. No target
+  lays out the scene itself.
+- Bottom-to-top order, `visible`, `rotation`, `crop`, `align`, and `fit` (`cover`, `contain`,
+  `stretch`) computed from each source's `size`.
+- Identity by ID: the same source ID keeps its page, playback and connection; a new ID is a new
+  thing (README §2, "Identity").
+- Shared sources are one live instance across scene switches in every target.
+- Frames receive the same validated params. Every target shows a frame as `frames.html` in an iframe
+  (OBS: a browser source); the page follows the stream for its params, so a params change never
+  reloads the page. Clients bundle no frame components and know nothing about the show.
 
-The compiler runs the same pinned Yoga configuration for each target branch. Common nodes produce
-the same computed rectangles; DOM and OBS never independently reinterpret flexbox. Native OBS scene
-items do not expose opacity through obs-websocket, so non-unit opacity is a diagnosed DOM-only
-feature in V1.
+## Built-in kinds
 
-## First-release sources
+| Kind      | React / DOM                                   | OBS                                          |
+| --------- | --------------------------------------------- | -------------------------------------------- |
+| `color`   | filled `<div>`                                | `color_source_v3`                            |
+| `image`   | `<img>` of the downloaded asset (object URL)  | `image_source` of the cached file            |
+| `video`   | `<video>`; `loop`, `muted`, `restartOnShow`   | `ffmpeg_source`; same props, `media:restart` |
+| `browser` | sandboxed `<iframe>` at the source's viewport | `browser_source` at the laid-out size        |
+| `frame`   | `<iframe>` of the frame page                  | `browser_source` of the frame page           |
+| `text`    | styled `<div>`; `font` as an `@font-face`     | `browser_source` of a local page it writes   |
 
-- Static image from a logical project asset.
-- Local media file from a logical project asset.
-- Browser source with an absolute HTTP(S) or root-relative URL and a viewport (defaulting to the
-  frame size of the layers placing it).
-- Solid color source (intrinsic size defaulting to the canvas).
-- Nested scenes as explicit compositing/reuse boundaries.
+OBS browser sources get transparent-body CSS. The browser targets cannot inject CSS into a
+cross-origin page, so a page meant for both must make its own background transparent.
 
-Browser sources receive the same default CSS in both targets:
-`body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }`. OBS applies it
-through the browser input's native custom-CSS setting. The DOM target injects it after each iframe
-load when the iframe document is same-origin. Browser same-origin policy prevents injection into an
-arbitrary cross-origin URL; in that case the iframe has `data-vignette-css-injection="blocked"`, and
-the served page must include equivalent CSS itself.
+## Differences
 
-Optional `@strangecyan/vignette-frame` views compile to this same browser-source contract. The Vite
-adapter serves one URL as server-rendered HTML plus React hydration JavaScript; DOM and OBS each
-load that URL in their own browser instance, so markup and behavior are shared but hook state and
-timing are not synchronized.
+- **Opacity** applies in React and the DOM; OBS scene items have no opacity, so OBS ignores it.
+- **Shared sources in browsers** move between stages with `Element.moveBefore`. Without it (Safari,
+  Firefox at the time of writing) the fallback reloads a moved `<iframe>`; OBS is unaffected.
+- **Inline sources in React** stay mounted across scene switches in a `<Stage>` that follows
+  `activeScene` (it renders every scene and hides the inactive ones, like the DOM target). A
+  `<Stage scene="…">` renders only its scene, so pointing it at another scene remounts them.
+- **One placement per scene**: placing one shared source twice in a scene is `DUPLICATE_PLACEMENT`,
+  because an OBS scene item is identified by its scene and input.
+- **Unknown kinds** fail the target's setup check with `missing source plugin for kind "…"` before
+  anything is touched, unless the target was created with `checkPlugins: false` (the dev and
+  `preview` pages), which marks only the sources of that kind `error`. A plugin whose `create`
+  rejects marks only that source `error`.
 
-## URL resolution
+## Not guaranteed
 
-Snapshots and asset manifests carry server resources as either an absolute `http:`/`https:` URL or a
-root-relative path beginning with exactly one `/` (for example `/__vignette/frame/<routeKey>?...` or
-`/assets/logo-1a2b3c4d.png`). Protocol-relative (`//host/...`), bare relative (`logo.png`), and
-other schemes are rejected: browser sources with `INVALID_BROWSER_URL`, manifest entries when the
-wire message is decoded. Absolute URLs are used unchanged by every target; the composer never needs
-to know its public origin.
-
-Each target resolves root-relative URLs against its own base URL:
-
-- DOM: `DOMRuntime`/`DomTarget` option `baseUrl` (may be relative to the document). `useStage`
-  defaults it to the stream's URL, e.g. `sseStream("/stream")`; otherwise the document's `baseURI`
-  is used.
-- OBS: `OBSRuntime` option `baseUrl` (how the runtime process reaches the composer; used for asset
-  downloads) and `browserSourceBaseUrl` (how OBS reaches the composer; used for browser-source
-  settings, defaulting to `baseUrl`). A root-relative browser source with no base fails preflight
-  with an `OBS_UNSUPPORTED_SOURCE` diagnostic and the target enters the `error` phase; a
-  root-relative manifest URL with no base fails `setup`.
-- CLI: `vignette obs --url` is the default base; `--browser-source-base-url` overrides it for OBS.
-  `vignette preview` resolves against the snapshot URL, or `--base-url` for snapshot files.
-
-The browser viewport (declared, or resolved at compile time from the placing layers' frame size and
-always present in snapshots) is the intrinsic coordinate space used by common fit and crop
-calculation. Each target renders the page at the layer's realized pixel size. In OBS, the planner
-sets the browser input's native width and height to that realized size instead of rendering at the
-declared viewport and scaling the finished texture. A reusable browser source cannot have two
-different native sizes at once, so OBS diagnoses placements that realize one source ID at
-incompatible sizes; use distinct source IDs in that case.
-
-## Explicit non-guarantees
-
-- Font discovery, glyph metrics, line breaking, and native text source parity.
-- Frame-accurate video playback synchronization.
-- Identical browser-engine paint, GPU output, or color management.
-- Audio routing, monitoring, filters, transitions, capture cards, and replay controls.
-- Frame-by-frame native animation over WebSocket.
-- Adoption of manual changes to managed OBS resources.
-- Multiple placements of one source in the same scene in the first release.
-
-## Target-specific content
-
-The common authoring graph has no target-selection primitive. Every source and layer in a compiled
-snapshot is offered to every runtime, and an incompatibility is local runtime state rather than a
-composer failure or a delayed React exception. Target-native features can be added through separate
-runtime control APIs, but they cannot participate in common Yoga flow unless the snapshot contract
-gains a target-neutral representation for them.
-
-## Identity and ownership
-
-Every scene, source, and layer that reaches a remote target has an explicit ID. Labels are
-presentation only. React keys never become remote IDs. The OBS target owns only names in its project
-namespace and overwrites manual changes to those managed resources on its next convergence pass.
+Font metrics and text layout inside pages, frame-accurate video sync, identical paint or color
+management, audio routing, transitions and filters, and adoption of manual edits to managed OBS
+resources.

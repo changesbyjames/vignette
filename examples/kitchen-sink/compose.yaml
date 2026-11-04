@@ -3,22 +3,23 @@ services:
     build:
       context: ../..
       dockerfile: examples/kitchen-sink/Dockerfile.host
+    environment:
+      # Published in the stream's setup; OBS on the Docker host reaches the server here.
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://127.0.0.1:4173}
     ports:
       - "4173:4173"
 
-  vignette-worker:
+  vignette-obs:
     build:
       context: ../..
       dockerfile: examples/kitchen-sink/Dockerfile.obs
     depends_on:
       vignette-host:
         condition: service_healthy
+    # `vignette obs` reads asset and frame locations from the stream, so it shares the host's
+    # network: the published port and OBS's obs-websocket are both on 127.0.0.1.
+    network_mode: host
     environment:
-      # The worker downloads assets through the runtime URL's host; OBS runs on the Docker host
-      # and loads browser-source frames through the published port instead.
-      VIGNETTE_STREAM_URL: http://vignette-host:4173/stream
-      VIGNETTE_BROWSER_SOURCE_BASE_URL: ${VIGNETTE_BROWSER_SOURCE_BASE_URL:-http://127.0.0.1:4173/}
-      VIGNETTE_OBS_URL: ${VIGNETTE_OBS_URL:-ws://host.docker.internal:4455}
-      VIGNETTE_OBS_PASSWORD: ${VIGNETTE_OBS_PASSWORD:-runtime-only}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      VIGNETTE_STREAM_URL: http://127.0.0.1:4173/stream
+      VIGNETTE_OBS_URL: ${VIGNETTE_OBS_URL:-ws://127.0.0.1:4455}
+      VIGNETTE_OBS_PASSWORD: ${VIGNETTE_OBS_PASSWORD:-}
