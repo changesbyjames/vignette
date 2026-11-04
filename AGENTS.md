@@ -25,14 +25,14 @@ implementation progress over full verification.
 
 ## Architecture boundaries
 
-Everything ships as one package, `packages/vignette` (npm `vignette`), with subpath exports `.`,
-`./react`, `./dom`, `./obs`, `./obs/testing`, `./frame`, `./frame/mount`, `./bundle`, `./vite` and
-`./yoga.wasm`, and the `vignette` bin (`src/cli`, not an export: importing it runs the CLI). `vite`
-and `playwright` are optional peer dependencies: only `bundle`, `vite` and the `dev`, `build` and
-`preview` commands use them, and they import them lazily (`loadVite()`, `import("playwright")`), so
-`vignette` and `vignette/obs` load without either. Environment separation is enforced per directory
-of `packages/vignette/src/` by `no-restricted-imports` rules in `oxlint.config.ts`, not by package
-boundaries:
+Everything ships as one package, `packages/vignette` (npm `@strangecyan/vignette`), with subpath
+exports `.`, `./react`, `./dom`, `./obs`, `./obs/testing`, `./frame`, `./frame/mount`, `./bundle`,
+`./vite` and `./yoga.wasm`, and the `vignette` bin (`src/cli`, not an export: importing it runs the
+CLI). `vite` and `playwright` are optional peer dependencies: only `bundle`, `vite` and the `dev`,
+`build` and `preview` commands use them, and they import them lazily (`loadVite()`,
+`import("playwright")`), so `@strangecyan/vignette` and `@strangecyan/vignette/obs` load without
+either. Environment separation is enforced per directory of `packages/vignette/src/` by
+`no-restricted-imports` rules in `oxlint.config.ts`, not by package boundaries:
 
 - `core` (data model, `defineSource`, built-in source definitions, layout compiler), `stream`
   (messages, hub, SSE codec), `compose` (the composer), `react-authoring` (show primitives and the
@@ -44,19 +44,21 @@ boundaries:
 - `obs` (the OBS target) may not import `dom` or `react`.
 - `dom` and `react` (browser targets) may not import `obs` or Node built-ins.
 - `frame`, `bundle`, `vite` and `cli` sit on top and may import the directories they need.
-  `vignette/frame` exports only `frame()`, because shows import it in Node; `mountFrames` lives in
-  `vignette/frame/mount` and is imported only by the generated `frames.js` entry.
+  `@strangecyan/vignette/frame` exports only `frame()`, because shows import it in Node;
+  `mountFrames` lives in `@strangecyan/vignette/frame/mount` and is imported only by the generated
+  `frames.js` entry.
 - Clients know nothing about shows, scenes or frames. The React client, the DOM target, the dev
   preview page and `vignette preview` render a `Frame` source as an iframe to the frame page and
   import no frame modules; `frames.js` is the only bundle containing frame components.
 - Tests (`*.test.ts[x]`) are exempt from the import rules.
 
 Targets consume immutable snapshots; they never inspect React fibers or host nodes. The OBS planner
-is a pure data transformation; transport and retries live outside it. `vignette/obs/testing`
-(`FakeObs`, `ManualClock`) exists for tests; production code never imports it.
+is a pure data transformation; transport and retries live outside it.
+`@strangecyan/vignette/obs/testing` (`FakeObs`, `ManualClock`) exists for tests; production code
+never imports it.
 
-`packages/moq` (`@vignette/moq`) and `examples/*` use only `vignette`'s public entries, like any
-other consumer.
+`packages/moq` (`@strangecyan/vignette-moq`) and `examples/*` use only `@strangecyan/vignette`'s
+public entries, like any other consumer.
 
 ## Vocabulary
 

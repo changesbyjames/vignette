@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MoqView } from "@vignette/moq/react";
+import { MoqView } from "@strangecyan/vignette-moq/react";
 import { Suspense, type ReactElement } from "react";
-import { Stage, Stream, useStreamStatus } from "vignette/react";
+import { Stage, Stream, useStreamStatus } from "@strangecyan/vignette/react";
 
 const queryClient = new QueryClient();
 const sources = [MoqView];

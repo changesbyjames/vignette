@@ -26,7 +26,7 @@ const PREVIEW_ID = "\0vignette:preview";
  * ```
  *
  * The show is compiled with Vite's SSR build, so `out` must stay inside the project: `show.js`
- * and `server.js` import `vignette` and React from its `node_modules`.
+ * and `server.js` import `@strangecyan/vignette` and React from its `node_modules`.
  */
 export async function runBuild(options: RunBuildOptions): Promise<void> {
   const show = resolve(options.show);
@@ -114,7 +114,7 @@ import { createServer } from "node:http";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compose, encodeStreamMessageSse, streamOptions } from "vignette";
+import { compose, encodeStreamMessageSse, streamOptions } from "@strangecyan/vignette";
 
 import show from "./show.js";
 

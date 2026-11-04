@@ -35,6 +35,7 @@ that address and OBS's obs-websocket are both reachable on `127.0.0.1`.
 The composer runs in a Durable Object: swap the HTTP server for the object's `fetch` handler, serve
 `composer.stream()` as SSE from it, and put the bundle directory in R2 or static assets. Workers
 cannot compile WebAssembly at runtime, so pass a compiled Yoga module:
-`import wasm from "vignette/yoga.wasm"` and `compose(show, { layout: await loadYoga(wasm) })`.
-`vignette/bundle` and `vignette/obs` need Node and do not run in Workers; run `bundle` at build time
-and `vignette obs` next to OBS.
+`import wasm from "@strangecyan/vignette/yoga.wasm"` and
+`compose(show, { layout: await loadYoga(wasm) })`. `@strangecyan/vignette/bundle` and
+`@strangecyan/vignette/obs` need Node and do not run in Workers; run `bundle` at build time and
+`vignette obs` next to OBS.

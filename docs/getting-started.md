@@ -4,12 +4,12 @@ Working in this repository. For using Vignette, start with [`README.md`](../READ
 that uses it installs:
 
 ```sh
-pnpm add vignette react react-dom @tanstack/react-query
+pnpm add @strangecyan/vignette react react-dom @tanstack/react-query
 pnpm add -D vite                  # vignette dev, build and bundle
 pnpm add -D playwright            # vignette preview only
 ```
 
-A host that only composes and drives OBS needs `vignette` and `react` alone.
+A host that only composes and drives OBS needs `@strangecyan/vignette` and `react` alone.
 
 ```sh
 pnpm install

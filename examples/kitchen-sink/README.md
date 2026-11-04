@@ -15,8 +15,8 @@ Every part of Vignette in one show, hosted the way
   `/vignette/`, the preview app at `/`, and optionally `obsTarget` in the same process.
 - [`src/app.tsx`](src/app.tsx) is the browser preview:
   `<Stream url="/stream" sources={[MoqView]}><Stage /></Stream>` with a `useStreamStatus` readout.
-- [`scripts/bundle.mjs`](scripts/bundle.mjs) calls `bundle()` from `vignette/bundle`, writing
-  `public/vignette/` (`frames.html`, `frames.js`, `assets/`, `assets.json`).
+- [`scripts/bundle.mjs`](scripts/bundle.mjs) calls `bundle()` from `@strangecyan/vignette/bundle`,
+  writing `public/vignette/` (`frames.html`, `frames.js`, `assets/`, `assets.json`).
 
 ## Run it
 
@@ -38,7 +38,7 @@ Set `OBS_URL` (and `OBS_PASSWORD`) when starting the server to drive OBS from th
 run `vignette obs` against the stream from the OBS machine:
 
 ```sh
-pnpm --filter @vignette/kitchen-sink obs   # vignette obs http://127.0.0.1:3000/stream --source @vignette/moq/obs
+pnpm --filter @vignette/kitchen-sink obs   # vignette obs http://127.0.0.1:3000/stream --source @strangecyan/vignette-moq/obs
 ```
 
 OBS shows the MoQ source with its native `moq_source` input when the MoQ plugin is installed, and

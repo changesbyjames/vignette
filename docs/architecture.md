@@ -9,24 +9,25 @@ show (React) ──▶ composer ──▶ stream ──▶ target (React, DOM, O
 
 ## Pieces and where they live
 
-Everything is one package, `packages/vignette` (`vignette` on npm), split by directory under `src/`.
+Everything is one package, `packages/vignette` (`@strangecyan/vignette` on npm), split by directory
+under `src/`.
 
-| Directory         | Holds                                                                                                      | Entry                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `core`            | snapshot schemas, `defineSource` and the built-in definitions, validation, the Yoga compiler               | `vignette`                               |
-| `react-authoring` | `<Show>`, `<Scene>`, `<Layer>`, `<Use>`, the reconciler host config, lowering to a show tree               | `vignette`                               |
-| `compose`         | `compose()`: React root, compile on commit, publish the stream (`machine.ts`)                              | `vignette`                               |
-| `stream`          | `setup` / `update` / `event` messages, the replaying hub, `toSseEvent`, `fromSse`                          | `vignette`                               |
-| `target`          | `createTarget`: the kernel every target shares (setup checks, asset stage, plugin lifetime)                | `vignette`                               |
-| `react`           | `<Stream>`, `<Stage>`, hooks and the built-in React views                                                  | `vignette/react`                         |
-| `dom`             | `domTarget` and the built-in DOM plugins                                                                   | `vignette/dom`                           |
-| `obs`             | `obsTarget`: connection and convergence machine, planner, executor, file asset store, built-in OBS plugins | `vignette/obs`, `vignette/obs/testing`   |
-| `frame`           | `frame()` for shows; `mountFrames`, the frame page's entry (`frames.js` only)                              | `vignette/frame`, `vignette/frame/mount` |
-| `bundle`          | `bundle()`, `scanAssets`, the `frames.html` template                                                       | `vignette/bundle`                        |
-| `vite`, `cli`     | the Vite plugin and the `vignette` command                                                                 | `vignette/vite`, bin                     |
+| Directory         | Holds                                                                                                      | Entry                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `core`            | snapshot schemas, `defineSource` and the built-in definitions, validation, the Yoga compiler               | `@strangecyan/vignette`                                            |
+| `react-authoring` | `<Show>`, `<Scene>`, `<Layer>`, `<Use>`, the reconciler host config, lowering to a show tree               | `@strangecyan/vignette`                                            |
+| `compose`         | `compose()`: React root, compile on commit, publish the stream (`machine.ts`)                              | `@strangecyan/vignette`                                            |
+| `stream`          | `setup` / `update` / `event` messages, the replaying hub, `toSseEvent`, `fromSse`                          | `@strangecyan/vignette`                                            |
+| `target`          | `createTarget`: the kernel every target shares (setup checks, asset stage, plugin lifetime)                | `@strangecyan/vignette`                                            |
+| `react`           | `<Stream>`, `<Stage>`, hooks and the built-in React views                                                  | `@strangecyan/vignette/react`                                      |
+| `dom`             | `domTarget` and the built-in DOM plugins                                                                   | `@strangecyan/vignette/dom`                                        |
+| `obs`             | `obsTarget`: connection and convergence machine, planner, executor, file asset store, built-in OBS plugins | `@strangecyan/vignette/obs`, `@strangecyan/vignette/obs/testing`   |
+| `frame`           | `frame()` for shows; `mountFrames`, the frame page's entry (`frames.js` only)                              | `@strangecyan/vignette/frame`, `@strangecyan/vignette/frame/mount` |
+| `bundle`          | `bundle()`, `scanAssets`, the `frames.html` template                                                       | `@strangecyan/vignette/bundle`                                     |
+| `vite`, `cli`     | the Vite plugin and the `vignette` command                                                                 | `@strangecyan/vignette/vite`, bin                                  |
 
-`packages/moq` (`@vignette/moq`) is a source kind built only on the public plugin interfaces, the
-worked example of [README §7](../README.md#7-making-your-own-sources-and-plugins).
+`packages/moq` (`@strangecyan/vignette-moq`) is a source kind built only on the public plugin
+interfaces, the worked example of [README §7](../README.md#7-making-your-own-sources-and-plugins).
 
 ## Boundaries
 

@@ -1,4 +1,4 @@
-import { compose, Layer, Scene, Show, type Diagnostic } from "vignette";
+import { compose, Layer, Scene, Show, type Diagnostic } from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 import { Moq } from "./index.js";

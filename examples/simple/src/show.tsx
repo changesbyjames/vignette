@@ -1,4 +1,4 @@
-import { Color, Layer, Scene, Show } from "vignette";
+import { Color, Layer, Scene, Show } from "@strangecyan/vignette";
 
 export default (
   <Show id="simple-example" canvas={{ width: 1280, height: 720, frameRate: 30 }}>

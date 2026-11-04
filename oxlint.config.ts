@@ -22,7 +22,7 @@ const environmentPackages = {
   message: "This directory is environment-neutral; environment-specific packages are not allowed.",
 };
 
-/** Directory import boundaries inside the single `vignette` package (see AGENTS.md). */
+/** Directory import boundaries inside the single `@strangecyan/vignette` package (see AGENTS.md). */
 const boundaryOverrides = [
   {
     // Environment-neutral code: the composer, data model, stream and target contracts.

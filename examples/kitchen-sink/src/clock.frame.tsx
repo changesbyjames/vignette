@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { frame } from "vignette/frame";
+import { frame } from "@strangecyan/vignette/frame";
 import { z } from "zod";
 
 /** A clock that ticks in the page: frames hold their own state and animate. */

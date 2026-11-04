@@ -29,9 +29,9 @@ describe("parseCommandLine", () => {
   });
 
   it("requires --obs for OBS options in dev", () => {
-    expect(() => parseCommandLine(["dev", "show.tsx", "--source", "@vignette/moq/obs"])).toThrow(
-      "need --obs",
-    );
+    expect(() =>
+      parseCommandLine(["dev", "show.tsx", "--source", "@strangecyan/vignette-moq/obs"]),
+    ).toThrow("need --obs");
   });
 
   it("parses build with a default output directory", () => {
@@ -79,12 +79,12 @@ describe("parseCommandLine", () => {
       parseCommandLine([
         "obs",
         "--source",
-        "@vignette/moq/obs",
+        "@strangecyan/vignette-moq/obs",
         "http://localhost:4173/stream",
         "--source",
         "./plugins.js",
       ]),
-    ).toMatchObject({ sources: ["@vignette/moq/obs", "./plugins.js"] });
+    ).toMatchObject({ sources: ["@strangecyan/vignette-moq/obs", "./plugins.js"] });
     expect(
       parseCommandLine(["dev", "show.tsx", "--obs", "--source", "a", "--source", "b"]),
     ).toMatchObject({ obs: { sources: ["a", "b"] } });

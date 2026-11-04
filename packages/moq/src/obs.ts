@@ -1,10 +1,10 @@
 /**
- * The `moq` kind for `vignette/obs`. An OBS with the MoQ plugin gets its native `moq_source` input.
+ * The `moq` kind for `@strangecyan/vignette/obs`. An OBS with the MoQ plugin gets its native `moq_source` input.
  * Any other OBS gets a stock media source (`ffmpeg_source`) playing RTMP from a local
  * [`moq`](https://github.com/moq-dev/moq) CLI that subscribes to the broadcast and serves it.
  *
  * ```sh
- * vignette obs https://show.example.com/stream --source @vignette/moq/obs
+ * vignette obs https://show.example.com/stream --source @strangecyan/vignette-moq/obs
  * ```
  *
  * The relay runs `moq` from `PATH`, or the executable named by `VIGNETTE_MOQ_CLI`.
@@ -14,7 +14,12 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { connect } from "node:net";
 import process from "node:process";
-import type { ObsHandle, ObsInput, ObsPluginContext, ObsSourcePlugin } from "vignette/obs";
+import type {
+  ObsHandle,
+  ObsInput,
+  ObsPluginContext,
+  ObsSourcePlugin,
+} from "@strangecyan/vignette/obs";
 
 import type { Moq } from "./index.js";
 
@@ -173,7 +178,7 @@ async function startRelay(
       if (Date.now() - running.startedAt >= 10_000) delay = 1_000;
       const reason = exitSignal ?? `code ${String(code)}`;
       process.stderr.write(
-        `@vignette/moq: relay for source '${sourceId}' exited (${reason}); restarting in ${String(delay / 1_000)} s. ${running.tail()}\n`,
+        `@strangecyan/vignette-moq: relay for source '${sourceId}' exited (${reason}); restarting in ${String(delay / 1_000)} s. ${running.tail()}\n`,
       );
       restart = setTimeout(() => {
         if (stopped) return;

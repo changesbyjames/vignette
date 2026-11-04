@@ -146,7 +146,8 @@ function startServer(): ChildProcess {
   child.stderr?.on("data", (chunk: Buffer) => {
     // The MoQ plugin reports relay restarts on stderr.
     for (const line of chunk.toString().split(/\r?\n/u)) {
-      if (line.startsWith("@vignette/moq:")) run.event("moq-relay", "restart", { line });
+      if (line.startsWith("@strangecyan/vignette-moq:"))
+        run.event("moq-relay", "restart", { line });
     }
   });
   return child;

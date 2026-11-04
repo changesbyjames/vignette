@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-// Requires a doc comment on at least 80% of the project-owned symbols `vignette` exports.
+// Requires a doc comment on at least 80% of the project-owned symbols `@strangecyan/vignette` exports.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const directory = "packages/vignette";
 const minimumCoverage = 0.8;

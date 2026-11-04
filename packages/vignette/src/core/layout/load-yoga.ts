@@ -11,7 +11,7 @@ import { createYogaLayoutEngine } from "./yoga-runtime.js";
  * pass it in; layout is identical either way:
  *
  * ```ts
- * import yogaWasm from "vignette/yoga.wasm";
+ * import yogaWasm from "@strangecyan/vignette/yoga.wasm";
  * const layout = await loadYoga(yogaWasm);
  * ```
  *

@@ -26,7 +26,9 @@ export const AppearanceContext = createContext(0);
 export function useStreamContext(): StreamContextValue {
   const value = useContext(StreamContext);
   if (value === undefined) {
-    throw new Error("vignette/react hooks and <Stage> must be rendered inside <Stream>.");
+    throw new Error(
+      "@strangecyan/vignette/react hooks and <Stage> must be rendered inside <Stream>.",
+    );
   }
   return value;
 }

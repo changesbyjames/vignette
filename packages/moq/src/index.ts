@@ -1,10 +1,10 @@
 /**
  * The `moq` source kind: one Media over QUIC broadcast rendered as video. This entry is the
- * definition only; `@vignette/moq/react`, `/dom` and `/obs` hold one plugin per target.
+ * definition only; `@strangecyan/vignette-moq/react`, `/dom` and `/obs` hold one plugin per target.
  *
  * @module
  */
-import { ContentSizeSchema, defineSource } from "vignette";
+import { ContentSizeSchema, defineSource } from "@strangecyan/vignette";
 import { z } from "zod";
 
 /**

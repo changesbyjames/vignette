@@ -56,12 +56,15 @@ importers:
       '@hono/node-server':
         specifier: 2.0.10
         version: 2.0.10(hono@4.12.30)
+      '@strangecyan/vignette':
+        specifier: workspace:*
+        version: link:../../packages/vignette
+      '@strangecyan/vignette-moq':
+        specifier: workspace:*
+        version: link:../../packages/moq
       '@tanstack/react-query':
         specifier: 5.105.0
         version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
-      '@vignette/moq':
-        specifier: workspace:*
-        version: link:../../packages/moq
       hono:
         specifier: 4.12.30
         version: 4.12.30
@@ -71,9 +74,6 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
-      vignette:
-        specifier: workspace:*
-        version: link:../../packages/vignette
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -93,12 +93,12 @@ importers:
 
   examples/simple:
     dependencies:
+      '@strangecyan/vignette':
+        specifier: workspace:*
+        version: link:../../packages/vignette
       react:
         specifier: 19.2.7
         version: 19.2.7
-      vignette:
-        specifier: workspace:*
-        version: link:../../packages/vignette
     devDependencies:
       '@types/react':
         specifier: 19.2.17
@@ -109,7 +109,10 @@ importers:
       '@hono/node-server':
         specifier: 2.0.10
         version: 2.0.10(hono@4.12.30)
-      '@vignette/moq':
+      '@strangecyan/vignette':
+        specifier: workspace:*
+        version: link:../../packages/vignette
+      '@strangecyan/vignette-moq':
         specifier: workspace:*
         version: link:../../packages/moq
       hono:
@@ -124,9 +127,6 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
-      vignette:
-        specifier: workspace:*
-        version: link:../../packages/vignette
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -153,6 +153,9 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      '@strangecyan/vignette':
+        specifier: workspace:*
+        version: link:../vignette
       '@tanstack/react-query':
         specifier: 5.105.0
         version: 5.105.0(@types/react@19.2.17)(react@19.2.7)
@@ -171,9 +174,6 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
-      vignette:
-        specifier: workspace:*
-        version: link:../vignette
 
   packages/vignette:
     dependencies:

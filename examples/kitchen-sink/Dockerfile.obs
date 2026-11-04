@@ -17,7 +17,7 @@ ENV NODE_ENV=production \
     VIGNETTE_STREAM_URL=http://127.0.0.1:4173/stream \
     VIGNETTE_OBS_URL=ws://127.0.0.1:4455
 
-# `@vignette/moq/obs` relays MoQ through the `moq` CLI when OBS has no native `moq_source` input.
+# `@strangecyan/vignette-moq/obs` relays MoQ through the `moq` CLI when OBS has no native `moq_source` input.
 ARG TARGETARCH
 ARG MOQ_CLI_VERSION=0.14.10
 RUN apt-get update \
@@ -37,6 +37,6 @@ COPY --from=build --chown=node:node /workspace/examples/kitchen-sink ./examples/
 
 USER node
 
-# `vignette obs <stream> --source @vignette/moq/obs`; asset and frame locations come from the stream.
+# `vignette obs <stream> --source @strangecyan/vignette-moq/obs`; asset and frame locations come from the stream.
 WORKDIR /app/examples/kitchen-sink
-CMD ["sh", "-c", "exec node node_modules/vignette/dist/cli/index.js obs \"$VIGNETTE_STREAM_URL\" --obs-url \"$VIGNETTE_OBS_URL\" --password \"$VIGNETTE_OBS_PASSWORD\" --source @vignette/moq/obs"]
+CMD ["sh", "-c", "exec node node_modules/@strangecyan/vignette/dist/cli/index.js obs \"$VIGNETTE_STREAM_URL\" --obs-url \"$VIGNETTE_OBS_URL\" --password \"$VIGNETTE_OBS_PASSWORD\" --source @strangecyan/vignette-moq/obs"]

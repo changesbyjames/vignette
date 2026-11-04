@@ -11,7 +11,7 @@ export interface ReactSourceViewProps<Def = unknown> {
 }
 
 /**
- * Renders one source kind in `vignette/react`: a component that fills a box the stage sizes to
+ * Renders one source kind in `@strangecyan/vignette/react`: a component that fills a box the stage sizes to
  * `source.size` and scales into the item. Hooks, `use()`, Suspense and effects all work. `Def` is
  * the source component, e.g. `ReactSourcePlugin<typeof Moq>`, which types `source.props`.
  */

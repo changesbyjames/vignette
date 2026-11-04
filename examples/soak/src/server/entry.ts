@@ -5,14 +5,14 @@
  */
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { moqObs } from "@vignette/moq/obs";
+import { moqObs } from "@strangecyan/vignette-moq/obs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "vignette";
-import { obsTarget } from "vignette/obs";
+import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
+import { obsTarget } from "@strangecyan/vignette/obs";
 
 import show from "../show.js";
 import { startProbe, type ProbeMessage } from "./probe.js";

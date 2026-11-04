@@ -1,4 +1,4 @@
-import { compose } from "vignette";
+import { compose } from "@strangecyan/vignette";
 
 import show from "./show.js";
 

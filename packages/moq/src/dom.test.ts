@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
-import type { DomPluginContext } from "vignette/dom";
+import type { DomPluginContext } from "@strangecyan/vignette/dom";
 
 import { moqDom } from "./dom.js";
 import type { MoqProps } from "./watch.js";

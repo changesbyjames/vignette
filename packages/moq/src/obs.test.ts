@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ObsPluginContext } from "vignette/obs";
+import type { ObsPluginContext } from "@strangecyan/vignette/obs";
 
 import { moqObs } from "./obs.js";
 
