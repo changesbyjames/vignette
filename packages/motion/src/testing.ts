@@ -31,11 +31,19 @@ export interface Vec2 {
 /** A filter's settings: what a chunk reads and updates. */
 export type FilterSettings = Record<string, number>;
 
-/** An input with filters whose settings chunks update. */
+/** An input with filters whose settings chunks update, and settings of its own (a mailbox). */
 export interface FakeInput {
   readonly name: string;
   readonly filters: Map<string, FilterSettings>;
+  /** The input's live settings: what `obs_source_get_settings` aliases and `update` announces. */
+  readonly settings: Settings;
+  /** Signal handlers connected with `signal_handler_connect`, by signal name. */
+  readonly signals: Map<string, (() => void)[]>;
 }
+
+/** A settings object (`obs_data_t`): what the loader reads from and writes to. */
+export const SettingsSchema = z.record(z.string(), z.json());
+export type Settings = z.output<typeof SettingsSchema>;
 
 /** What the fake `obslua` holds; tests read and seed it directly. */
 export interface FakeObs {
@@ -57,6 +65,13 @@ export interface ChunkHandle {
 export interface HandoffState {
   readonly pos: Visual;
   readonly vel: Visual;
+}
+
+/** A mailbox input under test. */
+export interface FakeMailbox {
+  readonly input: FakeInput;
+  /** Overlays `settings` onto the input's and fires its `update` signal, as `SetInputSettings` does. */
+  update(settings: Settings): void;
 }
 
 /** One frame of a simulated chunk: the item's visual state after that frame's tick. */
@@ -82,6 +97,8 @@ export interface LuaHost {
   item(scene: string, id: number, visual: Visual, visible?: boolean): FakeSceneItem;
   /** Adds an input with an opacity filter at `opacity`. */
   input(name: string, opacity: number): FakeInput;
+  /** Adds an input with settings, e.g. a mailbox; `update(settings)` overlays them and signals. */
+  mailbox(name: string, settings?: Settings): FakeMailbox;
   /** Reads an item's visual state, with opacity from the named input's filter when given. */
   visual(scene: string, id: number, opacityInput?: string): Visual;
   /** Runs a generated chunk's Lua and starts it, with a predecessor's hand-off if given. */
@@ -130,9 +147,22 @@ export async function createLuaHost(): Promise<LuaHost> {
       return item;
     },
     input(name, opacity) {
-      const input: FakeInput = { name, filters: new Map([["vignette/opacity", { opacity }]]) };
+      const input = newInput(name);
+      input.filters.set("vignette/opacity", { opacity });
       obs.inputs.set(name, input);
       return input;
+    },
+    mailbox(name, settings = {}) {
+      const input = newInput(name);
+      Object.assign(input.settings, settings);
+      obs.inputs.set(name, input);
+      return {
+        input,
+        update(next) {
+          Object.assign(input.settings, next);
+          for (const handler of input.signals.get("update") ?? []) handler();
+        },
+      };
     },
     visual(scene, id, opacityInput) {
       const item = obs.scenes.get(scene)?.get(id);
@@ -192,6 +222,10 @@ export async function createLuaHost(): Promise<LuaHost> {
   return host;
 }
 
+function newInput(name: string): FakeInput {
+  return { name, filters: new Map(), settings: {}, signals: new Map() };
+}
+
 /** Centre, size, rotation and opacity from an item's position, bounds and rotation. */
 function visualOf(item: FakeSceneItem, op: number): Visual {
   const a = (item.rot * Math.PI) / 180;
@@ -228,10 +262,6 @@ interface FilterSource {
 
 /** A source handle: a scene, an input, or a filter on an input. */
 type SourceEntry = NamedSource | FilterSource;
-
-/** A settings object (`obs_data_t`): what the loader reads from and writes to JSON. */
-const SettingsSchema = z.record(z.string(), z.json());
-type Settings = z.output<typeof SettingsSchema>;
 
 /** `obs_data_t`, array, source and item handles, by number, as Lua passes them around. */
 class Handles {
@@ -303,6 +333,24 @@ function obsluaApi(obs: FakeObs) {
       return undefined;
     },
     obs_source_release: () => undefined,
+    obs_source_get_name: (handle: number) => handles.sourceOf(handle).name,
+    obs_enum_sources: () =>
+      [...obs.inputs.keys()].map((name) => handles.newSource({ kind: "input", name })),
+    source_list_release: () => undefined,
+    obs_source_get_signal_handler: (handle: number) => handle,
+    signal_handler_connect: (handle: number, signal: string, callback: () => void) => {
+      const entry = handles.sourceOf(handle);
+      const input = entry.kind === "input" ? obs.inputs.get(entry.name) : undefined;
+      if (input === undefined) throw new Error("not an input handle");
+      input.signals.set(signal, [...(input.signals.get(signal) ?? []), callback]);
+    },
+    obs_source_get_weak_source: (handle: number) => handle,
+    obs_weak_source_get_source: (handle: number) => {
+      const entry = handles.sourceOf(handle);
+      const alive =
+        entry.kind === "input" ? obs.inputs.has(entry.name) : obs.scenes.has(entry.name);
+      return alive ? handle : undefined;
+    },
     obs_scene_from_source: (handle: number) => handle,
     obs_scene_find_sceneitem_by_id: (sceneHandle: number, id: number) => {
       const item = sceneItems(sceneHandle)?.get(id);
@@ -342,7 +390,17 @@ function obsluaApi(obs: FakeObs) {
       if (input === undefined || !input.filters.has(name)) return undefined;
       return handles.newSource({ kind: "filter", name, input: input.name });
     },
-    obs_source_get_settings: (handle: number) => handles.newSettings({ ...filterOf(handle) }),
+    // A filter's settings are a copy, as OBS hands out; an input's alias its live settings, so
+    // what the loader writes back is what `GetInputSettings` reads.
+    obs_source_get_settings: (handle: number) => {
+      const entry = handles.sourceOf(handle);
+      if (entry.kind === "input") {
+        const input = obs.inputs.get(entry.name);
+        if (input === undefined) throw new Error("not an input handle");
+        return handles.newSettings(input.settings);
+      }
+      return handles.newSettings({ ...filterOf(handle) });
+    },
     obs_source_update: (handle: number, settings: number) => {
       const filter = filterOf(handle);
       for (const [key, value] of Object.entries(handles.settingsOf(settings))) {

@@ -87,6 +87,13 @@ export interface ObsPlacementContext {
   readonly previous?: Item;
   /** The transform the planner would converge for a plain layer: the item's rest state. */
   readonly transform: ObsSceneItemTransform;
+  /** The show's registry scene, `vignette/<show>`, where an input the plugin owns can live. */
+  readonly registryScene: string;
+  /**
+   * The name of an OBS resource this plugin owns for the show, `vignette/<show>/<kind>/<name>`:
+   * inside the show's namespace, but never converged or removed by the target.
+   */
+  resourceName(name: string): string;
   /** Sends one obs-websocket request. Rejects while OBS is disconnected. */
   call(requestType: string, requestData?: ObsJsonObject): Promise<ObsJsonObject>;
   /**

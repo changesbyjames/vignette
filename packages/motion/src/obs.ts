@@ -1,13 +1,15 @@
 /**
  * The `motion` kind for `@strangecyan/vignette/obs`. Each placement becomes a generated Lua
  * chunk, run inside OBS by the one hand-installed loader script, so motion is locked to OBS's
- * video frames rather than paced over the websocket. Without the loader, items are placed at
- * rest, so the show still works.
+ * video frames rather than paced over the websocket. Commands reach the loader through a mailbox
+ * input the plugin owns (`vignette/<show>/motion/mailbox`): one `SetInputSettings` per command,
+ * which fires the signal the loader listens for, and the loader answers in the same settings.
+ * Without the loader, items are placed at rest, so the show still works.
  *
  * @module
  */
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { Item } from "@strangecyan/vignette";
@@ -25,14 +27,16 @@ import {
 } from "./index.js";
 import { LOADER_LUA, LOADER_VERSION } from "./loader.js";
 
-/** One loader directory: its command sequence and whether the loader answered. */
+/** One show's mailbox: its command sequence and whether the loader answered. */
 interface Mailbox {
   seq: number;
   installed?: boolean;
+  created?: boolean;
 }
 const mailboxes = new Map<string, Mailbox>();
 
 const OPACITY_FILTER = "vignette/opacity";
+const MAILBOX = "mailbox";
 
 export const motionObsLayer: ObsLayerPlugin<typeof MotionLayer> = {
   kind: MotionLayer.definition.kind,
@@ -108,19 +112,24 @@ interface Run {
 
 /** Writes the chunk and hands it to the loader; runs the fallback when the loader is absent. */
 async function run(context: ObsPlacementContext, spec: Run): Promise<void> {
+  const inputName = context.resourceName(MAILBOX);
+  const mailbox = mailboxes.get(inputName) ?? { seq: Date.now() % 1_000_000_000 };
+  mailboxes.set(inputName, mailbox);
   const dir = await context.directory();
-  const mailbox = mailboxes.get(dir) ?? { seq: Date.now() % 1_000_000_000 };
-  mailboxes.set(dir, mailbox);
   await ensureLoader(dir);
+  await ensureMailbox(context, inputName, mailbox);
   const path = await writeChunk(dir, context, spec);
   const key = `${context.sceneId}:${spec.item.id}`;
   mailbox.seq += 1;
   const seq = mailbox.seq;
-  const command = { seq, load: [{ key, path: path.replaceAll("\\", "/") }] };
-  await writeAtomic(join(dir, "commands.json"), JSON.stringify(command));
+  await context.call("SetInputSettings", {
+    inputName,
+    inputSettings: { seq, load: [{ key, path: path.replaceAll("\\", "/") }] },
+    overlay: true,
+  });
   // A loader known to be missing gets a short wait, so every placement is not slowed by it.
   const patience = mailbox.installed === false ? 300 : 2_000;
-  const acked = await waitForState(dir, (state) => state.ack_seq >= seq, patience);
+  const acked = await waitForState(context, inputName, (state) => state.ack_seq >= seq, patience);
   if (!acked) {
     if (mailbox.installed !== false) warnMissingLoader(dir);
     mailbox.installed = false;
@@ -130,7 +139,31 @@ async function run(context: ObsPlacementContext, spec: Run): Promise<void> {
   mailbox.installed = true;
   if (!spec.wait) return;
   const budget = settleSeconds(spec.transition) * 1_000 + 1_500;
-  await waitForState(dir, (state) => state.done.split(",").includes(key), budget);
+  await waitForState(context, inputName, (state) => state.done.split(",").includes(key), budget);
+}
+
+/**
+ * The mailbox input, created once per show in the registry scene, disabled: a tiny colour source
+ * whose settings carry commands one way and the loader's answers the other.
+ */
+async function ensureMailbox(
+  context: ObsPlacementContext,
+  inputName: string,
+  mailbox: Mailbox,
+): Promise<void> {
+  if (mailbox.created === true) return;
+  try {
+    await context.call("GetInputSettings", { inputName });
+  } catch {
+    await context.call("CreateInput", {
+      sceneName: context.registryScene,
+      inputName,
+      inputKind: "color_source_v3",
+      inputSettings: { seq: 0, width: 2, height: 2 },
+      sceneItemEnabled: false,
+    });
+  }
+  mailbox.created = true;
 }
 
 async function writeChunk(dir: string, context: ObsPlacementContext, spec: Run): Promise<string> {
@@ -252,54 +285,47 @@ async function ensureLoader(dir: string): Promise<void> {
   if (current !== LOADER_LUA) await writeFile(path, LOADER_LUA);
 }
 
-/**
- * Writes the file in one step. The loader reads it every frame, and on Windows a file being read
- * cannot be replaced, so the rename is retried for a few frames.
- */
-async function writeAtomic(path: string, text: string): Promise<void> {
-  await writeFile(`${path}.tmp`, text);
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await rename(`${path}.tmp`, path);
-      return;
-    } catch (error) {
-      if (attempt >= 50) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 4));
-    }
-  }
-}
-
-/** What the loader writes to `state.json`. */
+/** What the loader writes back into the mailbox's settings. */
 const LoaderStateSchema = z.object({
-  loader: z.string(),
-  ack_seq: z.number(),
-  done: z.string(),
+  inputSettings: z.object({
+    loader: z.string().optional(),
+    ack_seq: z.number().optional(),
+    done: z.string().optional(),
+  }),
 });
 type LoaderState = z.output<typeof LoaderStateSchema>;
 
-/** Polls `state.json` until `test` holds or `timeoutMs` passes; false on timeout. */
+/** The parts of a {@link LoaderState} a wait reads. */
+interface LoaderAnswer {
+  readonly ack_seq: number;
+  readonly done: string;
+}
+
+/** Polls the mailbox until `test` holds or `timeoutMs` passes; false on timeout. */
 async function waitForState(
-  dir: string,
-  test: (state: LoaderState) => boolean,
+  context: ObsPlacementContext,
+  inputName: string,
+  test: (state: LoaderAnswer) => boolean,
   timeoutMs: number,
 ): Promise<boolean> {
   const end = Date.now() + timeoutMs;
-  const path = join(dir, "state.json");
   while (Date.now() < end) {
-    const state = await readState(path);
-    if (state?.loader === LOADER_VERSION && test(state)) return true;
+    const state = await readState(context, inputName);
+    if (state !== undefined && test(state)) return true;
     await new Promise((resolve) => setTimeout(resolve, 16));
   }
   return false;
 }
 
-/** The loader's state, or undefined while the file is missing or half-written. */
-async function readState(path: string): Promise<LoaderState | undefined> {
-  const text = await readFile(path, "utf8").catch(() => undefined);
-  if (text === undefined) return undefined;
-  try {
-    return LoaderStateSchema.parse(JSON.parse(text));
-  } catch {
-    return undefined;
-  }
+/** The loader's answer, or undefined while a loader of this version has not written one. */
+async function readState(
+  context: ObsPlacementContext,
+  inputName: string,
+): Promise<LoaderAnswer | undefined> {
+  const parsed = LoaderStateSchema.safeParse(await context.call("GetInputSettings", { inputName }));
+  if (!parsed.success) return undefined;
+  const state: LoaderState = parsed.data;
+  const { loader, ack_seq, done } = state.inputSettings;
+  if (loader !== LOADER_VERSION || ack_seq === undefined) return undefined;
+  return { ack_seq, done: done ?? "" };
 }

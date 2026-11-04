@@ -3,13 +3,14 @@ import { z } from "zod";
 
 import { generateChunk, type Visual } from "./generate.js";
 import { LOADER_LUA, LOADER_VERSION } from "./loader.js";
-import { createLuaHost, type LuaHost } from "./testing.js";
+import { createLuaHost, type FakeMailbox, type LuaHost } from "./testing.js";
 
 const DIR = "/fake/motion/";
 const SCENE = "vignette/show/main";
+const MAILBOX = "vignette/show/motion/mailbox";
 const at = (cx: number): Visual => ({ cx, cy: 100, w: 200, h: 100, rot: 0, op: 1 });
 
-/** What the loader writes to `state.json`. */
+/** What the loader writes back into the mailbox's settings. */
 const StateSchema = z.object({
   loader: z.string(),
   ack_seq: z.number(),
@@ -28,35 +29,41 @@ interface Load {
   readonly lua: string;
 }
 
-/** A host with the loader script loaded, as OBS would load it from `DIR`. */
+/**
+ * A host with the loader script loaded and a show's mailbox found: the loader scans for
+ * mailboxes every two seconds, so the first frame after loading runs that scan.
+ */
 async function withLoader(run: (loader: Loader) => void | Promise<void>): Promise<void> {
   const host = await createLuaHost();
   try {
     await host.loadScript(LOADER_LUA, DIR);
-    await run(new Loader(host));
+    const mailbox = host.mailbox(MAILBOX, { seq: 0 });
+    host.scriptTick(1 / 60);
+    await run(new Loader(host, mailbox));
   } finally {
     host.dispose();
   }
 }
 
-/** The loader under test: its files and the item it moves, through the fake OBS. */
+/** The loader under test: its mailbox and the item it moves, through the fake OBS. */
 class Loader {
-  constructor(readonly host: LuaHost) {}
+  constructor(
+    readonly host: LuaHost,
+    readonly mailbox: FakeMailbox,
+  ) {}
 
   state(): State {
-    const text = this.host.obs.files.get(`${DIR}state.json`);
-    if (text === undefined) throw new Error("no state.json");
-    return StateSchema.parse(JSON.parse(text));
+    return StateSchema.parse(this.mailbox.input.settings);
   }
 
-  /** Writes the chunk files into the fake file system and a command loading them. */
+  /** Writes the chunk files into the fake file system and posts a command loading them. */
   command(seq: number, loads: readonly Load[]): void {
     const load = loads.map(({ key, lua }, i) => {
       const path = `${DIR}chunks/${String(seq)}-${String(i)}.lua`;
       this.host.obs.files.set(path, lua);
       return { key, path };
     });
-    this.host.obs.files.set(`${DIR}commands.json`, JSON.stringify({ seq, load }));
+    this.mailbox.update({ seq, load });
   }
 
   frames(count: number): void {
@@ -79,9 +86,22 @@ const toward = (cx: number, sceneItemId = 1): string =>
   });
 
 describe("the loader", () => {
-  it("reports its version at load, before any command", () =>
+  it("finds a show's mailbox and answers with its version before any command", () =>
     withLoader((loader) => {
-      expect(loader.state()).toMatchObject({ loader: LOADER_VERSION, ack_seq: -1, live: 0 });
+      expect(loader.state()).toMatchObject({ loader: LOADER_VERSION, ack_seq: 0, live: 0 });
+      expect(loader.host.obs.log).toContain(`connected to ${MAILBOX}`);
+    }));
+
+  it("reads the mailbox only when its update signal fires", () =>
+    withLoader((loader) => {
+      loader.host.item(SCENE, 1, at(0));
+      // Settings changed behind the loader's back: nothing happens.
+      Object.assign(loader.mailbox.input.settings, { seq: 7 });
+      loader.frames(3);
+      expect(loader.state().ack_seq).toBe(0);
+      loader.mailbox.update({ seq: 8 });
+      loader.frames(1);
+      expect(loader.state().ack_seq).toBe(8);
     }));
 
   it("loads the chunks a command names, acknowledges the sequence, and runs them each frame", () =>
@@ -101,6 +121,8 @@ describe("the loader", () => {
       loader.host.item(SCENE, 1, at(0));
       loader.command(5, [{ key: "main:box", lua: toward(600) }]);
       loader.frames(2);
+      loader.mailbox.update({ seq: 5 });
+      loader.frames(1);
       expect(loader.state().loads).toBe(1);
     }));
 
@@ -142,14 +164,11 @@ describe("the loader", () => {
 
   it("records a chunk file that is missing or does not parse", () =>
     withLoader((loader) => {
-      const files = loader.host.obs.files;
-      const command = (seq: number, path: string) =>
-        files.set(`${DIR}commands.json`, JSON.stringify({ seq, load: [{ key: "a", path }] }));
-      command(1, `${DIR}chunks/none.lua`);
+      loader.mailbox.update({ seq: 1, load: [{ key: "a", path: `${DIR}chunks/none.lua` }] });
       loader.frames(1);
       expect(loader.state()).toMatchObject({ errors: 1, loads: 0 });
-      files.set(`${DIR}chunks/bad.lua`, "return function( --");
-      command(2, `${DIR}chunks/bad.lua`);
+      loader.host.obs.files.set(`${DIR}chunks/bad.lua`, "return function( --");
+      loader.mailbox.update({ seq: 2, load: [{ key: "b", path: `${DIR}chunks/bad.lua` }] });
       loader.frames(1);
       expect(loader.state()).toMatchObject({ errors: 2, loads: 0, ack_seq: 2 });
     }));
@@ -166,5 +185,17 @@ describe("the loader", () => {
       expect(loader.x(1)).toBe(600);
       expect(loader.x(2)).toBe(300);
       expect(loader.state().done.split(",").sort()).toEqual(["main:a", "main:b"]);
+    }));
+
+  it("serves two shows' mailboxes independently", () =>
+    withLoader((loader) => {
+      loader.host.item(SCENE, 1, at(0));
+      const other = loader.host.mailbox("vignette/other/motion/mailbox", { seq: 0 });
+      loader.frames(121); // the next scan
+      expect(StateSchema.parse(other.input.settings).ack_seq).toBe(0);
+      loader.command(1, [{ key: "main:box", lua: toward(600) }]);
+      loader.frames(240);
+      expect(loader.state().done).toBe("main:box");
+      expect(StateSchema.parse(other.input.settings).done).toBe("");
     }));
 });
