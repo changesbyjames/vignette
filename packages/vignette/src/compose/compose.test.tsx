@@ -242,6 +242,31 @@ describe("Composer.settled", () => {
     composer.dispose();
   });
 
+  it("clears React's development measures on each commit and keeps the host's own", async () => {
+    // React's development build files a measure per component render on these tracks. It does so
+    // only when `console.timeStamp` exists, which Vitest's console lacks, so the test files them.
+    const reactMeasure = (name: string, devtools: Record<string, string>) =>
+      performance.measure(name, { start: 0, end: 1, detail: { devtools } });
+    performance.measure("host measure", {
+      start: 0,
+      end: 1,
+      detail: { devtools: { track: "Host" } },
+    });
+    const store = createStore("#111111");
+    const composer = compose(<StoreShow store={store} />, { layout: fakeLayout });
+    await composer.ready();
+
+    reactMeasure("\u200bLayer", { track: "Components ⚛" });
+    reactMeasure("Update", { track: "Blocking", trackGroup: "Scheduler ⚛" });
+    store.set("#222222");
+    await composer.settled();
+
+    const names = performance.getEntriesByType("measure").map((entry) => entry.name);
+    expect(names).toEqual(["host measure"]);
+    composer.dispose();
+    performance.clearMeasures("host measure");
+  });
+
   it("resolves immediately to the current snapshot when no work is pending", async () => {
     const composer = compose(<StoreShow store={createStore("#111111")} />, { layout: fakeLayout });
     await composer.ready();
