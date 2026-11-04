@@ -47,6 +47,8 @@ describe("stream SSE codec", () => {
                 visible: true,
                 opacity: 1,
                 rotation: 0,
+                kind: "layer",
+                props: {},
               },
             ],
           },

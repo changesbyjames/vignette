@@ -8,6 +8,10 @@
     "outDir": "dist",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../../packages/vignette" }, { "path": "../../packages/moq" }],
+  "references": [
+    { "path": "../../packages/vignette" },
+    { "path": "../../packages/moq" },
+    { "path": "../../packages/motion" }
+  ],
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

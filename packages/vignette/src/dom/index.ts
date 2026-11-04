@@ -1,5 +1,11 @@
 export { domTarget, type DomTargetOptions } from "./target.js";
-export type { DomHandle, DomPluginContext, DomSourcePlugin } from "./plugin.js";
+export type {
+  DomHandle,
+  DomLayerPlugin,
+  DomPlacementContext,
+  DomPluginContext,
+  DomSourcePlugin,
+} from "./plugin.js";
 export { browserDom } from "./sources/browser.js";
 export { colorDom } from "./sources/color.js";
 export { frameDom } from "./sources/frame.js";

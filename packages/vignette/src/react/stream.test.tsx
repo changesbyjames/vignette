@@ -55,6 +55,8 @@ function item(id: string, sourceId: string, x: number): Item {
     visible: true,
     opacity: 0.5,
     rotation: 0,
+    kind: "layer",
+    props: {},
   };
 }
 

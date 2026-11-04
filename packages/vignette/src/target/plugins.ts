@@ -10,6 +10,11 @@ export interface SourcePluginBase {
   readonly kind: string;
 }
 
+/** What every target's layer plugin has: the layer kind whose items it places. */
+export interface LayerPluginBase {
+  readonly kind: string;
+}
+
 /** A snapshot source whose props are typed by its kind's schema. */
 export interface TypedSource<Props> extends Omit<Source, "props"> {
   readonly props: Props;

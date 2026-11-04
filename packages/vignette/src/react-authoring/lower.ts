@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { PLAIN_LAYER_KIND, type LayerDefinition, type LayerInput } from "../core/define-layer.js";
 import type { SourceDefinition } from "../core/define-source.js";
 import type { Size } from "../core/geometry.js";
 import { diagnostic, type Diagnostic, type DiagnosticCode } from "../core/diagnostics.js";
@@ -17,6 +18,7 @@ import {
   LayerPropsSchema,
   LayoutStyleSchema,
   type Canvas,
+  type LayerProps,
   type LayoutStyle,
   type Source,
   type SourceProps,
@@ -59,7 +61,7 @@ interface LayerScope {
 }
 
 /** The fields every lowered layer has, whether it groups layers or places a source. */
-type LayerBase = Pick<GroupLayoutNode, "id" | "style" | "layer">;
+type LayerBase = Pick<GroupLayoutNode, "id" | "style" | "layer" | "kind" | "props">;
 
 /** A scene fills the canvas; its root is the flex container of the scene's layers. */
 const SCENE_STYLE: LayoutStyle = { width: "100%", height: "100%" };
@@ -123,7 +125,8 @@ function lowerScene(node: SceneHostNode, context: LowerContext): ShowTreeScene |
   }
   const scope: LayerScope = { sceneId: id, rooted: true };
   const children = lowerLayers(node.children, id, `scene.${id}`, scope, context);
-  return { id, root: { id, style: SCENE_STYLE, layer: {}, children } };
+  const root = { id, style: SCENE_STYLE, layer: {}, kind: PLAIN_LAYER_KIND, props: {}, children };
+  return { id, root };
 }
 
 /**
@@ -157,7 +160,7 @@ function lowerLayer(
   parentScope: LayerScope,
   context: LowerContext,
 ): LayoutNode | undefined {
-  const { id: explicitId, style, ...presentation } = node.props;
+  const { id: explicitId, style, definition, props: kindInput, ...presentation } = node.props;
   const id = explicitId ?? derivedId;
   const path = `scene.${parentScope.sceneId}.layer.${id}`;
   if (!isStableId(id)) {
@@ -170,13 +173,40 @@ function lowerLayer(
   };
   const parsedStyle = parseInto(LayoutStyleSchema, style ?? {}, `${path}.style`, context);
   const parsedLayer = parseInto(LayerPropsSchema, presentation, path, context);
-
-  // Suspense hides a layer instead of removing it; keep its identity and hide its content.
-  const layer = node.hidden ? { ...parsedLayer, visible: false } : (parsedLayer ?? {});
-  const base: LayerBase = { id, style: style === undefined ? undefined : parsedStyle, layer };
+  const kind = lowerKind(definition, kindInput, path, context);
+  const base = layerBase(id, node, style === undefined ? undefined : parsedStyle, parsedLayer, {
+    kind: definition?.kind ?? PLAIN_LAYER_KIND,
+    props: kind ?? {},
+  });
   // Lower the contents even when this layer's props are invalid, so every problem is reported.
   const lowered = lowerContents(node, base, scope, context);
-  return parsedStyle === undefined || parsedLayer === undefined ? undefined : lowered;
+  const invalid = [parsedStyle, parsedLayer, kind].some((part) => part === undefined);
+  return invalid ? undefined : lowered;
+}
+
+/** The lowered layer's own fields. Suspense hides a layer rather than removing it: it keeps its identity and hides its content. */
+function layerBase(
+  id: string,
+  node: LayerHostNode,
+  style: LayoutStyle | undefined,
+  parsedLayer: LayerProps | undefined,
+  kind: Pick<LayerBase, "kind" | "props">,
+): LayerBase {
+  const layer = node.hidden ? { ...parsedLayer, visible: false } : (parsedLayer ?? {});
+  return { id, style, layer, ...kind };
+}
+
+/** A `defineLayer` component's own props, validated by its kind's schema like a source's. */
+function lowerKind(
+  definition: LayerDefinition | undefined,
+  input: LayerInput | undefined,
+  path: string,
+  context: LowerContext,
+): SourceProps | undefined {
+  if (definition === undefined) return {};
+  const parsed = parseInto(definition.props, input ?? {}, path, context);
+  // SAFETY: A kind's props schema describes JSON data (LayerDefinition contract); the snapshot carries its output unchanged.
+  return parsed === undefined ? undefined : (parsed as SourceProps);
 }
 
 /** A layer with a visible source or `<Use>` child places it; otherwise it groups its layers. */

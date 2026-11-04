@@ -7,6 +7,7 @@ import {
   type Rect,
   type Size,
 } from "../geometry.js";
+import { PLAIN_LAYER_KIND } from "../define-layer.js";
 import { deepFreeze } from "../objects.js";
 import {
   isGroupNode,
@@ -142,6 +143,19 @@ function compileRecord(
     opacity: inherited.opacity * (node.layer.opacity ?? 1),
   };
   if (isGroupNode(node)) {
+    // A layer kind describes a placement; a group is never placed, so its kind has no meaning.
+    if (node.kind !== PLAIN_LAYER_KIND) {
+      context.diagnostics.push(
+        diagnostic(
+          "INVALID_TREE",
+          "error",
+          `${scenePath}.${record.path}`,
+          `Layer '${node.id}' is a '${node.kind}' layer but groups layers; only a layer that places a source has a kind.`,
+          [node.id],
+        ),
+      );
+      return;
+    }
     // A group passes `visible` and `opacity` down. Its `rotation` is ignored: rotating a group
     // would need composed transforms per item, which no target models and the README does not
     // promise. `fit`, `align` and `crop` describe placed content, so a group has nothing to apply
@@ -194,6 +208,8 @@ function compileItem(
     visible: presentation.visible && onCanvas !== undefined,
     opacity: presentation.opacity,
     rotation: node.layer.rotation ?? 0,
+    kind: node.kind,
+    props: node.props,
   };
 }
 

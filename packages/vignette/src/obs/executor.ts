@@ -10,8 +10,26 @@ import {
   type ObsPlacementRef,
   type ObsPlan,
   type ObsPlanPhase,
+  type PlaceItemOperation,
+  type ReleasePlacementOperation,
 } from "./operations.js";
 import type { ObsBatchRequest, ObsTransport } from "./transport.js";
+
+/**
+ * Runs the operations that hand items to layer plugins, a phase at a time; the OBS target
+ * supplies it. `place` gets each operation with its resolved scene item ID. `release` returns
+ * once the plugins have the items; the runner removes them later, when their exits end.
+ */
+export interface ObsPlacementRunner {
+  place(operations: readonly ResolvedPlacement[]): Promise<void>;
+  release(operations: readonly ReleasePlacementOperation[]): Promise<void>;
+}
+
+/** A `place-item` operation with the scene item ID its placement resolved to. */
+export interface ResolvedPlacement {
+  readonly operation: PlaceItemOperation;
+  readonly sceneItemId: number;
+}
 
 /** A scene item address: its scene selector and ID. */
 interface SceneItemAddress {
@@ -33,6 +51,7 @@ export async function executeObsPlan(
   transport: ObsTransport,
   plan: ObsPlan,
   isValid: () => boolean,
+  placements?: ObsPlacementRunner,
 ): Promise<ObsExecutionResult> {
   const created = new Map<string, SceneItemAddress>();
   for (const phase of OBS_PHASES) {
@@ -41,7 +60,9 @@ export async function executeObsPlan(
     if (!isValid()) return { interrupted: true };
     const operations = operationsInPhase(plan, phase);
     if (operations.length === 0) continue;
-    if (BATCHED_PHASES.has(phase)) {
+    if (phase === "place" || phase === "release") {
+      await executePlacements(phase, operations, created, placements);
+    } else if (BATCHED_PHASES.has(phase)) {
       await executeBatch(transport, plan.show, operations, created);
     } else {
       for (const operation of operations) {
@@ -116,6 +137,7 @@ function alreadyGone(operation: ObsOperation, code: number): boolean {
   return operation.phase.startsWith("remove-") && code === RESOURCE_NOT_FOUND;
 }
 
+// One request per operation, with created IDs recorded for later phases.
 async function executeOperation(
   transport: ObsTransport,
   show: string,
@@ -134,6 +156,41 @@ async function executeOperation(
     }
   } catch (cause) {
     throw new ObsExecutionError(operation.key, cause);
+  }
+}
+
+/**
+ * Hands a phase of items to their layer plugins at once, or asks the plugins to release a phase
+ * of items. Releasing returns once the plugins have taken the items; the runner removes each
+ * item from OBS when its plugin reports the exit over, outside the plan.
+ */
+async function executePlacements(
+  phase: "place" | "release",
+  operations: readonly ObsOperation[],
+  created: ReadonlyMap<string, SceneItemAddress>,
+  placements: ObsPlacementRunner | undefined,
+): Promise<void> {
+  const first = operations[0]?.key ?? phase;
+  if (placements === undefined) {
+    throw new ObsExecutionError(first, new Error("This target places no layer kinds."));
+  }
+  try {
+    // The two phases differ only in what follows the plugin call: a removal batch after release.
+    if (phase === "place") {
+      const resolved = operations.flatMap((operation) =>
+        operation.kind === "place-item"
+          ? [{ operation, sceneItemId: resolveAddress(operation.placement, created).sceneItemId }]
+          : [],
+      );
+      await placements.place(resolved);
+      return;
+    }
+    const releases = operations.flatMap((operation) =>
+      operation.kind === "release-placement" ? [operation] : [],
+    );
+    await placements.release(releases);
+  } catch (cause) {
+    throw cause instanceof ObsExecutionError ? cause : new ObsExecutionError(first, cause);
   }
 }
 
@@ -225,17 +282,25 @@ function itemRequest(
   }
 }
 
+function resolveAddress(
+  ref: ObsPlacementRef,
+  created: ReadonlyMap<string, SceneItemAddress>,
+): SceneItemAddress {
+  const address =
+    ref.kind === "existing"
+      ? { scene: { sceneUuid: ref.sceneUuid }, sceneItemId: ref.sceneItemId }
+      : created.get(createdKey(ref.sceneId, ref.layerId));
+  if (address === undefined) throw new Error("A scene item was addressed before it was created.");
+  return address;
+}
+
 function itemCall(
   requestType: string,
   ref: ObsPlacementRef,
   created: ReadonlyMap<string, SceneItemAddress>,
   data: ObsJsonObject,
 ): ObsBatchRequest {
-  const address =
-    ref.kind === "existing"
-      ? { scene: { sceneUuid: ref.sceneUuid }, sceneItemId: ref.sceneItemId }
-      : created.get(createdKey(ref.sceneId, ref.layerId));
-  if (address === undefined) throw new Error("A scene item was addressed before it was created.");
+  const address = resolveAddress(ref, created);
   return {
     requestType,
     requestData: { ...address.scene, sceneItemId: address.sceneItemId, ...data },

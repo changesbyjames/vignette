@@ -10,7 +10,13 @@ export {
   useStreamStatus,
 } from "./hooks.js";
 export { useAsset } from "./assets.js";
-export type { ReactSourcePlugin, ReactSourceViewProps } from "./plugin.js";
+export type {
+  ReactLayerPlugin,
+  ReactPlaceProps,
+  ReactPresenceProps,
+  ReactSourcePlugin,
+  ReactSourceViewProps,
+} from "./plugin.js";
 export type { StreamEventListener } from "./client.js";
 export { BrowserView } from "./sources/browser.js";
 export { ColorView } from "./sources/color.js";

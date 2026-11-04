@@ -3,7 +3,7 @@ import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.
 import { fromSse } from "../stream/sse.js";
 import { createTarget } from "../target/kernel.js";
 import type { TargetConnection, TargetStatus } from "../target/status.js";
-import type { ReactSourcePlugin } from "./plugin.js";
+import type { ReactLayerPlugin, ReactSourcePlugin } from "./plugin.js";
 import { createSharedSources, type SharedSources } from "./shared.js";
 
 /** Everything `<Stream>` provides, as one immutable value per change. */
@@ -22,6 +22,7 @@ export interface StreamInput {
 /** What `<Stream>` hands the target when it connects. */
 export interface ConnectOptions {
   readonly plugins: readonly ReactSourcePlugin[];
+  readonly layers: readonly ReactLayerPlugin[];
   readonly checkPlugins: boolean;
 }
 
@@ -75,7 +76,7 @@ export function createStreamClient(): StreamClient {
     },
     setup: firstSetup,
     shared: createSharedSources(),
-    connect({ url, source }, { plugins, checkPlugins }) {
+    connect({ url, source }, { plugins, layers, checkPlugins }) {
       if (url === undefined && source === undefined) {
         throw new Error("<Stream> needs a `url` or a `source`.");
       }
@@ -89,6 +90,7 @@ export function createStreamClient(): StreamClient {
         // Rendering is React's, so a handle is an empty record; the kernel still checks setup
         // kinds against the plugins and tracks each source's status.
         sources: plugins.map((plugin) => ({ kind: plugin.kind, create: () => ({}) })),
+        layers,
         checkPlugins,
         // No asset store: the kernel skips its asset stage and `useAsset` downloads through
         // TanStack Query instead, so nothing is downloaded twice.

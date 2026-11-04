@@ -22,6 +22,9 @@ interface LayoutNodeBase {
   readonly id: string;
   readonly style?: LayoutStyle;
   readonly layer: LayerProps;
+  /** The layer kind (`"layer"` for a plain `<Layer>`) and its validated props. */
+  readonly kind: string;
+  readonly props: SourceProps;
 }
 
 /** A layer that groups other layers for layout. It never becomes a target object. */

@@ -1,5 +1,12 @@
 import type { ShowEvent } from "../stream/messages.js";
-import type { PluginContextBase, SourceOf, SourcePluginBase } from "../target/plugins.js";
+import type { ItemOf } from "../core/define-layer.js";
+import type { Item } from "../core/snapshot.js";
+import type {
+  LayerPluginBase,
+  PluginContextBase,
+  SourceOf,
+  SourcePluginBase,
+} from "../target/plugins.js";
 
 /** What a DOM plugin receives: the base context plus the stage's owner document. */
 export interface DomPluginContext extends PluginContextBase {
@@ -34,4 +41,25 @@ export interface DomSourcePlugin<Def = unknown> extends SourcePluginBase {
     source: SourceOf<Def>,
     context: DomPluginContext,
   ): DomHandle<Def> | Promise<DomHandle<Def>>;
+}
+
+/** What a DOM layer plugin receives for one placement of an item of its kind. */
+export interface DomPlacementContext {
+  /** The item's wrapper: absolutely positioned in canvas pixels; the plugin sets its frame. */
+  readonly box: HTMLElement;
+  /** Stacking order within the scene. */
+  readonly order: number;
+  /** The item this plugin last placed in the same box, if any. */
+  readonly previous?: Item;
+}
+
+/**
+ * Places items of one layer kind in the DOM target. The target creates each item's box and puts
+ * the source's element inside it; the plugin owns the box's frame, visibility and opacity, and is
+ * asked to release it (play an exit) before the box is removed.
+ */
+export interface DomLayerPlugin<Def = unknown> extends LayerPluginBase {
+  place(item: ItemOf<Def>, context: DomPlacementContext): void;
+  /** The item is gone from the shown scene; resolves when the box may be removed. */
+  remove(item: ItemOf<Def>, context: DomPlacementContext): Promise<void>;
 }

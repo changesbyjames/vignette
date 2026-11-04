@@ -51,6 +51,8 @@ function update(revision: number, sources: readonly Source[]): StreamMessage {
     visible: true,
     opacity: 1,
     rotation: 0,
+    kind: "layer",
+    props: {},
   }));
   const snapshot: Snapshot = {
     revision,

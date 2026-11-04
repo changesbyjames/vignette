@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/vignette" },
     { "path": "./packages/moq" },
+    { "path": "./packages/motion" },
     { "path": "./examples/simple" },
     { "path": "./examples/kitchen-sink" }
   ]

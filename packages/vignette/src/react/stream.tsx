@@ -18,7 +18,7 @@ import type { StreamMessage } from "../stream/messages.js";
 import { revokeRemovedAssets } from "./assets.js";
 import { createStreamClient } from "./client.js";
 import { StreamContext, type StreamContextValue } from "./context.js";
-import type { ReactSourcePlugin } from "./plugin.js";
+import type { ReactLayerPlugin, ReactSourcePlugin } from "./plugin.js";
 import { SharedSourceView } from "./sources.js";
 import { BrowserView } from "./sources/browser.js";
 import { ColorView } from "./sources/color.js";
@@ -35,6 +35,8 @@ export interface StreamProps {
   readonly source?: AsyncIterable<StreamMessage>;
   /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
   readonly sources?: readonly ReactSourcePlugin[];
+  /** Plugins for layer kinds; a plain `<Layer>` needs none. Later entries win per kind. */
+  readonly layers?: readonly ReactLayerPlugin[];
   /** Registers the built-in color, image, video, browser, frame and text views. Default `true`. */
   readonly builtins?: boolean;
   /**
@@ -66,6 +68,7 @@ export function Stream({
   url,
   source,
   sources,
+  layers: layerPlugins,
   builtins = true,
   checkPlugins = true,
   children,
@@ -82,9 +85,13 @@ export function Stream({
       new Map([...(builtins ? BUILTIN_PLUGINS : []), ...(sources ?? [])].map((p) => [p.kind, p])),
     [builtins, sources],
   );
-  const latest = useRef({ plugins, checkPlugins });
+  const layers = useMemo(
+    () => new Map((layerPlugins ?? []).map((plugin) => [plugin.kind, plugin])),
+    [layerPlugins],
+  );
+  const latest = useRef({ plugins, layers, checkPlugins });
   useEffect(() => {
-    latest.current = { plugins, checkPlugins };
+    latest.current = { plugins, layers, checkPlugins };
   });
 
   useEffect(() => {
@@ -96,6 +103,7 @@ export function Stream({
         { url, source },
         {
           plugins: [...latest.current.plugins.values()],
+          layers: [...latest.current.layers.values()],
           checkPlugins: latest.current.checkPlugins,
         },
       ),
@@ -123,8 +131,8 @@ export function Stream({
   );
 
   const value: StreamContextValue = useMemo(
-    () => ({ client, plugins, sources: sourceMap, shared }),
-    [client, plugins, sourceMap, shared],
+    () => ({ client, plugins, layers, sources: sourceMap, shared }),
+    [client, plugins, layers, sourceMap, shared],
   );
   return (
     <StreamContext value={value}>

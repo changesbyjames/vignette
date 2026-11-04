@@ -22,9 +22,19 @@ export function managedSourceName(show: string, source: string): string {
 }
 
 /**
+ * The name of a resource a layer plugin owns, `vignette/<show>/<kind>/<name>`: inside the show's
+ * namespace, so it is the show's to create and remove, but with a fourth part, so the planner
+ * never manages it ({@link parseManagedName} leaves it alone).
+ */
+export function layerResourceName(show: string, kind: string, name: string): string {
+  return [PREFIX, show, kind, name].join(SEPARATOR);
+}
+
+/**
  * Reads a name in a show's namespace: `{ id: undefined }` for the registry scene, `{ id }` for a
  * scene or input (OBS lists scenes and inputs separately, so the list says which). Anything else,
- * including another show's resources and operator-made ones, is `undefined`: never managed.
+ * including another show's resources, operator-made ones and layer plugins' resources
+ * ({@link layerResourceName}), is `undefined`: never managed.
  */
 export function parseManagedName(name: string, show: string): ManagedName | undefined {
   const parts = name.split(SEPARATOR);

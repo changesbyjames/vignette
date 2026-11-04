@@ -1,6 +1,13 @@
 import type { ShowEvent } from "../stream/messages.js";
-import type { PluginContextBase, SourceOf, SourcePluginBase } from "../target/plugins.js";
-import type { ObsJsonObject } from "./operations.js";
+import type { ItemOf } from "../core/define-layer.js";
+import type { Canvas, Item, Source } from "../core/snapshot.js";
+import type {
+  LayerPluginBase,
+  PluginContextBase,
+  SourceOf,
+  SourcePluginBase,
+} from "../target/plugins.js";
+import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
 
 /** What a plugin asks OBS to create for its source: an input kind and its settings. */
 export interface ObsInput {
@@ -62,4 +69,63 @@ export interface ObsSourcePlugin<Def = unknown> extends SourcePluginBase {
     source: SourceOf<Def>,
     context: ObsPluginContext,
   ): ObsHandle<Def> | Promise<ObsHandle<Def>>;
+}
+
+/** One placement of an item of a layer kind: where it is in OBS and what it is. */
+export interface ObsPlacement {
+  readonly sceneId: string;
+  /** The managed scene's name in OBS. */
+  readonly sceneName: string;
+  readonly sceneItemId: number;
+  readonly item: Item;
+  /** The item this plugin last placed under the same scene and layer ID, if any. */
+  readonly previous?: Item;
+  readonly source: Source;
+  /** The source's live handle; absent on a release after the source left the show. */
+  readonly handle?: ObsHandle;
+  /** The transform the planner would converge for a plain layer: the item's rest state. */
+  readonly transform: ObsSceneItemTransform;
+}
+
+/** What an OBS layer plugin works with, for one show. */
+export interface ObsLayerContext {
+  readonly canvas: Canvas;
+  /** Aborts when the target is disposed. */
+  readonly signal: AbortSignal;
+  /** The show's registry scene, `vignette/<show>`, where an input the plugin owns can live. */
+  readonly registryScene: string;
+  /**
+   * The name of an OBS resource this plugin owns for the show, `vignette/<show>/<kind>/<name>`:
+   * inside the show's namespace, but never converged or removed by the target.
+   */
+  resourceName(name: string): string;
+  /** Sends one obs-websocket request. Rejects while OBS is disconnected. */
+  call(requestType: string, requestData?: ObsJsonObject): Promise<ObsJsonObject>;
+  /**
+   * A directory for files OBS loads for this layer kind: the same on every run and never
+   * deleted, like `sourceFile`. Created on first use.
+   */
+  directory(): Promise<string>;
+}
+
+/**
+ * Places items of one layer kind in OBS. The planner creates the scene items and orders them,
+ * then hands them over: the plugin owns their transform and visibility from then on, and is asked
+ * to release them (play an exit) before they are removed. Both calls take every placement of a
+ * revision at once, so a plugin can reach OBS once per revision rather than once per item. `Def`
+ * is the layer component, e.g. `ObsLayerPlugin<typeof MotionLayer>`, which types `item.props`.
+ */
+export interface ObsLayerPlugin<Def = unknown> extends LayerPluginBase {
+  /** Runs once before the plugin's first `place`. */
+  load?(): Promise<void>;
+  /** Items that were created, or changed since they were last placed. */
+  place(placements: readonly ObsPlacementOf<Def>[], context: ObsLayerContext): Promise<void>;
+  /** Items gone from the snapshot; resolves when OBS may remove them. */
+  remove(placements: readonly ObsPlacementOf<Def>[], context: ObsLayerContext): Promise<void>;
+}
+
+/** A placement whose item's props are typed by the kind. */
+export interface ObsPlacementOf<Def> extends Omit<ObsPlacement, "item" | "previous"> {
+  readonly item: ItemOf<Def>;
+  readonly previous?: ItemOf<Def>;
 }

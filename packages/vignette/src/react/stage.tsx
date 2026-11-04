@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useLayoutEffect,
   useRef,
   useState,
@@ -91,12 +92,17 @@ interface SceneBoxProps {
 /** One scene's items; hidden, but mounted and running, while another scene is shown. */
 function SceneBox({ scene, shown }: SceneBoxProps): ReactNode {
   const appearances = useAppearances(shown);
+  const { layers } = useStreamContext();
+  // A layer plugin's `Presence` keeps removed items mounted while they exit.
+  const Presence = [...layers.values()].find((plugin) => plugin.Presence)?.Presence ?? Fragment;
   return (
     <div data-vignette-scene={scene.id} style={shown ? SCENE_STYLE : HIDDEN_SCENE_STYLE}>
       <AppearanceContext value={appearances}>
-        {scene.items.map((item, order) => (
-          <ItemBox key={item.id} item={item} order={order} shown={shown} />
-        ))}
+        <Presence>
+          {scene.items.map((item, order) => (
+            <ItemBox key={item.id} item={item} order={order} shown={shown} />
+          ))}
+        </Presence>
       </AppearanceContext>
     </div>
   );
@@ -131,19 +137,29 @@ interface ItemBoxProps {
  * claims the source only while its scene is shown.
  */
 function ItemBox({ item, order, shown }: ItemBoxProps): ReactNode {
-  const { shared, sources } = useStreamContext();
+  const { shared, sources, layers } = useStreamContext();
   const source = sources.get(item.sourceId);
+  const content = shared.has(item.sourceId) ? (
+    shown ? (
+      <SharedBox item={item} />
+    ) : null
+  ) : (
+    <div style={contentStyle(item)}>
+      {source === undefined ? null : <SourceView source={source} item={item} />}
+    </div>
+  );
+  // An item of a layer kind is placed by the kind's plugin; a plain layer by the stage.
+  const Place = layers.get(item.kind)?.Place;
+  if (Place !== undefined) {
+    return (
+      <Place item={item} order={order}>
+        {content}
+      </Place>
+    );
+  }
   return (
     <div data-vignette-layer={item.id} style={itemStyle(item, order)}>
-      {shared.has(item.sourceId) ? (
-        shown ? (
-          <SharedBox item={item} />
-        ) : null
-      ) : (
-        <div style={contentStyle(item)}>
-          {source === undefined ? null : <SourceView source={source} item={item} />}
-        </div>
-      )}
+      {content}
     </div>
   );
 }

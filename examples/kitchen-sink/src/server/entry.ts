@@ -12,6 +12,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
 import { obsTarget } from "@strangecyan/vignette/obs";
+import { motionObsLayer } from "@strangecyan/vignette-motion/obs";
 
 import show from "../show.js";
 
@@ -68,8 +69,15 @@ const obs =
         url: process.env.OBS_URL,
         password: process.env.OBS_PASSWORD,
         sources: [moqObs],
+        layers: [motionObsLayer],
       });
 obs?.follow(composer.stream());
+obs?.subscribe(() => {
+  const { phase, revision, error, sourceErrors } = obs.status;
+  const problems = Object.entries(sourceErrors).map(([id, cause]) => `${id}: ${cause.message}`);
+  const detail = [error?.message, problems.length > 0 ? `[${problems.join("; ")}]` : undefined];
+  console.log(`obs: ${phase} r${String(revision.settled ?? "-")} ${detail.join(" ")}`.trimEnd());
+});
 
 const server = serve({ fetch: app.fetch, port, hostname });
 console.log(

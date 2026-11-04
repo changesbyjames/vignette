@@ -1,6 +1,7 @@
 import { Moq } from "@strangecyan/vignette-moq";
 import { useEffect, useState, type ReactElement } from "react";
 import { Color, Frame, Image, Layer, Scene, Show, Text, Use } from "@strangecyan/vignette";
+import { MotionLayer } from "@strangecyan/vignette-motion";
 
 import { Clock } from "./clock.frame.js";
 import { Label } from "./label.frame.js";
@@ -52,6 +53,8 @@ export function KitchenSink(): ReactElement {
 
   const activeCard = tick % CARDS.length;
   const activeScene = Math.floor(tick / CARDS.length) % 2 === 0 ? "main" : "focus";
+  // The lower third enters on two ticks out of three and exits on the third.
+  const lowerThird = tick % 3 !== 2;
 
   return (
     <Show
@@ -79,12 +82,23 @@ export function KitchenSink(): ReactElement {
           <Layer style={{ height: 470, flexDirection: "row", gap: 28 }}>
             {CARDS.map((card, index) => (
               <Layer key={card.id} id={`card-${card.id}`} style={{ flex: 1 }}>
-                <Layer style={fill} opacity={activeCard === index ? 1 : 0.72}>
+                <MotionLayer
+                  style={fill}
+                  opacity={activeCard === index ? 1 : 0.72}
+                  initial={{ y: 40 }}
+                  animate={{ scale: activeCard === index ? 1.04 : 1, y: 0 }}
+                  transition={{ type: "spring", visualDuration: 0.5, bounce: 0.3 }}
+                >
                   <Color color="#262626" />
-                </Layer>
-                <Layer style={fill}>
+                </MotionLayer>
+                <MotionLayer
+                  style={fill}
+                  initial={{ y: 40 }}
+                  animate={{ scale: activeCard === index ? 1.04 : 1, y: 0 }}
+                  transition={{ type: "spring", visualDuration: 0.5, bounce: 0.3 }}
+                >
                   <Frame of={Label} params={card} />
-                </Layer>
+                </MotionLayer>
               </Layer>
             ))}
           </Layer>
@@ -93,20 +107,39 @@ export function KitchenSink(): ReactElement {
               <Use source="demo" />
             </Layer>
             {(["#f97316", "#3b82f6", "#22c55e"] as const).map((color, index) => (
-              <Layer
+              // Lifted, tilted and enlarged while its card is active; each is its own ternary.
+              <MotionLayer
                 key={color}
                 id={`swatch-${String(index)}`}
                 style={{ flex: 1, height: 204, margin: { top: index * 20 } }}
                 rotation={index === 1 ? -1 : index === 2 ? 1 : 0}
+                animate={{
+                  y: activeCard === index ? -60 : 0,
+                  rotate: activeCard === index ? 8 : 0,
+                  scale: activeCard === index ? 1.15 : 1,
+                }}
+                transition={{ type: "spring", visualDuration: 0.6, bounce: 0.45 }}
               >
                 <Color color={color} />
-              </Layer>
+              </MotionLayer>
             ))}
             <Layer id="logo" style={{ width: 204, height: 204 }} fit="contain">
               <Image src="logo.png" size={{ width: 256, height: 256 }} />
             </Layer>
           </Layer>
         </Layer>
+        {lowerThird && (
+          <MotionLayer
+            id="lower-third"
+            style={{ position: "absolute", left: 80, top: 1000, width: 900, height: 36 }}
+            initial={{ x: -400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ y: 120, opacity: 0 }}
+            transition={{ type: "spring", visualDuration: 0.45, bounce: 0.2 }}
+          >
+            <Color color="#f97316" />
+          </MotionLayer>
+        )}
       </Scene>
 
       <Scene id="focus">
