@@ -449,7 +449,8 @@ function prune(planning: Planning): void {
   const { managed } = planning;
   const sourceIds = new Set(planning.sources.keys());
   const sceneIds = new Set(planning.input.desired.scenes.map((scene) => scene.id));
-  const removals = pruneItems(planning, sourceIds, sceneIds);
+  const leavingInputs = new Set<string>();
+  const removals = pruneItems(planning, sourceIds, sceneIds, leavingInputs);
   for (const [id, scene] of managed.scenes) {
     if (sceneIds.has(id)) continue;
     const key = `scene:remove:${id}`;
@@ -464,7 +465,8 @@ function prune(planning: Planning): void {
     });
   }
   for (const [id, input] of managed.inputs) {
-    if (sourceIds.has(id)) continue;
+    // An input a leaving item still shows goes once that item's exit has played and it is gone.
+    if (sourceIds.has(id) || leavingInputs.has(input.inputUuid)) continue;
     planning.operations.push({
       kind: "remove-input",
       key: `input:remove:${id}`,
@@ -485,6 +487,7 @@ function pruneItems(
   planning: Planning,
   sourceIds: ReadonlySet<string>,
   sceneIds: ReadonlySet<string>,
+  leavingInputs: Set<string>,
 ): string[] {
   const { managed, show } = planning;
   const removedInputs = new Set(
@@ -506,12 +509,15 @@ function pruneItems(
     for (const item of (managed.itemsByScene.get(scene.sceneUuid) ?? []).filter(stale)) {
       // A handed-over item is released by its plugin (or left alone while leaving); others removed.
       const key = `placement:remove:${scene.sceneUuid}:${String(item.sceneItemId)}`;
-      removals.push(key);
       const sceneId = sceneIdOf.get(scene.sceneUuid);
       const handed = sceneId === undefined ? undefined : handedOverItem(planning, sceneId, item);
       if (sceneId !== undefined && handed !== undefined) {
         // Its exit is playing; the plugin removes it when that ends, and a re-observation follows.
-        if (planning.input.leaving?.has(placementKey(sceneId, handed.id))) continue;
+        if (planning.input.leaving?.has(placementKey(sceneId, handed.id))) {
+          leavingInputs.add(item.sourceUuid);
+          continue;
+        }
+        removals.push(key);
         planning.operations.push({
           kind: "release-placement",
           key,
@@ -525,6 +531,7 @@ function pruneItems(
         });
         continue;
       }
+      removals.push(key);
       planning.operations.push({
         kind: "remove-placement",
         key,

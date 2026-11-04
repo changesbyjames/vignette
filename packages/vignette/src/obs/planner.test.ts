@@ -392,17 +392,22 @@ describe("planObsUpdate", () => {
       expect(result.plan.operations[0]).toMatchObject({ sceneId: "main", item: { id: "main.0" } });
     });
 
-    it("leaves an item alone while its plugin plays the exit", () => {
+    it("leaves an item and its input alone while its plugin plays the exit", () => {
       const result = plan({
-        desired: snapshot({ scenes: [{ id: "main", items: [] }] }),
+        desired: snapshot({ sources: [], scenes: [{ id: "main", items: [] }] }),
         observed: placedObserved(),
+        handles: new Map(),
         layers: new Set(["motion"]),
         placed: new Map(),
         leaving: new Set(["main:main.0"]),
         previous: desired(),
       });
       if (!result.ok) throw new Error(result.problems.join(" "));
-      expect(result.plan.operations.map((operation) => operation.kind)).toEqual([]);
+      // Only the registry's item goes now; the input waits for the leaving item to be removed.
+      expect(result.plan.operations.map((operation) => operation.kind)).toEqual([
+        "remove-placement",
+      ]);
+      expect(result.plan.operations[0]).toMatchObject({ sceneUuid: "registry-1" });
     });
   });
 
