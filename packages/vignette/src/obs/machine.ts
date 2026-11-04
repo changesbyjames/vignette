@@ -31,6 +31,8 @@ export interface ObsDesired {
   readonly layers?: ReadonlySet<string>;
   /** What each handed-over placement was last placed with; the target's placement runner keeps it. */
   readonly placed?: ReadonlyMap<string, Item>;
+  /** Handed-over placements whose exit is playing; the runner removes them when it ends. */
+  readonly leaving?: ReadonlySet<string>;
 }
 
 /** Fixed at creation. */
@@ -165,6 +167,7 @@ export const obsMachine = setup({
               settledActiveScene,
               layers: desired.layers,
               placed: desired.placed,
+              leaving: desired.leaving,
               previous: outcome?.desired.snapshot,
             }),
     }),
@@ -176,11 +179,12 @@ export const obsMachine = setup({
   on: {
     apply: {
       actions: assign({
-        desired: ({ event: { snapshot, handles, layers, placed } }) => ({
+        desired: ({ event: { snapshot, handles, layers, placed, leaving } }) => ({
           snapshot,
           handles,
           layers,
           placed,
+          leaving,
         }),
         show: ({ context, event }) => context.show ?? event.snapshot.id,
       }),

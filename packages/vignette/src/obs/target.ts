@@ -22,6 +22,7 @@ import { defaultObsDirectory } from "./directory.js";
 import { ObsPreflightError } from "./errors.js";
 import { subscribeToObsEvents } from "./events.js";
 import { executeObsPlan, type ObsPlacementRunner } from "./executor.js";
+import type { ReleasePlacementOperation } from "./operations.js";
 import { obsMachine, type ObsDesired, type ObsMachineContext, type ObsOutcome } from "./machine.js";
 import {
   layerResourceName,
@@ -32,8 +33,9 @@ import {
 import { placementKey, toObsTransform } from "./planner.js";
 import type {
   ObsHandle,
+  ObsLayerContext,
   ObsLayerPlugin,
-  ObsPlacementContext,
+  ObsPlacement,
   ObsPluginContext,
   ObsSourcePlugin,
 } from "./plugin.js";
@@ -173,12 +175,14 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
   const dir = options.dir ?? defaultObsDirectory();
   const layerPlugins = byKind(options.layers);
   const placed = new Map<string, Item>();
+  const leaving = new Set<string>();
   const abort = new AbortController();
   const placements = createPlacementRunner({
     actor,
     transport,
     layerPlugins,
     placed,
+    leaving,
     dir,
     signal: abort.signal,
   });
@@ -226,7 +230,13 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
       },
     }),
     update: (snapshot, handles) =>
-      converge(actor, { snapshot, handles, layers: new Set(layerPlugins.keys()), placed }),
+      converge(actor, {
+        snapshot,
+        handles,
+        layers: new Set(layerPlugins.keys()),
+        placed,
+        leaving,
+      }),
     async dispose() {
       abort.abort();
       reloads.stop();
@@ -441,6 +451,11 @@ function byKind(plugins: readonly ObsLayerPlugin[] | undefined): Map<string, Obs
   return new Map((plugins ?? []).map((plugin) => [plugin.kind, plugin]));
 }
 
+/** Anything with an item: what the runner groups by the item's kind. */
+interface Placed {
+  readonly item: Item;
+}
+
 /** What the placement runner works with. */
 interface PlacementRunnerOptions {
   readonly actor: ObsActor;
@@ -448,82 +463,142 @@ interface PlacementRunnerOptions {
   readonly layerPlugins: ReadonlyMap<string, ObsLayerPlugin>;
   /** The item each handed-over placement was last placed with; shared with the planner. */
   readonly placed: Map<string, Item>;
+  /** Placements whose exit is playing; shared with the planner, which leaves them alone. */
+  readonly leaving: Set<string>;
   readonly dir: string;
   readonly signal: AbortSignal;
 }
 
-/** A layer plugin and the context for one placement of an item of its kind. */
-interface Placement {
-  readonly plugin: ObsLayerPlugin;
-  readonly context: ObsPlacementContext;
-}
-
 /**
- * Runs `place-item` and `release-placement` through the layer plugin for the item's kind, and
- * records what each placement was last placed with, so the planner hands an item over only when
- * it changed. Each plugin loads once; a failed load is retried by the next placement.
+ * Runs the `place` and `release` phases through the layer plugin of each item's kind, a kind at
+ * a time, and records what each placement was last placed with, so the planner hands an item
+ * over only when it changed. Each plugin loads once; a failed load is retried next time.
  */
 function createPlacementRunner(options: PlacementRunnerOptions): ObsPlacementRunner {
-  const { actor, transport, layerPlugins, placed, dir, signal } = options;
+  const { actor, transport, layerPlugins, placed, leaving, dir, signal } = options;
   const loads = new Map<string, Promise<void>>();
 
-  // A released item's source may have left the show: it is then found in the last settled
-  // snapshot, and its handle is gone. Lookups miss only between snapshots; then nothing is placed.
-  function placement(item: Item, sceneId: string, sceneItemId: number): Placement {
-    const plugin = layerPlugins.get(item.kind);
-    const { desired, outcome, show } = actor.getSnapshot().context;
-    const isSource = (candidate: Source) => candidate.id === item.sourceId;
-    const source =
-      desired?.snapshot.sources.find(isSource) ?? outcome?.desired.snapshot.sources.find(isSource);
-    const handle = desired?.handles.get(item.sourceId);
-    if (
-      plugin === undefined ||
-      desired === undefined ||
-      show === undefined ||
-      source === undefined
-    ) {
-      throw new Error(`Layer '${item.id}' of kind '${item.kind}' cannot be placed.`);
+  /** The plugin for a kind, loaded, and its context for the current show. */
+  async function pluginFor(kind: string): Promise<[ObsLayerPlugin, ObsLayerContext]> {
+    const plugin = layerPlugins.get(kind);
+    const { desired, show } = actor.getSnapshot().context;
+    if (plugin === undefined || desired === undefined || show === undefined) {
+      throw new Error(`Layer kind '${kind}' cannot be placed.`);
     }
-    const context: ObsPlacementContext = {
+    if (plugin.load !== undefined && !loads.has(kind)) {
+      loads.set(kind, plugin.load());
+      loads.get(kind)?.catch(() => loads.delete(kind));
+    }
+    await loads.get(kind);
+    const context: ObsLayerContext = {
       canvas: desired.snapshot.canvas,
       signal,
-      sceneId,
-      sceneName: managedSceneName(show, sceneId),
-      sceneItemId,
-      source,
-      handle,
-      transform: toObsTransform(item, source.size),
       registryScene: registrySceneName(show),
-      resourceName: (name) => layerResourceName(show, plugin.kind, name),
+      resourceName: (name) => layerResourceName(show, kind, name),
       call: (requestType, requestData) => transport.call(requestType, requestData),
       async directory() {
-        const path = join(dir, "layers", plugin.kind);
+        const path = join(dir, "layers", kind);
         await mkdir(path, { recursive: true });
         return path;
       },
     };
-    return { plugin, context };
+    return [plugin, context];
+  }
+
+  // A released item's source may have left the show: it is then found in the last settled
+  // snapshot, and its handle is gone. Lookups miss only between snapshots; then nothing is placed.
+  function placement(
+    item: Item,
+    sceneId: string,
+    sceneItemId: number,
+    previous: Item | undefined,
+  ): ObsPlacement {
+    const { desired, outcome, show } = actor.getSnapshot().context;
+    const isSource = (candidate: Source) => candidate.id === item.sourceId;
+    const source =
+      desired?.snapshot.sources.find(isSource) ?? outcome?.desired.snapshot.sources.find(isSource);
+    if (show === undefined || source === undefined) {
+      throw new Error(`Layer '${item.id}' of kind '${item.kind}' cannot be placed.`);
+    }
+    return {
+      sceneId,
+      sceneName: managedSceneName(show, sceneId),
+      sceneItemId,
+      item,
+      previous,
+      source,
+      handle: desired?.handles.get(item.sourceId),
+      transform: toObsTransform(item, source.size),
+    };
+  }
+
+  /** Removes released items; one already gone is done. Nothing else fails this, it is off-plan. */
+  async function removeItems(operations: readonly ReleasePlacementOperation[]): Promise<void> {
+    try {
+      await transport.callBatch(
+        operations.map((operation) => ({
+          requestType: "RemoveSceneItem",
+          requestData: { sceneUuid: operation.sceneUuid, sceneItemId: operation.sceneItemId },
+        })),
+      );
+    } catch {
+      // Disconnected meanwhile; the next observation plans the removal again.
+    }
+  }
+
+  /** Groups placements by kind, keeping each kind's order. */
+  function byKind<T extends Placed>(entries: readonly T[]): Map<string, T[]> {
+    const groups = new Map<string, T[]>();
+    for (const entry of entries) {
+      groups.set(entry.item.kind, [...(groups.get(entry.item.kind) ?? []), entry]);
+    }
+    return groups;
   }
 
   return {
-    async place(operation, sceneItemId) {
-      const { plugin, context } = placement(operation.item, operation.sceneId, sceneItemId);
-      if (plugin.load !== undefined && !loads.has(plugin.kind)) {
-        loads.set(plugin.kind, plugin.load());
-        loads.get(plugin.kind)?.catch(() => loads.delete(plugin.kind));
+    async place(operations) {
+      const resolved = operations.map(({ operation, sceneItemId }) => ({
+        item: operation.item,
+        key: placementKey(operation.sceneId, operation.item.id),
+        placement: placement(operation.item, operation.sceneId, sceneItemId, operation.previous),
+      }));
+      for (const [kind, group] of byKind(resolved)) {
+        const [plugin, context] = await pluginFor(kind);
+        await plugin.place(
+          group.map((entry) => entry.placement),
+          context,
+        );
+        for (const entry of group) placed.set(entry.key, entry.item);
       }
-      await loads.get(plugin.kind);
-      await plugin.place(operation.item, { ...context, previous: operation.previous });
-      placed.set(placementKey(operation.sceneId, operation.item.id), operation.item);
     },
-    async release(operation) {
-      const { plugin, context } = placement(
-        operation.item,
-        operation.sceneId,
-        operation.sceneItemId,
-      );
-      await plugin.remove(operation.item, context);
-      placed.delete(placementKey(operation.sceneId, operation.item.id));
+    // Exits play outside the plan: the items are marked leaving at once, so convergence goes on,
+    // and are removed from OBS when their plugin reports the exit over; OBS is then re-observed.
+    async release(operations) {
+      const resolved = operations.map((operation) => ({
+        operation,
+        item: operation.item,
+        key: placementKey(operation.sceneId, operation.item.id),
+        placement: placement(operation.item, operation.sceneId, operation.sceneItemId, undefined),
+      }));
+      for (const [kind, group] of byKind(resolved)) {
+        const [plugin, context] = await pluginFor(kind);
+        for (const entry of group) {
+          placed.delete(entry.key);
+          leaving.add(entry.key);
+        }
+        const exit = plugin.remove(
+          group.map((entry) => entry.placement),
+          context,
+        );
+        void exit
+          .catch(() => undefined)
+          .then(async () => {
+            await removeItems(group.map((entry) => entry.operation));
+            for (const entry of group) leaving.delete(entry.key);
+            if (signal.aborted) return;
+            actor.send({ type: "remoteChanged" });
+          });
+      }
     },
   };
 }

@@ -13,7 +13,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { Item } from "@strangecyan/vignette";
-import type { ObsLayerPlugin, ObsPlacementContext } from "@strangecyan/vignette/obs";
+import type { ObsLayerContext, ObsLayerPlugin, ObsPlacement } from "@strangecyan/vignette/obs";
 import { z } from "zod";
 
 import { generateChunk, settleSeconds, type Visual } from "./generate.js";
@@ -32,8 +32,12 @@ interface Mailbox {
   seq: number;
   installed?: boolean;
   created?: boolean;
+  /** Inputs whose opacity filter exists. */
+  readonly filtered: Set<string>;
 }
 const mailboxes = new Map<string, Mailbox>();
+/** Directories whose loader file is current. */
+const loaders = new Set<string>();
 
 const OPACITY_FILTER = "vignette/opacity";
 const MAILBOX = "mailbox";
@@ -41,35 +45,44 @@ const MAILBOX = "mailbox";
 export const motionObsLayer: ObsLayerPlugin<typeof MotionLayer> = {
   kind: MotionLayer.definition.kind,
 
-  // Enter and retarget share one path: the only differences are the label and the start state.
-  async place(item, context) {
-    const motion = motionOf(item) ?? {};
-    const rest = restVisual(context);
-    await prepareItem(item, motion, context);
-    const from = startVisual(motion, rest, context.previous);
-    await run(context, {
-      label: context.previous === undefined ? "enter" : "retarget",
-      from,
-      to: apply(rest, motion.animate ?? {}),
-      transition: motion.transition ?? DEFAULT_TRANSITION,
-      item,
-      wait: false,
-      fallback: () => placeAtRest(item, context),
-    });
+  // Each placement's chunk takes its defaults (`initial`, `animate`, the transition) separately.
+  async place(placements, context) {
+    const chunks: Chunk[] = [];
+    for (const placement of placements) {
+      // Defaults per placement: no props, no `initial`, the default transition.
+      const motion = motionOf(placement.item) ?? {};
+      const rest = restVisual(placement);
+      await prepareItem(placement, motion, context);
+      chunks.push({
+        placement,
+        label: placement.previous === undefined ? "enter" : "retarget",
+        from: startVisual(motion, rest, placement.previous),
+        to: apply(rest, motion.animate ?? {}),
+        transition: motion.transition ?? DEFAULT_TRANSITION,
+      });
+    }
+    const fallback = async () => {
+      for (const placement of placements) await placeAtRest(placement, context);
+    };
+    await run(context, chunks, { wait: false, fallback });
   },
 
-  async remove(item, context) {
-    const motion = motionOf(item) ?? {};
-    if (motion.exit === undefined) return;
-    await run(context, {
-      label: "exit",
-      to: apply(restVisual(context), motion.exit),
-      transition: motion.transition ?? DEFAULT_TRANSITION,
-      hideAtEnd: true,
-      item,
-      wait: true,
-      fallback: () => Promise.resolve(),
-    });
+  // Only placements with an `exit` make a chunk; none means nothing to wait for.
+  async remove(placements, context) {
+    const chunks: Chunk[] = [];
+    for (const placement of placements) {
+      const motion = motionOf(placement.item) ?? {};
+      if (motion.exit === undefined) continue;
+      chunks.push({
+        placement,
+        label: "exit",
+        to: apply(restVisual(placement), motion.exit),
+        transition: motion.transition ?? DEFAULT_TRANSITION,
+        hideAtEnd: true,
+      });
+    }
+    if (chunks.length === 0) return;
+    await run(context, chunks, { wait: true, fallback: () => Promise.resolve() });
   },
 };
 
@@ -84,62 +97,86 @@ function startVisual(
 }
 
 /** What a plain layer would get: the loader is missing, so the item just sits at rest. */
-async function placeAtRest(item: Item, context: ObsPlacementContext): Promise<void> {
+async function placeAtRest(placement: ObsPlacement, context: ObsLayerContext): Promise<void> {
   await context.call("SetSceneItemTransform", {
-    sceneName: context.sceneName,
-    sceneItemId: context.sceneItemId,
-    sceneItemTransform: context.transform,
+    sceneName: placement.sceneName,
+    sceneItemId: placement.sceneItemId,
+    sceneItemTransform: placement.transform,
   });
   await context.call("SetSceneItemEnabled", {
-    sceneName: context.sceneName,
-    sceneItemId: context.sceneItemId,
-    sceneItemEnabled: item.visible,
+    sceneName: placement.sceneName,
+    sceneItemId: placement.sceneItemId,
+    sceneItemEnabled: placement.item.visible,
   });
 }
 
-interface Run {
+/** One chunk to generate: a placement and the motion it makes. */
+interface Chunk {
+  readonly placement: ObsPlacement;
   readonly label: string;
   readonly from?: Visual;
   readonly to: Visual;
   readonly transition: Transition;
   readonly hideAtEnd?: boolean;
-  readonly item: Item;
-  /** Resolve only once the chunk has settled (an exit), not once the loader has it. */
+}
+
+interface RunOptions {
+  /** Resolve only once every chunk has settled (exits), not once the loader has them. */
   readonly wait: boolean;
   /** What to do when the loader is not installed. */
   readonly fallback: () => Promise<void>;
 }
 
-/** Writes the chunk and hands it to the loader; runs the fallback when the loader is absent. */
-async function run(context: ObsPlacementContext, spec: Run): Promise<void> {
+/**
+ * Writes the chunks and hands them to the loader as one command, waiting for one acknowledgement;
+ * runs the fallback when the loader is absent.
+ */
+async function run(context: ObsLayerContext, chunks: readonly Chunk[], options: RunOptions) {
   const inputName = context.resourceName(MAILBOX);
-  const mailbox = mailboxes.get(inputName) ?? { seq: Date.now() % 1_000_000_000 };
+  const mailbox = mailboxes.get(inputName) ?? {
+    seq: Date.now() % 1_000_000_000,
+    filtered: new Set(),
+  };
   mailboxes.set(inputName, mailbox);
   const dir = await context.directory();
   await ensureLoader(dir);
   await ensureMailbox(context, inputName, mailbox);
-  const path = await writeChunk(dir, context, spec);
-  const key = `${context.sceneId}:${spec.item.id}`;
+  const load = await Promise.all(
+    chunks.map(async (chunk) => ({
+      key: `${chunk.placement.sceneId}:${chunk.placement.item.id}`,
+      path: (await writeChunk(dir, chunk)).replaceAll("\\", "/"),
+    })),
+  );
   mailbox.seq += 1;
   const seq = mailbox.seq;
   await context.call("SetInputSettings", {
     inputName,
-    inputSettings: { seq, load: [{ key, path: path.replaceAll("\\", "/") }] },
+    inputSettings: { seq, load },
     overlay: true,
   });
-  // A loader known to be missing gets a short wait, so every placement is not slowed by it.
+  // A loader known to be missing gets a short wait, so every revision is not slowed by it.
   const patience = mailbox.installed === false ? 300 : 2_000;
   const acked = await waitForState(context, inputName, (state) => state.ack_seq >= seq, patience);
   if (!acked) {
     if (mailbox.installed !== false) warnMissingLoader(dir);
     mailbox.installed = false;
-    await spec.fallback();
+    await options.fallback();
     return;
   }
   mailbox.installed = true;
-  if (!spec.wait) return;
-  const budget = settleSeconds(spec.transition) * 1_000 + 1_500;
-  await waitForState(context, inputName, (state) => state.done.split(",").includes(key), budget);
+  if (!options.wait) return;
+  const budget =
+    Math.max(...chunks.map((chunk) => settleSeconds(chunk.transition))) * 1_000 + 1_500;
+  const keys = load.map((entry) => entry.key);
+  await waitForState(
+    context,
+    inputName,
+    (state) => {
+      const done = new Set(state.done.split(","));
+      return keys.every((key) => done.has(key));
+    },
+    budget,
+  );
 }
 
 /**
@@ -147,7 +184,7 @@ async function run(context: ObsPlacementContext, spec: Run): Promise<void> {
  * whose settings carry commands one way and the loader's answers the other.
  */
 async function ensureMailbox(
-  context: ObsPlacementContext,
+  context: ObsLayerContext,
   inputName: string,
   mailbox: Mailbox,
 ): Promise<void> {
@@ -166,16 +203,19 @@ async function ensureMailbox(
   mailbox.created = true;
 }
 
-async function writeChunk(dir: string, context: ObsPlacementContext, spec: Run): Promise<string> {
+async function writeChunk(dir: string, chunk: Chunk): Promise<string> {
+  const { placement } = chunk;
   const lua = generateChunk({
-    sceneName: context.sceneName,
-    sceneItemId: context.sceneItemId,
-    opacityInput: fades(spec.item, motionOf(spec.item)) ? inputName(context) : undefined,
-    label: spec.label,
-    from: spec.from,
-    to: spec.to,
-    transition: spec.transition,
-    hideAtEnd: spec.hideAtEnd,
+    sceneName: placement.sceneName,
+    sceneItemId: placement.sceneItemId,
+    opacityInput: fades(placement.item, motionOf(placement.item))
+      ? inputName(placement)
+      : undefined,
+    label: chunk.label,
+    from: chunk.from,
+    to: chunk.to,
+    transition: chunk.transition,
+    hideAtEnd: chunk.hideAtEnd,
   });
   const chunks = join(dir, "chunks");
   await mkdir(chunks, { recursive: true });
@@ -191,8 +231,8 @@ function warnMissingLoader(dir: string): void {
 }
 
 /** Centre, size, rotation and opacity of the rest state, from the planner's transform. */
-function restVisual(context: ObsPlacementContext): Visual {
-  const t = context.transform;
+function restVisual(placement: ObsPlacement): Visual {
+  const t = placement.transform;
   const a = (t.rotation * Math.PI) / 180;
   const hx = t.boundsWidth / 2;
   const hy = t.boundsHeight / 2;
@@ -239,15 +279,16 @@ type FilterList = z.output<typeof FilterListSchema>;
  * so a shared source fades everywhere it is placed.
  */
 async function prepareItem(
-  item: Item,
+  placement: ObsPlacement,
   motion: MotionProps,
-  context: ObsPlacementContext,
+  context: ObsLayerContext,
 ): Promise<void> {
-  if (context.previous === undefined) {
-    const t = context.transform;
+  const { item } = placement;
+  if (placement.previous === undefined) {
+    const t = placement.transform;
     await context.call("SetSceneItemTransform", {
-      sceneName: context.sceneName,
-      sceneItemId: context.sceneItemId,
+      sceneName: placement.sceneName,
+      sceneItemId: placement.sceneItemId,
       sceneItemTransform: {
         alignment: t.alignment,
         boundsType: t.boundsType,
@@ -260,29 +301,35 @@ async function prepareItem(
     });
   }
   if (!fades(item, motion)) return;
-  const sourceName = inputName(context);
+  const sourceName = inputName(placement);
+  const filtered = mailboxes.get(context.resourceName(MAILBOX))?.filtered;
+  if (filtered?.has(sourceName)) return;
   const list: FilterList = FilterListSchema.parse(
     await context.call("GetSourceFilterList", { sourceName }),
   );
-  if (list.filters.some((filter) => filter.filterName === OPACITY_FILTER)) return;
-  await context.call("CreateSourceFilter", {
-    sourceName,
-    filterName: OPACITY_FILTER,
-    filterKind: "color_filter_v2",
-    filterSettings: { opacity: item.opacity },
-  });
+  if (!list.filters.some((filter) => filter.filterName === OPACITY_FILTER)) {
+    await context.call("CreateSourceFilter", {
+      sourceName,
+      filterName: OPACITY_FILTER,
+      filterKind: "color_filter_v2",
+      filterSettings: { opacity: item.opacity },
+    });
+  }
+  filtered?.add(sourceName);
 }
 
 /** The managed input's name: the target's naming, reproduced from the scene name's prefix. */
-function inputName(context: ObsPlacementContext): string {
-  const prefix = context.sceneName.slice(0, context.sceneName.lastIndexOf("/"));
-  return `${prefix}/${context.source.id}`;
+function inputName(placement: ObsPlacement): string {
+  const prefix = placement.sceneName.slice(0, placement.sceneName.lastIndexOf("/"));
+  return `${prefix}/${placement.source.id}`;
 }
 
 async function ensureLoader(dir: string): Promise<void> {
+  if (loaders.has(dir)) return;
   const path = join(dir, "loader.lua");
   const current = await readFile(path, "utf8").catch(() => undefined);
   if (current !== LOADER_LUA) await writeFile(path, LOADER_LUA);
+  loaders.add(dir);
 }
 
 /** What the loader writes back into the mailbox's settings. */
@@ -303,7 +350,7 @@ interface LoaderAnswer {
 
 /** Polls the mailbox until `test` holds or `timeoutMs` passes; false on timeout. */
 async function waitForState(
-  context: ObsPlacementContext,
+  context: ObsLayerContext,
   inputName: string,
   test: (state: LoaderAnswer) => boolean,
   timeoutMs: number,
@@ -319,7 +366,7 @@ async function waitForState(
 
 /** The loader's answer, or undefined while a loader of this version has not written one. */
 async function readState(
-  context: ObsPlacementContext,
+  context: ObsLayerContext,
   inputName: string,
 ): Promise<LoaderAnswer | undefined> {
   const parsed = LoaderStateSchema.safeParse(await context.call("GetInputSettings", { inputName }));

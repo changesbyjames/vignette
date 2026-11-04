@@ -8,8 +8,10 @@ export {
 export type {
   ObsHandle,
   ObsInput,
+  ObsLayerContext,
   ObsLayerPlugin,
-  ObsPlacementContext,
+  ObsPlacement,
+  ObsPlacementOf,
   ObsPluginContext,
   ObsSourcePlugin,
 } from "./plugin.js";
