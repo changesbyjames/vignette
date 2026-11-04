@@ -10,8 +10,16 @@ import {
   type ObsPlacementRef,
   type ObsPlan,
   type ObsPlanPhase,
+  type PlaceItemOperation,
+  type ReleasePlacementOperation,
 } from "./operations.js";
 import type { ObsBatchRequest, ObsTransport } from "./transport.js";
+
+/** Runs the operations that hand items to layer plugins; the OBS target supplies it. */
+export interface ObsPlacementRunner {
+  place(operation: PlaceItemOperation, sceneItemId: number): Promise<void>;
+  release(operation: ReleasePlacementOperation): Promise<void>;
+}
 
 /** A scene item address: its scene selector and ID. */
 interface SceneItemAddress {
@@ -33,6 +41,7 @@ export async function executeObsPlan(
   transport: ObsTransport,
   plan: ObsPlan,
   isValid: () => boolean,
+  placements?: ObsPlacementRunner,
 ): Promise<ObsExecutionResult> {
   const created = new Map<string, SceneItemAddress>();
   for (const phase of OBS_PHASES) {
@@ -46,7 +55,7 @@ export async function executeObsPlan(
     } else {
       for (const operation of operations) {
         if (!isValid()) return { interrupted: true };
-        await executeOperation(transport, plan.show, operation, created);
+        await executeOperation(transport, plan.show, operation, created, placements);
       }
     }
   }
@@ -116,13 +125,19 @@ function alreadyGone(operation: ObsOperation, code: number): boolean {
   return operation.phase.startsWith("remove-") && code === RESOURCE_NOT_FOUND;
 }
 
+// Placements go to their plugin; everything else is one request, with created IDs recorded.
 async function executeOperation(
   transport: ObsTransport,
   show: string,
   operation: ObsOperation,
   created: Map<string, SceneItemAddress>,
+  placements?: ObsPlacementRunner,
 ): Promise<void> {
   try {
+    if (operation.kind === "place-item" || operation.kind === "release-placement") {
+      await executePlacement(transport, operation, created, placements);
+      return;
+    }
     const request = operationRequest(operation, show, created);
     const response = await transport.call(request.requestType, request.requestData);
     if (operation.kind === "create-placement") {
@@ -134,6 +149,34 @@ async function executeOperation(
     }
   } catch (cause) {
     throw new ObsExecutionError(operation.key, cause);
+  }
+}
+
+/**
+ * Hands an item to its layer plugin, or lets the plugin release it and then removes it. A
+ * removal that finds the item already gone is done, as in a batch.
+ */
+async function executePlacement(
+  transport: ObsTransport,
+  operation: PlaceItemOperation | ReleasePlacementOperation,
+  created: ReadonlyMap<string, SceneItemAddress>,
+  placements: ObsPlacementRunner | undefined,
+): Promise<void> {
+  if (placements === undefined) throw new Error("This target places no layer kinds.");
+  if (operation.kind === "place-item") {
+    const address = resolveAddress(operation.placement, created);
+    await placements.place(operation, address.sceneItemId);
+    return;
+  }
+  await placements.release(operation);
+  const [result] = await transport.callBatch([
+    {
+      requestType: "RemoveSceneItem",
+      requestData: { sceneUuid: operation.sceneUuid, sceneItemId: operation.sceneItemId },
+    },
+  ]);
+  if (result !== undefined && !result.ok && result.code !== RESOURCE_NOT_FOUND) {
+    throw new ObsRequestError(result.requestType, result.code, result.comment);
   }
 }
 
@@ -225,17 +268,25 @@ function itemRequest(
   }
 }
 
+function resolveAddress(
+  ref: ObsPlacementRef,
+  created: ReadonlyMap<string, SceneItemAddress>,
+): SceneItemAddress {
+  const address =
+    ref.kind === "existing"
+      ? { scene: { sceneUuid: ref.sceneUuid }, sceneItemId: ref.sceneItemId }
+      : created.get(createdKey(ref.sceneId, ref.layerId));
+  if (address === undefined) throw new Error("A scene item was addressed before it was created.");
+  return address;
+}
+
 function itemCall(
   requestType: string,
   ref: ObsPlacementRef,
   created: ReadonlyMap<string, SceneItemAddress>,
   data: ObsJsonObject,
 ): ObsBatchRequest {
-  const address =
-    ref.kind === "existing"
-      ? { scene: { sceneUuid: ref.sceneUuid }, sceneItemId: ref.sceneItemId }
-      : created.get(createdKey(ref.sceneId, ref.layerId));
-  if (address === undefined) throw new Error("A scene item was addressed before it was created.");
+  const address = resolveAddress(ref, created);
   return {
     requestType,
     requestData: { ...address.scene, sceneItemId: address.sceneItemId, ...data },

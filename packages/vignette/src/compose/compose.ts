@@ -6,6 +6,7 @@ import { diagnostic, sortDiagnostics, type Diagnostic } from "../core/diagnostic
 import { compileShow } from "../core/layout/compile.js";
 import type { LayoutEngine } from "../core/layout/layout-engine.js";
 import { deepFreeze } from "../core/objects.js";
+import { PLAIN_LAYER_KIND } from "../core/define-layer.js";
 import type { Canvas, Snapshot } from "../core/snapshot.js";
 import { validateShow } from "../core/validate.js";
 import type { HostContainer } from "../react-authoring/host-types.js";
@@ -147,7 +148,11 @@ export function compose(
    */
   function publish(snapshot: Snapshot): void {
     clearReactMeasures();
-    const kinds = snapshot.sources.map((source) => source.kind);
+    // Source kinds and layer kinds share the list: a target needs a plugin for each.
+    const kinds = [
+      ...snapshot.sources.map((source) => source.kind),
+      ...snapshot.scenes.flatMap((scene) => scene.items.map((item) => item.kind)),
+    ].filter((kind) => kind !== PLAIN_LAYER_KIND);
     if (setup === undefined || kinds.some((kind) => !setup?.kinds.includes(kind))) {
       setup = setupFor(snapshot, [...(setup?.kinds ?? []), ...kinds], options);
       hub.publish(setup);

@@ -23,7 +23,12 @@ import {
   type KernelContext,
   type RouteParams,
 } from "./kernel-machine.js";
-import { frameUrl, type PluginContextBase, type SourcePluginBase } from "./plugins.js";
+import {
+  frameUrl,
+  type LayerPluginBase,
+  type PluginContextBase,
+  type SourcePluginBase,
+} from "./plugins.js";
 import type { SourceStatus, TargetConnection, TargetPhase, TargetStatus } from "./status.js";
 
 /**
@@ -78,6 +83,11 @@ export interface CreateTargetOptions<
    * without a notion of sources omits it and receives an empty handle map.
    */
   readonly sources?: readonly TargetSourcePlugin<Handle, Context>[];
+  /**
+   * Plugins for the layer kinds this target places, for the plugin check only; how a medium
+   * calls them is its own. A plain layer needs none.
+   */
+  readonly layers?: readonly LayerPluginBase[];
   /** Where downloaded assets are kept. Omit for targets that do not resolve assets. */
   readonly assets?: AssetStore;
   /** Overrides how asset bytes are fetched; defaults to `serve.assets` + name. */
@@ -120,6 +130,7 @@ export function createTarget<
 >(options: CreateTargetOptions<Handle, Context>): Target {
   const abort = new AbortController();
   const plugins = new Map((options.sources ?? []).map((plugin) => [plugin.kind, plugin]));
+  const layerKinds = new Set((options.layers ?? []).map((plugin) => plugin.kind));
   const loads = new Map<string, Promise<void>>();
   const listeners = new Set<() => void>();
   let follows = 0;
@@ -154,9 +165,12 @@ export function createTarget<
     return options.context?.(base) ?? (base as Context);
   }
 
-  /** Disposes gone handles, updates changed ones, then renders; never rejects. */
+  /**
+   * Updates changed handles, renders, then disposes gone handles; never rejects. Disposal comes
+   * last so a medium can let a gone source leave (play an exit, remove its input) while the
+   * handle still runs what the source needs, such as a relay process.
+   */
   async function apply(plan: ApplyPlan<Handle>): Promise<ApplyOutput> {
-    await Promise.all(plan.disposals.map(disposeHandle));
     const handles = new Map(plan.handles);
     const failed: SourceFailure[] = [];
     for (const { id, handle, source } of plan.updates) {
@@ -176,6 +190,8 @@ export function createTarget<
         failed,
         error: asError(cause, `Revision ${String(plan.snapshot.revision)} failed.`),
       };
+    } finally {
+      await Promise.all(plan.disposals.map(disposeHandle));
     }
   }
 
@@ -183,7 +199,9 @@ export function createTarget<
     actors: {
       checkPlugins: fromPromise(({ input }) => {
         const absent =
-          options.checkPlugins === false ? [] : input.filter((kind) => !plugins.has(kind));
+          options.checkPlugins === false
+            ? []
+            : input.filter((kind) => !plugins.has(kind) && !layerKinds.has(kind));
         const messages = absent.map((kind) => `missing source plugin for kind "${kind}"`);
         return absent.length === 0
           ? Promise.resolve(undefined)

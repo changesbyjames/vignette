@@ -39,6 +39,12 @@ export interface ObsPlannerInput {
    * when `activeScene` differs from it, so a re-observation never fights an operator's switch.
    */
   readonly settledActiveScene?: string;
+  /** Layer kinds this target has a plugin for; their items are handed over, not transformed. */
+  readonly layers?: ReadonlySet<string>;
+  /** The item each handed-over placement (`scene:layer`) was last placed with. */
+  readonly placed?: ReadonlyMap<string, Item>;
+  /** The last snapshot this target settled, which still describes the items it is removing. */
+  readonly previous?: Snapshot;
 }
 
 /** A plan, or the problems that make the snapshot unsafe to converge. */
@@ -261,7 +267,8 @@ function planSceneItems(planning: Planning, scene: SnapshotScene): void {
         ? existingItem(item, observedScene, observedItem)
         : createItem(planning, scene, item);
     present.push(entry);
-    planItemProperties(planning, scene, entry, source.size, observedItem);
+    if (planning.input.layers?.has(item.kind)) planPlacement(planning, scene, entry);
+    else planItemProperties(planning, scene, entry, source.size, observedItem);
   }
   planOrder(planning, scene, present);
 }
@@ -300,6 +307,34 @@ function createItem(planning: Planning, scene: SnapshotScene, item: Item): Prese
     placement: { kind: "created", sceneId: scene.id, layerId: item.id },
     dependsOn: [key],
   };
+}
+
+/**
+ * Hands an item of a layer kind to its plugin, once it exists and whenever it changes. The plugin
+ * owns the item's transform and visibility, so neither is converged here, and a re-observation
+ * that finds them changed plans nothing.
+ */
+function planPlacement(planning: Planning, scene: SnapshotScene, entry: PresentItem): void {
+  const { item, placement, dependsOn } = entry;
+  const key = placementKey(scene.id, item.id);
+  const previous = planning.input.placed?.get(key);
+  if (previous !== undefined && JSON.stringify(previous) === JSON.stringify(item)) return;
+  planning.operations.push({
+    kind: "place-item",
+    key: `placement:place:${scene.id}:${item.id}`,
+    phase: "place",
+    dependsOn,
+    destructive: false,
+    sceneId: scene.id,
+    placement,
+    item,
+    previous,
+  });
+}
+
+/** The key of a handed-over placement in `placed`: its scene and layer IDs. */
+export function placementKey(sceneId: string, layerId: string): string {
+  return `${sceneId}:${layerId}`;
 }
 
 /** Converges the item's transform and visibility; OBS items have no opacity, so it is ignored. */
@@ -458,7 +493,9 @@ function pruneItems(
     ...[...managed.scenes].flatMap(([id, scene]) => (sceneIds.has(id) ? [scene] : [])),
   ];
   const removals: string[] = [];
+  const sceneIdOf = new Map([...managed.scenes].map(([id, scene]) => [scene.sceneUuid, id]));
   for (const scene of keptScenes) {
+    // Registry items are stale with their input; scene items when no desired layer matched them.
     const stale = (item: ObservedObsSceneItem): boolean =>
       scene === managed.registry
         ? removedInputs.has(item.sourceUuid)
@@ -467,6 +504,22 @@ function pruneItems(
     for (const item of (managed.itemsByScene.get(scene.sceneUuid) ?? []).filter(stale)) {
       const key = `placement:remove:${scene.sceneUuid}:${String(item.sceneItemId)}`;
       removals.push(key);
+      const sceneId = sceneIdOf.get(scene.sceneUuid);
+      const handed = sceneId === undefined ? undefined : handedOverItem(planning, sceneId, item);
+      if (sceneId !== undefined && handed !== undefined) {
+        planning.operations.push({
+          kind: "release-placement",
+          key,
+          phase: "release",
+          dependsOn: [],
+          destructive: true,
+          sceneId,
+          sceneUuid: scene.sceneUuid,
+          sceneItemId: item.sceneItemId,
+          item: handed,
+        });
+        continue;
+      }
       planning.operations.push({
         kind: "remove-placement",
         key,
@@ -482,10 +535,28 @@ function pruneItems(
 }
 
 /**
+ * The previous snapshot's item for a stale scene item, when its layer kind's plugin placed it: it
+ * is released through the plugin (its exit plays) rather than removed outright. Every lookup can
+ * miss: an unmanaged name, a scene or item the previous snapshot lacks, a kind without a plugin,
+ * or an item never handed over; each means a plain removal.
+ */
+function handedOverItem(
+  planning: Planning,
+  sceneId: string,
+  observed: ObservedObsSceneItem,
+): Item | undefined {
+  const sourceId = parseManagedName(observed.sourceName, planning.show)?.id;
+  const scene = planning.input.previous?.scenes.find((candidate) => candidate.id === sceneId);
+  const item = scene?.items.find((candidate) => candidate.sourceId === sourceId);
+  if (item === undefined || !planning.input.layers?.has(item.kind)) return undefined;
+  return planning.input.placed?.has(placementKey(sceneId, item.id)) ? item : undefined;
+}
+
+/**
  * Converts compiled placement and clipping into OBS stretch bounds and source-pixel crop. A clip
  * (the canvas cutting the frame) shrinks the bounds and adds the cut part to the crop.
  */
-function toObsTransform(item: Item, sourceSize: Size): ObsSceneItemTransform {
+export function toObsTransform(item: Item, sourceSize: Size): ObsSceneItemTransform {
   const { destination, sourceCrop } = item.placement;
   const visible =
     item.clip === undefined ? destination : (intersectRects(destination, item.clip) ?? destination);

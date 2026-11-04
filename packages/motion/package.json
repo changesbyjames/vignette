@@ -1,0 +1,60 @@
+{
+  "name": "@strangecyan/vignette-motion",
+  "version": "0.0.0",
+  "description": "A motion layer kind for Vignette: initial, animate and exit, interruptible, with React, DOM and OBS plugins.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/changesbyjames/vignette.git",
+    "directory": "packages/motion"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./dom": {
+      "types": "./dist/dom.d.ts",
+      "default": "./dist/dom.js"
+    },
+    "./obs": {
+      "types": "./dist/obs.d.ts",
+      "default": "./dist/obs.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "motion": "14.9.1",
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "@strangecyan/vignette": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "react": "19.2.7",
+    "@strangecyan/vignette": "workspace:*"
+  }
+}
