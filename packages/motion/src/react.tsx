@@ -21,22 +21,22 @@ import {
 /** The item's box as a `motion.div`; each motion prop falls back to rest when the kind omits it. */
 function Place({ item, order, children }: ReactPlaceProps<typeof MotionLayer>): ReactNode {
   const props = motionOf(item) ?? {};
+  const frame = frameValues(item);
+  const movement = transition(props.transition ?? DEFAULT_TRANSITION);
+  // Animate Yoga's canvas pixels directly. DOM layout projection measures the scaled stage in
+  // screen pixels, so it would introduce a second scale when a transformed item is retargeted.
+  const layout = props.layout === false ? { duration: 0 } : movement;
   return (
     <motion.div
       data-vignette-layer={item.id}
-      layout={props.layout !== false}
-      initial={props.initial === false ? false : values(item, props.initial ?? {})}
-      animate={values(item, props.animate ?? {})}
-      exit={props.exit === undefined ? undefined : values(item, props.exit)}
-      transition={transition(props.transition ?? DEFAULT_TRANSITION)}
+      initial={props.initial === false ? false : { ...frame, ...values(item, props.initial ?? {}) }}
+      animate={{ ...frame, ...values(item, props.animate ?? {}) }}
+      exit={props.exit === undefined ? undefined : { ...frame, ...values(item, props.exit) }}
+      transition={{ ...movement, left: layout, top: layout, width: layout, height: layout }}
       style={{
         position: "absolute",
         overflow: "hidden",
         display: item.visible ? "block" : "none",
-        left: item.frame.x,
-        top: item.frame.y,
-        width: item.frame.width,
-        height: item.frame.height,
         transformOrigin: "center center",
         zIndex: order,
       }}
@@ -44,6 +44,16 @@ function Place({ item, order, children }: ReactPlaceProps<typeof MotionLayer>): 
       {children}
     </motion.div>
   );
+}
+
+/** Yoga's rest frame, in the same canvas coordinates as the motion offsets. */
+function frameValues(item: Item) {
+  return {
+    left: item.frame.x,
+    top: item.frame.y,
+    width: item.frame.width,
+    height: item.frame.height,
+  };
 }
 
 interface PresenceProps {
