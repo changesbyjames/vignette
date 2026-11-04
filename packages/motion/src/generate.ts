@@ -72,8 +72,10 @@ function strategy(transition: Transition): string {
   local function make(from, vel0, _continuous)
     local solvers = {}
     for _, d in ipairs(DIMS) do solvers[d] = spring(from[d], vel0[d], TO[d]) end
+    -- One pair of tables for the chunk's life: this runs every frame.
+    local pos, vel = {}, {}
     return function(t)
-      local pos, vel, done = {}, {}, t > 0
+      local done = t > 0
       for _, d in ipairs(DIMS) do
         pos[d], vel[d] = solvers[d](t)
         if math.abs(pos[d] - TO[d]) > REST_DELTA[d] or math.abs(vel[d]) > REST_SPEED[d] then done = false end
@@ -115,10 +117,10 @@ function strategy(transition: Transition): string {
     for _, d in ipairs(DIMS) do
       offsets[d] = inertial(continuous and (vel0[d] - (TO[d] - from[d]) * slope0) or 0, BLEND)
     end
+    local pos, vel = {}, {}
     return function(t)
       local p = math.max(0, math.min((t - DELAY) / DURATION, 1))
       local e, slope = ease(p)
-      local pos, vel = {}, {}
       for _, d in ipairs(DIMS) do
         local ox, ov = offsets[d](math.max(0, t - DELAY))
         pos[d] = from[d] + (TO[d] - from[d]) * e + ox
@@ -172,23 +174,23 @@ return function(obs, inherited)
     return { cx = p.x + hx * math.cos(a) - hy * math.sin(a), cy = p.y + hx * math.sin(a) + hy * math.cos(a), w = b.x, h = b.y, rot = r, op = op }
   end
 
+  -- Allocated once: write runs every frame.
+  local P, B = obs.vec2(), obs.vec2()
+  local OPACITY = filter ~= nil and obs.obs_data_create() or nil
   local function write(v)
     local a = math.rad(v.rot)
     local hx, hy = v.w / 2, v.h / 2
-    local p, b = obs.vec2(), obs.vec2()
-    p.x = v.cx - (hx * math.cos(a) - hy * math.sin(a))
-    p.y = v.cy - (hx * math.sin(a) + hy * math.cos(a))
-    b.x, b.y = math.max(v.w, 1), math.max(v.h, 1)
+    P.x = v.cx - (hx * math.cos(a) - hy * math.sin(a))
+    P.y = v.cy - (hx * math.sin(a) + hy * math.cos(a))
+    B.x, B.y = math.max(v.w, 1), math.max(v.h, 1)
     obs.obs_sceneitem_defer_update_begin(item)
-    obs.obs_sceneitem_set_pos(item, p)
-    obs.obs_sceneitem_set_bounds(item, b)
+    obs.obs_sceneitem_set_pos(item, P)
+    obs.obs_sceneitem_set_bounds(item, B)
     obs.obs_sceneitem_set_rot(item, v.rot)
     obs.obs_sceneitem_defer_update_end(item)
     if filter ~= nil then
-      local s = obs.obs_data_create()
-      obs.obs_data_set_double(s, "opacity", math.max(0, math.min(1, v.op)))
-      obs.obs_source_update(filter, s)
-      obs.obs_data_release(s)
+      obs.obs_data_set_double(OPACITY, "opacity", math.max(0, math.min(1, v.op)))
+      obs.obs_source_update(filter, OPACITY)
     end
   end
 ${strategy(spec.transition)}
@@ -204,6 +206,7 @@ ${strategy(spec.transition)}
   local function release()
     if released then return end
     released = true
+    if OPACITY ~= nil then obs.obs_data_release(OPACITY) end
     if filter ~= nil then obs.obs_source_release(filter) end
     obs.obs_sceneitem_release(item)
   end
@@ -225,7 +228,9 @@ ${strategy(spec.transition)}
     end,
     handoff = function()
       release()
-      return { pos = last_pos, vel = last_vel }
+      local pos, vel = {}, {}
+      for _, d in ipairs(DIMS) do pos[d], vel[d] = last_pos[d], last_vel[d] end
+      return { pos = pos, vel = vel }
     end,
   }
 end

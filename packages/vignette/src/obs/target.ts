@@ -23,7 +23,12 @@ import { ObsPreflightError } from "./errors.js";
 import { subscribeToObsEvents } from "./events.js";
 import { executeObsPlan, type ObsPlacementRunner } from "./executor.js";
 import { obsMachine, type ObsDesired, type ObsMachineContext, type ObsOutcome } from "./machine.js";
-import { managedSceneName, managedSourceName } from "./naming.js";
+import {
+  layerResourceName,
+  managedSceneName,
+  managedSourceName,
+  registrySceneName,
+} from "./naming.js";
 import { placementKey, toObsTransform } from "./planner.js";
 import type {
   ObsHandle,
@@ -488,6 +493,8 @@ function createPlacementRunner(options: PlacementRunnerOptions): ObsPlacementRun
       source,
       handle,
       transform: toObsTransform(item, source.size),
+      registryScene: registrySceneName(show),
+      resourceName: (name) => layerResourceName(show, plugin.kind, name),
       call: (requestType, requestData) => transport.call(requestType, requestData),
       async directory() {
         const path = join(dir, "layers", plugin.kind);
