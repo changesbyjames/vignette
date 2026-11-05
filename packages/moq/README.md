@@ -35,7 +35,8 @@ export default (
 Props: `url`, `broadcast`, `size` (the broadcast's resolution, used for `fit`), `latencyMs` (default
 100), and optional `video`, `audio`, `quality` (`auto` or a rendition name) and `disableWhenHidden`.
 
-The React and DOM plugins render `@moq/watch`'s `<moq-watch>`, loaded on first use.
+The React and DOM plugins render `@moq/watch`'s `<moq-watch>`, loaded on first use. They pass
+`latencyMs` as its `delay` in milliseconds and select renditions through its player controls.
 
 The OBS plugin creates the native `moq_source` input when the connected OBS has the MoQ plugin. Any
 other OBS gets a stock media source playing RTMP from a [`moq` CLI](https://github.com/moq-dev/moq)

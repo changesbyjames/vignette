@@ -150,8 +150,8 @@ importers:
   packages/moq:
     dependencies:
       '@moq/watch':
-        specifier: 0.3.0
-        version: 0.3.0(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
+        specifier: 0.6.6
+        version: 0.6.6(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -345,40 +345,45 @@ packages:
   '@libav.js/types@6.9.8':
     resolution: {integrity: sha512-5EEW2IT2VYBYzq14+jsKh8LIwImD0ldsh7m0x/66WNvUG2QljUXsvYV5B00Scx5boVph3WYbtsiLmT0HfUIDRQ==}
 
-  '@libav.js/variant-opus-af@6.9.8':
-    resolution: {integrity: sha512-4v4kBOoNnmafubEiBof+ATtr7KcU2/kL+G2hXU61orvC4Lt5OViBXnHdUHCh5ZSQQSmx9nOFEgbYGGYTrBufXQ==}
+  '@libav.js/variant-opus-af@6.10.9':
+    resolution: {integrity: sha512-yULJUCQIHDtwDPbT38t9pP/7EGgqwynVcOau46hZjtCe8TWMp67DTi2X0Emr2M4Ci3nzxNPf25IzO+IXSmHDBg==}
 
-  '@moq/flate@0.1.1':
-    resolution: {integrity: sha512-fHuA97OMdvwco/muP01hsg/AxEHzG9Xzr0tuLXI9TXBj7XuZ0uXiIQ4qv26kL6s+emkui/nlieGbr/NvWbPTKQ==}
+  '@moq/flate@0.1.4':
+    resolution: {integrity: sha512-o+rQuNeHpNC81oLX38DV4HwmZOTJqjvkluNh3Z/qOJ+kpqDAB8rOS9ge1qSk6q399XC9gwBzbWE0RIyWUfWwpQ==}
 
-  '@moq/hang@0.2.14':
-    resolution: {integrity: sha512-39wfndwgfu4GkD+UuffeEZWcPGPhzg7NwNF7klb/s/o3H0mdbr7Ce2O2uICrTggnEKkThGBZcfEeIrOSCd3yzA==}
+  '@moq/hang@0.5.4':
+    resolution: {integrity: sha512-oHRqFBF1P5O1TVpFmxqWRM6Nkltnu8jzvybk/nIBSyMbUYeFWbbiWaWNDxXu3jeXX7ohm01oh5kkrwT/+bQ1uw==}
 
-  '@moq/json@0.2.0':
-    resolution: {integrity: sha512-osLaEmOjkwrHW9wV4jmSKG6D+4JwKEA2MQLQEordoWUwmjNSPQlynM0T10V8PmJmHqrGHj1bL7qJKG7a119o3g==}
+  '@moq/json@0.4.3':
+    resolution: {integrity: sha512-HTfLRnuvA5sWvLzXjsfAfrdAUJiLG8FyiWUGmWR598kPq+S2SNJ3gK1uoUWeb/+z/fgEY/kdrg1BHv+TmAz/3g==}
     peerDependencies:
-      zod: ^4.0.0
+      '@zod/mini': ^4.5.0
+      zod: ^4.5.0
 
-  '@moq/loc@0.1.2':
-    resolution: {integrity: sha512-7hqereQwKCf6JMtKPKskgcSJC3naLQbB5/FsArKRUTMlQIF/QRu3gcaYflW8qSXaHrKm3hmpl7ra/oPLm4F7GA==}
+  '@moq/loc@0.2.4':
+    resolution: {integrity: sha512-cwe0y+j7mfIuC+DOrfdLB1k5YU2+/xIfhnTv8VEiKLM5ZyfOZHblK3UwnrKqChcKkGFt3FkedRWFLMDIt9GCuA==}
 
-  '@moq/msf@0.1.4':
-    resolution: {integrity: sha512-cdAcWz3lFCnAu44nf4zsugAp0X84N8w/o/b5rynPMB/1uelXCdQpcbnYUK4kZhq0co8lDM28oAUOGwyL9BjIXg==}
+  '@moq/msf@0.3.1':
+    resolution: {integrity: sha512-ZM9aZEtK/3dudeM2t5N9lujIpqEeDDOi6uHQp63mYOsBLlEUFEKff6y6WLicJJxGT9BM3h0mxh1Sv9YBT6jceQ==}
 
-  '@moq/net@0.1.8':
-    resolution: {integrity: sha512-pwx+GcqkH5M/kMk+/0SrXrwNOO8nV0B7bjkHcLD5q35c9FoQfrCwotsjodEEbND6LMDLGJiRUbWNR4gjIZjgyg==}
+  '@moq/net@0.4.7':
+    resolution: {integrity: sha512-klFav+4XZjR1GsgRJr6jNt1BuBNGc01+AivI8a1f/pBeKNcqL7t9k9xn5RP78Bprnf4H7BUgTi14vvexPCuTNA==}
     peerDependencies:
-      zod: ^4.0.0
+      '@zod/mini': ^4.5.0
+      zod: ^4.5.0
 
-  '@moq/qmux@0.1.3':
-    resolution: {integrity: sha512-naGmMMOxCSMeLyEATrLiY9RGyeZENC4dHFVVNWNcA17LXE9NwM3aQrQY218xXypWahYIgIkl/ZCutIP2xHibgA==}
+  '@moq/pattern@0.2.1':
+    resolution: {integrity: sha512-NXlegs0abkYoIUkcxyJjnUHC1CGw8VkooAbuNKLK5AF0hCAyUWw1QNliHaLBty4K76qfrrvJK6cf7j31Z0KF0A==}
 
-  '@moq/signals@0.1.10':
-    resolution: {integrity: sha512-TSnQwcaywn/gIwC3UpwZbqYnXm2Zo8KZO6Y043jPiPnbnSlFWJVZ9TVdGAvQqrXGiaNihdcioF/0IEDABsfovw==}
+  '@moq/qmux@0.3.4':
+    resolution: {integrity: sha512-6XxjqsK1bi2bdIZ7+g8gkHh3v6NOEArqb6IMtHokZI+wP4Y7OB45zHrxUe7v42pcf08RnfqfTkphxHgZfVLyPw==}
+
+  '@moq/signals@0.2.6':
+    resolution: {integrity: sha512-8L5y9cJSOVYGrHCZ20kcZsrmoxVXzl2dBQhsRj8H4zbbul70SmZcdeLG+O3JBP5W3tjo8EmLR+DOmh1/p7QQYw==}
     peerDependencies:
       '@types/react': ^19.2.17
-      react: ^19.0.0
-      solid-js: ^1.9.13
+      react: ^19.3.0
+      solid-js: ^1.9.15
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -387,11 +392,11 @@ packages:
       solid-js:
         optional: true
 
-  '@moq/watch@0.3.0':
-    resolution: {integrity: sha512-N0EhDUCZA0ElI0dbhvQqoLIO/iyybOEYOC9QM+y9CGhEPFer+5Q6cV4pdkdOYQCcNSqC9GsZSphJc1A4A6dq6g==}
+  '@moq/watch@0.6.6':
+    resolution: {integrity: sha512-wtUoblpIS/UTgrW/IeQ6dlsZJDVo5nAbzU8oJWDU4K6JSiKyD1b08p19LPloeRJ/UPpA17r1PM4l35IOuoMXdg==}
 
-  '@moq/web-socket-stream@0.1.0':
-    resolution: {integrity: sha512-VxPaJZvZ8qgFmTjG9XhTH0bQoQE9pExvlS/R0fH1aNcpqCnZdbYS2kvB2ypO5SyFTf6oH+4eWvgElDzW6yiqFQ==}
+  '@moq/web-socket-stream@0.1.1':
+    resolution: {integrity: sha512-VKi/GE/CLqmbEZlgNbBLbAFk2pQTxT+KUD2DjCSoxqZxbS3KBe5BBZ0m3fila4fEGyll2JT5MmgEyVr4zkZEVA==}
 
   '@msgpack/msgpack@2.8.0':
     resolution: {integrity: sha512-h9u4u/jiIRKbq25PM+zymTyW6bhTzELvOoUd+AvYriWOAKpLGnIamaET3pnHYoI5iYphAHBI4ayx0MehR+VVPQ==}
@@ -790,14 +795,14 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@svta/cml-iso-bmff@1.0.2':
-    resolution: {integrity: sha512-c9UgY1z16zgvTEa6fS++9E9zxLuPtLJ4Dw5ebOgEDtwIw+PIhbh3URGXjv30tyDU2QQTXstI6U1q6h/Q4SkxGQ==}
+  '@svta/cml-iso-bmff@1.0.7':
+    resolution: {integrity: sha512-pYM60+pcGd8G8USeVKOe4X25FdmKd4ihTLQWRszxSE/E0I/SFugqeexdlXyBiJbOhkzc8PFceIWv+RvrB9+NDw==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@svta/cml-utils': 1.5.0
+      '@svta/cml-utils': ^1.6.2
 
-  '@svta/cml-utils@1.5.0':
-    resolution: {integrity: sha512-JMqclD7Akd+GSJiuaYNUHOP2wNtf/nauKeszlYeivSHfi0Lp3pmSW5PXDvJ2dO4aPmmSOQbF0ztTsW9Vcs2Whw==}
+  '@svta/cml-utils@1.7.0':
+    resolution: {integrity: sha512-NNa9v5CxrmULRAu5zx1ENHVwF4xKfclEdm+OmaIZDwoTNLVpf7JGgwbxkYsbRQYPCZrQTTLlR4sVjwgS6gcmug==}
     engines: {node: '>=20'}
 
   '@tanstack/query-core@5.105.0':
@@ -878,6 +883,11 @@ packages:
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
 
+  '@zod/mini@4.6.7':
+    resolution: {integrity: sha512-oLORzy4OERpr+gaITCsrCK9uDWd9lOCLG00fRZEJidVITLS5SQtifmzP6fBSFH9YxkXFoT6/o4bRZDq2tTHrog==}
+    peerDependencies:
+      zod: ^4.6.0
+
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
@@ -887,6 +897,9 @@ packages:
 
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
+
+  bowser@2.15.0:
+    resolution: {integrity: sha512-xic6KSZglg/I4ymp45fdM4GWfYpBK79Fxd/TOvJktlaPgQqqDxvmGwOPZl2V0dyeS3Lj5c180bLhXF43iyAjZQ==}
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
@@ -1085,6 +1098,10 @@ packages:
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
 
+  media-captions@0.0.18:
+    resolution: {integrity: sha512-JW18P6FuHdyLSGwC4TQ0kF3WdNj/+wMw2cKOb8BnmY6vSJGtnwJ+vkYj+IjHOV34j3XMc70HDeB/QYKR7E7fuQ==}
+    engines: {node: '>=16'}
+
   motion-dom@14.9.1:
     resolution: {integrity: sha512-2eCCGXH2Yv09lM8GHK3TdfChrcvHxzVY19LD9VraoHEaQl5+PuGnTNnmJaBAR+5MdxUVdsLFXygFJjR9RwRSxw==}
 
@@ -1151,8 +1168,8 @@ packages:
       vite-plus:
         optional: true
 
-  pako@3.0.1:
-    resolution: {integrity: sha512-GupotUUI0mlhugKjUs4bjOwLt3nrehy9Ys2dxC0GtgVef5cnKggkDMmf2bq2poCCuVXopWPmqsc9VDT2iJUy+w==}
+  pako@3.0.3:
+    resolution: {integrity: sha512-tmrebBBYI5FOw8QICGwJNqE8fotC8R+gwcxOvoFNv+GKehOI6Lc6YBolNcQNnC4v96l1wt7rh102ifD4kVeZAQ==}
 
   parse5@8.0.1:
     resolution: {integrity: sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw==}
@@ -1513,92 +1530,102 @@ snapshots:
 
   '@libav.js/types@6.9.8': {}
 
-  '@libav.js/variant-opus-af@6.9.8': {}
+  '@libav.js/variant-opus-af@6.10.9': {}
 
-  '@moq/flate@0.1.1':
+  '@moq/flate@0.1.4':
     dependencies:
-      pako: 3.0.1
+      pako: 3.0.3
 
-  '@moq/hang@0.2.14(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)':
+  '@moq/hang@0.5.4(@types/react@19.2.17)(react@19.2.7)':
     dependencies:
       '@kixelated/libavjs-webcodecs-polyfill': 0.5.5
-      '@libav.js/variant-opus-af': 6.9.8
-      '@moq/json': 0.2.0(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/loc': 0.1.2(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/net': 0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/signals': 0.1.10(@types/react@19.2.17)(react@19.2.7)
-      '@svta/cml-iso-bmff': 1.0.2(@svta/cml-utils@1.5.0)
-      zod: 4.6.5
-    transitivePeerDependencies:
-      - '@svta/cml-utils'
-      - '@types/react'
-      - react
-      - solid-js
-
-  '@moq/json@0.2.0(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)':
-    dependencies:
-      '@moq/flate': 0.1.1
-      '@moq/net': 0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/signals': 0.1.10(@types/react@19.2.17)(react@19.2.7)
+      '@libav.js/variant-opus-af': 6.10.9
+      '@moq/json': 0.4.3(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/loc': 0.2.4(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/net': 0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/signals': 0.2.6(@types/react@19.2.17)(react@19.2.7)
+      '@svta/cml-iso-bmff': 1.0.7(@svta/cml-utils@1.7.0)
+      '@svta/cml-utils': 1.7.0
+      '@zod/mini': 4.6.7(zod@4.6.5)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
       - react
       - solid-js
 
-  '@moq/loc@0.1.2(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)':
+  '@moq/json@0.4.3(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)':
     dependencies:
-      '@moq/net': 0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
+      '@moq/flate': 0.1.4
+      '@moq/net': 0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/signals': 0.2.6(@types/react@19.2.17)(react@19.2.7)
+      '@zod/mini': 4.6.7(zod@4.6.5)
+      zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
+      - react
+      - solid-js
+
+  '@moq/loc@0.2.4(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)':
+    dependencies:
+      '@moq/net': 0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@zod/mini'
       - react
       - solid-js
       - zod
 
-  '@moq/msf@0.1.4(@types/react@19.2.17)(react@19.2.7)':
+  '@moq/msf@0.3.1(@types/react@19.2.17)(react@19.2.7)':
     dependencies:
-      '@moq/net': 0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
+      '@moq/net': 0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@zod/mini': 4.6.7(zod@4.6.5)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
       - react
       - solid-js
 
-  '@moq/net@0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)':
+  '@moq/net@0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)':
     dependencies:
-      '@moq/qmux': 0.1.3
-      '@moq/signals': 0.1.10(@types/react@19.2.17)(react@19.2.7)
+      '@moq/pattern': 0.2.1
+      '@moq/qmux': 0.3.4
+      '@moq/signals': 0.2.6(@types/react@19.2.17)(react@19.2.7)
+      '@zod/mini': 4.6.7(zod@4.6.5)
       async-mutex: 0.5.0
+      bowser: 2.15.0
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
       - react
       - solid-js
 
-  '@moq/qmux@0.1.3':
-    dependencies:
-      '@moq/web-socket-stream': 0.1.0
+  '@moq/pattern@0.2.1': {}
 
-  '@moq/signals@0.1.10(@types/react@19.2.17)(react@19.2.7)':
+  '@moq/qmux@0.3.4':
+    dependencies:
+      '@moq/web-socket-stream': 0.1.1
+
+  '@moq/signals@0.2.6(@types/react@19.2.17)(react@19.2.7)':
     optionalDependencies:
       '@types/react': 19.2.17
       react: 19.2.7
 
-  '@moq/watch@0.3.0(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)':
+  '@moq/watch@0.6.6(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)':
     dependencies:
-      '@moq/hang': 0.2.14(@svta/cml-utils@1.5.0)(@types/react@19.2.17)(react@19.2.7)
-      '@moq/json': 0.2.0(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/msf': 0.1.4(@types/react@19.2.17)(react@19.2.7)
-      '@moq/net': 0.1.8(@types/react@19.2.17)(react@19.2.7)(zod@4.6.5)
-      '@moq/signals': 0.1.10(@types/react@19.2.17)(react@19.2.7)
+      '@moq/hang': 0.5.4(@types/react@19.2.17)(react@19.2.7)
+      '@moq/json': 0.4.3(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/msf': 0.3.1(@types/react@19.2.17)(react@19.2.7)
+      '@moq/net': 0.4.7(@types/react@19.2.17)(@zod/mini@4.6.7(zod@4.6.5))(react@19.2.7)(zod@4.6.5)
+      '@moq/signals': 0.2.6(@types/react@19.2.17)(react@19.2.7)
+      media-captions: 0.0.18
     transitivePeerDependencies:
-      - '@svta/cml-utils'
       - '@types/react'
+      - '@zod/mini'
       - react
       - solid-js
       - zod
 
-  '@moq/web-socket-stream@0.1.0': {}
+  '@moq/web-socket-stream@0.1.1': {}
 
   '@msgpack/msgpack@2.8.0': {}
 
@@ -1802,11 +1829,11 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@svta/cml-iso-bmff@1.0.2(@svta/cml-utils@1.5.0)':
+  '@svta/cml-iso-bmff@1.0.7(@svta/cml-utils@1.7.0)':
     dependencies:
-      '@svta/cml-utils': 1.5.0
+      '@svta/cml-utils': 1.7.0
 
-  '@svta/cml-utils@1.5.0': {}
+  '@svta/cml-utils@1.7.0': {}
 
   '@tanstack/query-core@5.105.0': {}
 
@@ -1896,6 +1923,10 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
+  '@zod/mini@4.6.7(zod@4.6.5)':
+    dependencies:
+      zod: 4.6.5
+
   assertion-error@2.0.1: {}
 
   async-mutex@0.5.0:
@@ -1905,6 +1936,8 @@ snapshots:
   bidi-js@1.0.3:
     dependencies:
       require-from-string: 2.0.2
+
+  bowser@2.15.0: {}
 
   chai@6.2.2: {}
 
@@ -2062,6 +2095,8 @@ snapshots:
 
   mdn-data@2.27.1: {}
 
+  media-captions@0.0.18: {}
+
   motion-dom@14.9.1:
     dependencies:
       motion-utils: 14.7.0
@@ -2152,7 +2187,7 @@ snapshots:
       '@oxlint/binding-win32-x64-msvc': 1.87.0
       oxlint-tsgolint: 7.0.2003
 
-  pako@3.0.1: {}
+  pako@3.0.3: {}
 
   parse5@8.0.1:
     dependencies:

@@ -64,6 +64,18 @@ describe("a chunk", () => {
       expect(first?.visual.cx).toBeLessThan(1000);
     }));
 
+  it("shows a new item at its target when it starts there (`initial={false}`), never where OBS put it", () =>
+    withHost(async (host) => {
+      // OBS creates an item at its own default place and size; the chunk must not start from it.
+      host.item(SCENE, ITEM, at(10, 10, { w: 40, h: 20 }));
+      const running = await host.start(chunk({ from: at(1000, 500), to: at(1000, 500) }));
+      const frames = host.simulate(running, SCENE, ITEM);
+      expect(frames.every((frame) => frame.visual.cx === 1000 && frame.visual.w === 200)).toBe(
+        true,
+      );
+      expect(frames[0]?.visible).toBe(true);
+    }));
+
   it("settles exactly on its target within the settle time, and reports done once", () =>
     withHost(async (host) => {
       host.item(SCENE, ITEM, at(100, 200));

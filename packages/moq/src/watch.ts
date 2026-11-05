@@ -5,34 +5,24 @@ import type { Moq } from "./index.js";
 /** Validated props of a `moq` source. */
 export type MoqProps = SourcePropsOf<typeof Moq>;
 
-/** The parts of `@moq/watch`'s element this package drives beyond attributes. */
-interface MoqVideoTarget {
+/** The rendition name; the player may also keep sizing constraints in this target. */
+interface MoqRenditionTarget {
   readonly name?: string;
 }
 
-/** The rendition `<moq-watch>` downloads. */
-interface MoqVideoSourceTarget {
-  update(update: (current: MoqVideoTarget | undefined) => MoqVideoTarget): void;
+/** The part of the player's rendition signal the adapter consumes. */
+interface MoqRenditionControl {
+  update(update: (current: MoqRenditionTarget | undefined) => MoqRenditionTarget | undefined): void;
 }
 
-/** `<moq-watch>`'s video source. */
-interface MoqVideoSource {
-  readonly target: MoqVideoSourceTarget;
-}
-
-/** `<moq-watch>`'s video pipeline. */
-interface MoqVideo {
-  readonly source: MoqVideoSource;
-}
-
-/** `<moq-watch>`'s player, present once the element is upgraded. */
-interface MoqWatchBackend {
-  readonly video: MoqVideo;
+/** The public controls, present once the element is upgraded. */
+interface MoqWatchControls {
+  readonly target: MoqRenditionControl;
 }
 
 /** A `<moq-watch>` element, upgraded or not. */
 export interface MoqWatchElement extends HTMLElement {
-  readonly backend?: MoqWatchBackend;
+  readonly controls?: MoqWatchControls;
 }
 
 let registration: Promise<void> | undefined = undefined;
@@ -58,12 +48,14 @@ export function appendMoqCanvas(watch: HTMLElement): void {
 export function applyMoqProps(watch: MoqWatchElement, props: MoqProps): void {
   watch.setAttribute("url", props.url);
   watch.setAttribute("name", props.broadcast);
-  watch.setAttribute("latency", String(props.latencyMs));
+  watch.setAttribute("delay", `${String(props.latencyMs)}ms`);
   watch.toggleAttribute("muted", !props.audio);
   watch.setAttribute("visible", visibility(props));
   watch.dataset.vignetteMoqQuality = props.quality;
   const name = props.quality === "auto" ? undefined : props.quality;
-  watch.backend?.video.source.target.update((current) => ({ ...current, name }));
+  watch.controls?.target.update((current) =>
+    current?.name === name ? current : { ...current, name },
+  );
 }
 
 /** Detaches `<moq-watch>` from its broadcast. */
