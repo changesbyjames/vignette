@@ -93,7 +93,8 @@ function placementChunk(placement: ObsPlacement, motion: MotionProps): Chunk | u
   if (!item.visible) return wasVisible ? hideChunk(placement, motion, rest) : undefined;
   const to = apply(rest, motion.animate ?? {});
   if (wasVisible) return { placement, label: "retarget", to, transition };
-  const from = motion.initial === false ? undefined : apply(rest, motion.initial ?? {});
+  // `initial={false}` starts at `animate` with no enter; never from OBS's default for a new item.
+  const from = motion.initial === false ? to : apply(rest, motion.initial ?? {});
   return { placement, label: "enter", from, to, transition };
 }
 
