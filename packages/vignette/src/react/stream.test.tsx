@@ -30,12 +30,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function setup(kinds: readonly string[]): SetupMessage {
+function setup(): SetupMessage {
   return {
     kind: "setup",
     id: "show",
     canvas: { width: 1920, height: 1080 },
-    kinds,
     assets: { version: "v1", entries: [] },
     serve: {},
   };
@@ -160,7 +159,7 @@ describe("<Stream> and <Stage>", () => {
   it("renders the scene's items at their compiled frames", async () => {
     // Each item is positioned from its frame; the color view fills the source box.
     const [container, queue] = stream({}, <Stage scene="main" />);
-    queue.push(setup(["color"]));
+    queue.push(setup());
     queue.push(
       update(
         1,
@@ -189,7 +188,7 @@ describe("<Stream> and <Stage>", () => {
         <Stage scene="side" className="two" />
       </>,
     );
-    queue.push(setup(["color"]));
+    queue.push(setup());
     queue.push(
       update(
         1,
@@ -218,7 +217,7 @@ describe("<Stream> and <Stage>", () => {
     );
     expect(lastStatus()?.phase).toBe("connecting");
 
-    send(setup(["color"]));
+    send(setup());
     send(update(3, [color("a", "#ff0000")], [item("a", "a", 0)]));
     await settle();
     expect(lastStatus()).toMatchObject({
@@ -239,8 +238,9 @@ describe("<Stream> and <Stage>", () => {
 
   it("reports a kind without a plugin and renders nothing", async () => {
     const [container, queue] = stream({}, <Stage />);
-    queue.push(setup(["color", "moq"]));
-    queue.push(update(1, [color("a", "#ff0000")], [item("a", "a", 0)]));
+    const live: Source = { id: "m", kind: "moq", props: {}, size: { width: 640, height: 360 } };
+    queue.push(setup());
+    queue.push(update(1, [color("a", "#ff0000"), live], [item("a", "a", 0), item("m", "m", 700)]));
     await settle();
 
     expect(lastStatus()?.phase).toBe("error");
@@ -252,7 +252,7 @@ describe("<Stream> and <Stage>", () => {
     // A preview page shows any show: the unknown source is an error, the rest renders.
     const [container, queue] = stream({ checkPlugins: false }, <Stage scene="main" />);
     const live: Source = { id: "m", kind: "moq", props: {}, size: { width: 640, height: 360 } };
-    queue.push(setup(["color", "moq"]));
+    queue.push(setup());
     queue.push(update(1, [color("a", "#ff0000"), live], [item("a", "a", 0), item("m", "m", 700)]));
     await settle();
 
@@ -268,13 +268,14 @@ describe("<Stream> and <Stage>", () => {
       View: ({ source }) => <span className="swatch">{source.props.color}</span>,
     };
     const [container, queue] = stream({ builtins: false, sources: [swatch] }, <Stage />);
-    queue.push(setup(["color"]));
+    queue.push(setup());
     queue.push(update(1, [color("a", "#ff0000")], [item("a", "a", 0)]));
     await settle();
     expect(container.querySelector(".swatch")?.textContent).toBe("#ff0000");
 
     const [, bare] = stream({ builtins: false }, <Stage />);
-    bare.push(setup(["color"]));
+    bare.push(setup());
+    bare.push(update(1, [color("a", "#ff0000")], [item("a", "a", 0)]));
     await settle();
     expect(lastStatus()?.error?.message).toContain('missing source plugin for kind "color"');
   });
@@ -289,7 +290,7 @@ describe("<Stream> and <Stage>", () => {
       size: { width: 400, height: 120 },
     });
     queue.push({
-      ...setup(["frame"]),
+      ...setup(),
       serve: { stream: "http://show.test/stream", frames: "http://show.test/frames.html" },
     });
     queue.push(update(1, [score(1)], [item("s", "s", 0)]));
@@ -314,7 +315,7 @@ describe("<Stream> and <Stage>", () => {
       return null;
     }
     const [, queue] = stream({}, <Listener />);
-    queue.push(setup([]));
+    queue.push(setup());
     queue.push({ kind: "event", event: { kind: "media:restart", sourceId: "intro" } });
     await settle();
     expect(received).toEqual([{ kind: "media:restart", sourceId: "intro" }]);

@@ -38,7 +38,8 @@ export interface StreamProps {
   /** Registers the built-in color, image, video, browser, frame and text views. Default `true`. */
   readonly builtins?: boolean;
   /**
-   * Fail the stream when the setup lists a kind without a plugin. Default `true`. With `false`, a
+   * Fail a revision that uses a kind without a plugin: the stage keeps the last revision it
+   * rendered and `useStreamStatus().error` names the kind. Default `true`. With `false`, a
    * source of such a kind renders an empty box and shows as `error` in `useStreamStatus().sources`,
    * and the rest of the scene renders; for pages that show any show, such as previews.
    */

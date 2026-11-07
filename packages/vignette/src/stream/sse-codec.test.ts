@@ -9,7 +9,6 @@ describe("stream SSE codec", () => {
       kind: "setup",
       id: "codec",
       canvas: { width: 1920, height: 1080 },
-      kinds: ["color", "moq"],
       assets: { version: "sha256-v1", entries: [{ name: "logo.png", hash: "sha256-abc" }] },
       serve: {
         stream: "https://show.example/stream",
@@ -81,7 +80,6 @@ describe("stream SSE codec", () => {
   it("rejects a setup without show identity", () => {
     const data = JSON.stringify({
       canvas: { width: 1920, height: 1080 },
-      kinds: [],
       assets: { version: "v", entries: [] },
       serve: {},
     });
@@ -93,7 +91,6 @@ describe("stream SSE codec", () => {
     const data = JSON.stringify({
       id: "codec",
       canvas: { width: 1920, height: 1080 },
-      kinds: [],
       assets: { version: "v", entries: [] },
       serve: { assets: "/vignette/assets/" },
     });

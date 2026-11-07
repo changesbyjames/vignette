@@ -83,8 +83,10 @@ export interface CreateTargetOptions<
   /** Overrides how asset bytes are fetched; defaults to `serve.assets` + name. */
   readonly fetchAsset?: AssetFetcher;
   /**
-   * Fail a setup whose kinds lack a plugin, before any asset or handle. Default `true`. When
-   * `false`, a source whose kind has no plugin is `error` and the rest of the scene renders.
+   * Fail a revision that uses a kind with no plugin, before any of its handles is created or the
+   * medium renders it: `status.error` names the kinds, and the medium keeps the last revision it
+   * rendered until one without them arrives. Default `true`. When `false`, a source whose kind
+   * has no plugin is `error` and the rest of the scene renders.
    */
   readonly checkPlugins?: boolean;
   /**
@@ -110,7 +112,7 @@ export interface CreateTargetOptions<
 }
 
 /**
- * Creates a target from a medium: setup checks, the asset stage, the plugin lifetime, status,
+ * Creates a target from a medium: plugin checks, the asset stage, the plugin lifetime, status,
  * settlement and `follow`/`apply`/`dispose` are provided by the kernel machine in
  * `kernel-machine.ts`; this function supplies its I/O and exposes it as a {@link Target}.
  */
@@ -181,14 +183,6 @@ export function createTarget<
 
   const machine = createKernelMachine<Handle>().provide({
     actors: {
-      checkPlugins: fromPromise(({ input }) => {
-        const absent =
-          options.checkPlugins === false ? [] : input.filter((kind) => !plugins.has(kind));
-        const messages = absent.map((kind) => `missing source plugin for kind "${kind}"`);
-        return absent.length === 0
-          ? Promise.resolve(undefined)
-          : Promise.reject(new Error(messages.join("; ")));
-      }),
       ensureAssets: fromCallback(({ input, sendBack }) => {
         const stage = new AbortController();
         const fetchAsset = options.fetchAsset ?? serveFetcher(input);
@@ -255,7 +249,10 @@ export function createTarget<
     },
   });
   const actor = createActor(machine, {
-    input: { assets: options.assets !== undefined },
+    input: {
+      assets: options.assets !== undefined,
+      plugins: options.checkPlugins === false ? undefined : new Set(plugins.keys()),
+    },
   });
   let status = statusOf(actor.getSnapshot());
   actor.subscribe((snapshot) => {
@@ -332,7 +329,7 @@ function settlement<Handle extends TargetHandle>(
   return failed !== undefined && failed >= wanted && error !== undefined ? error : "pending";
 }
 
-const PHASES = ["idle", "checking-plugins", "downloading-assets", "error", "disposed"] as const;
+const PHASES = ["idle", "downloading-assets", "error", "disposed"] as const;
 
 function statusOf<Handle extends TargetHandle>(snapshot: KernelSnapshot<Handle>): TargetStatus {
   const { context } = snapshot;

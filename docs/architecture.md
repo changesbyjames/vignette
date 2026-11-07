@@ -18,7 +18,7 @@ under `src/`.
 | `react-authoring` | `<Show>`, `<Scene>`, `<Layer>`, `<Use>`, the reconciler host config, lowering to a show tree               | `@strangecyan/vignette`                                            |
 | `compose`         | `compose()`: React root, compile on commit, publish the stream (`machine.ts`)                              | `@strangecyan/vignette`                                            |
 | `stream`          | `setup` / `update` / `event` messages, the replaying hub, `toSseEvent`, `fromSse`                          | `@strangecyan/vignette`                                            |
-| `target`          | `createTarget`: the kernel every target shares (setup checks, asset stage, plugin lifetime)                | `@strangecyan/vignette`                                            |
+| `target`          | `createTarget`: the kernel every target shares (plugin checks, asset stage, plugin lifetime)               | `@strangecyan/vignette`                                            |
 | `react`           | `<Stream>`, `<Stage>`, hooks and the built-in React views                                                  | `@strangecyan/vignette/react`                                      |
 | `dom`             | `domTarget` and the built-in DOM plugins                                                                   | `@strangecyan/vignette/dom`                                        |
 | `obs`             | `obsTarget`: connection and convergence machine, planner, executor, file asset store, built-in OBS plugins | `@strangecyan/vignette/obs`, `@strangecyan/vignette/obs/testing`   |
@@ -48,9 +48,9 @@ bundle that contains frame components. `vite` and `playwright` are optional peer
    and publishes an immutable snapshot. Diagnostics are composer status, never stream payload.
 3. The stream replays `setup` and the latest `update` to every new subscriber; `event`s are live
    only.
-4. A target's kernel checks it has a plugin for every kind in `setup.kinds`, downloads assets named
-   in the manifest (verifying hashes), then creates, updates and disposes one plugin handle per
-   source ID and hands the medium the snapshot plus the live handles.
+4. A target's kernel downloads assets named in the manifest (verifying hashes). For each update it
+   checks it has a plugin for every kind the snapshot uses, then creates, updates and disposes one
+   plugin handle per source ID and hands the medium the snapshot plus the live handles.
 5. The medium converges: React re-renders `<Stage>`, the DOM target patches positioned elements, and
    the OBS machine plans and executes obs-websocket requests until a fresh observation needs no plan
    ([ADR 0003](adr/0003-exclusive-obs-ownership.md)). The promise the medium's `update()` returns

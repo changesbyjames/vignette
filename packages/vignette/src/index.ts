@@ -56,6 +56,7 @@ export * from "./target/index.js";
 
 export {
   compose,
+  type Bootstrap,
   type ComposeOptions,
   type Composer,
   type ComposerPhase,

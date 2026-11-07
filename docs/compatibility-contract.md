@@ -40,10 +40,10 @@ cross-origin page, so a page meant for both must make its own background transpa
   `<Stage scene="…">` renders only its scene, so pointing it at another scene remounts them.
 - **One placement per scene**: placing one shared source twice in a scene is `DUPLICATE_PLACEMENT`,
   because an OBS scene item is identified by its scene and input.
-- **Unknown kinds** fail the target's setup check with `missing source plugin for kind "…"` before
-  anything is touched, unless the target was created with `checkPlugins: false` (the dev and
-  `preview` pages), which marks only the sources of that kind `error`. A plugin whose `create`
-  rejects marks only that source `error`.
+- **Unknown kinds** fail the revision that uses them with `missing source plugin for kind "…"`
+  before any of its sources is created or rendered, unless the target was created with
+  `checkPlugins: false` (the dev and `preview` pages), which marks only the sources of that kind
+  `error`. A plugin whose `create` rejects marks only that source `error`.
 
 ## Not guaranteed
 

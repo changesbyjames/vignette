@@ -13,7 +13,13 @@ import { lowerShow } from "../react-authoring/lower.js";
 import { reconciler } from "../react-authoring/reconciler.js";
 import { StreamHub } from "../stream/hub.js";
 import { sourceStream, type StreamOptions } from "../stream/source-stream.js";
-import type { Serve, SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
+import type {
+  Serve,
+  SetupMessage,
+  ShowEvent,
+  StreamMessage,
+  UpdateMessage,
+} from "../stream/messages.js";
 import {
   composerMachine,
   type CompileFailure,
@@ -32,6 +38,13 @@ export interface ComposeOptions {
   readonly serve?: Serve;
   /** A layout engine from `loadYoga`, for hosts that cannot compile wasm at runtime. */
   readonly layout?: LayoutEngine;
+  /**
+   * The revision of the first commit, and so of the first snapshot; later commits count up from
+   * it. Default 1. A host that composes the show anew for each change (a stateless host
+   * recompiling from stored state) passes one higher than the last revision it published, so
+   * targets see revisions move forward across composers. A positive integer.
+   */
+  readonly revision?: number;
   /** Called with every render and compile error; the same errors appear in `status`. */
   readonly onError?: (error: Error) => void;
 }
@@ -49,16 +62,25 @@ export interface ComposerStatus {
   readonly error?: Error;
 }
 
+/** What a new subscriber of a composer's stream receives first: setup, then the latest update. */
+export type Bootstrap = readonly [setup: SetupMessage, update: UpdateMessage];
+
 /** A running show: React in this process, compiled into snapshots, published as a stream. */
 export interface Composer {
   /**
    * The stream: setup and the latest update replayed, then live messages until `signal` aborts or
-   * the composer is disposed. Setup is published before the first update, once the first commit
-   * has compiled (its show ID, canvas and kinds come from the show), and again only when the
-   * show starts using a source kind no setup listed. A disposed composer's stream is empty.
-   * `options.source` narrows it to one source, as a frame page's `?source=` asks.
+   * the composer is disposed. Setup is published once, before the first update, when the first
+   * commit has compiled (its show ID and canvas come from the show); it never changes after. A
+   * disposed composer's stream is empty. `options.source` narrows it to one source, as a frame
+   * page's `?source=` asks.
    */
   stream(signal?: AbortSignal, options?: StreamOptions): AsyncIterable<StreamMessage>;
+  /**
+   * Settles and resolves with what {@link stream} replays to a new subscriber now: setup and the
+   * update carrying the settled snapshot. Does not dispose. A host that keeps no composer between
+   * changes saves this and sends it to each new connection; rejects as {@link settled} does.
+   */
+  bootstrap(): Promise<Bootstrap>;
   /** The latest compiled snapshot. */
   readonly snapshot: Snapshot | undefined;
   /** Resolves after the first successful compile; rejects if the first render or compile fails. */
@@ -82,10 +104,10 @@ export interface Composer {
  * into a snapshot. `show` is the `<Show>` element a show file default-exports, or a component
  * that renders one.
  *
- * A composer is one show for its whole lifetime. Its `setup` is published once, after the first
- * successful compile, and re-published only when a later snapshot uses a source kind the
- * previous setup lacked (a show may conditionally render a new kind; its `kinds` are then the
- * union of every kind used so far). Once a snapshot has compiled, a commit whose `<Show>` has a
+ * A composer is one show for its whole lifetime. Its `setup` (show ID, canvas, asset manifest and
+ * `serve`) is published once, after the first successful compile, and never again: targets check
+ * each source's kind against their plugins as it arrives. Once a snapshot has compiled, a commit
+ * whose `<Show>` has a
  * different `id` or `canvas` does not compile: it fails with `SHOW_IDENTITY_CHANGED` and the
  * last snapshot stays live. A host that wants another show composes it anew.
  *
@@ -98,6 +120,10 @@ export function compose(
   show: ReactElement | ComponentType,
   options: ComposeOptions = {},
 ): Composer {
+  const first = options.revision ?? 1;
+  if (!Number.isSafeInteger(first) || first < 1) {
+    throw new RangeError(`compose: revision must be a positive integer, got ${String(first)}.`);
+  }
   const element = isValidElement(show) ? show : createElement(show);
   const hub = new StreamHub();
   const listeners = new Set<() => void>();
@@ -105,7 +131,8 @@ export function compose(
 
   const container: HostContainer = {
     children: [],
-    commitRevision: 0,
+    // The first commit raises this to `first`.
+    commitRevision: first - 1,
     commitActive: false,
     onCommit: (revision) => {
       if (live()) actor.send({ type: "committed", revision });
@@ -141,15 +168,14 @@ export function compose(
   const live = () => actor.getSnapshot().status === "active";
 
   /**
-   * Setup precedes the first update and is republished only when a new kind appears. Each publish
-   * also drops what React's development build measured for the commit, which would otherwise pile
-   * up in a long-running server.
+   * Setup precedes the first update and is published only then. Each publish also drops what
+   * React's development build measured for the commit, which would otherwise pile up in a
+   * long-running server.
    */
   function publish(snapshot: Snapshot): void {
     clearReactMeasures();
-    const kinds = snapshot.sources.map((source) => source.kind);
-    if (setup === undefined || kinds.some((kind) => !setup?.kinds.includes(kind))) {
-      setup = setupFor(snapshot, [...(setup?.kinds ?? []), ...kinds], options);
+    if (setup === undefined) {
+      setup = setupFor(snapshot, options);
       hub.publish(setup);
     }
     hub.publish({ kind: "update", snapshot });
@@ -208,7 +234,7 @@ export function compose(
       reconciler.flushSyncFromReconciler(() => undefined);
       reconciler.flushSyncWork();
     }
-    return awaitRevision(Math.max(container.commitRevision, 1));
+    return awaitRevision(Math.max(container.commitRevision, first));
   }
 
   function dispose(): void {
@@ -228,8 +254,14 @@ export function compose(
     get snapshot() {
       return actor.getSnapshot().context.snapshot;
     },
-    ready: () => awaitRevision(1),
+    ready: () => awaitRevision(first),
     settled,
+    async bootstrap() {
+      const snapshot = await settled();
+      // Setup is the show's identity and the host's options, so it follows from any snapshot.
+      setup ??= setupFor(snapshot, options);
+      return [setup, { kind: "update", snapshot }];
+    },
     async once() {
       try {
         return await settled();
@@ -343,19 +375,14 @@ function isError(item: Diagnostic): boolean {
 
 const EMPTY_MANIFEST: AssetManifest = { version: "empty", entries: [] };
 
-/** The setup message for a snapshot: `kinds` plus the host's manifest and locations. */
-function setupFor(
-  snapshot: Snapshot,
-  kinds: readonly string[],
-  options: ComposeOptions,
-): SetupMessage {
+/** The setup message for a show: its identity plus the host's manifest and locations. */
+function setupFor(snapshot: Snapshot, options: ComposeOptions): SetupMessage {
   const assets = options.assets ?? EMPTY_MANIFEST;
   // Setup crosses into targets, so it is frozen; copy the host's objects rather than freeze them.
   return deepFreeze({
     kind: "setup",
     id: snapshot.id,
     canvas: snapshot.canvas,
-    kinds: [...new Set(kinds)].sort(),
     assets: { version: assets.version, entries: assets.entries.map((entry) => ({ ...entry })) },
     serve: { ...options.serve },
   });

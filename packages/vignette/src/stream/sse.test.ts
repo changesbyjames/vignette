@@ -8,7 +8,6 @@ const setupMessage: StreamMessage = {
   kind: "setup",
   id: "show",
   canvas: { width: 1920, height: 1080 },
-  kinds: ["color"],
   assets: { version: "v1", entries: [] },
   serve: { stream: "https://show.example/stream" },
 };
