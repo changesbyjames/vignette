@@ -109,7 +109,6 @@ describe("shared sources", () => {
       kind: "setup",
       id: "show",
       canvas: { width: 1920, height: 1080 },
-      kinds: ["browser", "color"],
       assets: { version: "v1", entries: [] },
       serve: {},
     });
@@ -154,7 +153,6 @@ describe("shared sources", () => {
         kind: "setup",
         id: "show",
         canvas: { width: 1920, height: 1080 },
-        kinds: ["browser", "color"],
         assets: { version: "v1", entries: [] },
         serve: {},
       });
@@ -217,7 +215,6 @@ describe("shared sources", () => {
       kind: "setup",
       id: "show",
       canvas: { width: 1920, height: 1080 },
-      kinds: ["browser", "color", "video"],
       assets: { version: "v1", entries: [{ name: "intro.mp4", hash: "sha256-intro" }] },
       serve: {},
     });
@@ -267,7 +264,6 @@ describe("shared sources", () => {
       kind: "setup",
       id: "show",
       canvas: { width: 1920, height: 1080 },
-      kinds: ["browser", "color"],
       assets: { version: "v1", entries: [] },
       serve: {},
     });

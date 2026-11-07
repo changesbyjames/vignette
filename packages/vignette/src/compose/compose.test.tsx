@@ -51,7 +51,6 @@ describe("compose", () => {
       kind: "setup",
       id: "weekly",
       canvas,
-      kinds: ["color"],
       assets: manifest,
       serve: { stream: "https://show.example/stream" },
     });
@@ -166,7 +165,7 @@ describe("show identity", () => {
     composer.dispose();
   });
 
-  it("publishes setup once and again only when a new source kind appears", async () => {
+  it("publishes setup once, however the kinds the show uses change", async () => {
     const store = createStore("color");
     const composer = compose(<KindShow store={store} />, { layout: fakeLayout });
     await composer.ready();
@@ -184,8 +183,8 @@ describe("show identity", () => {
       expect(messages.filter((message) => message.kind === "update")).toHaveLength(5);
     });
 
-    const setups = messages.flatMap((message) => (message.kind === "setup" ? [message.kinds] : []));
-    expect(setups).toEqual([["color"], ["browser", "color"]]);
+    expect(messages.filter((message) => message.kind === "setup")).toHaveLength(1);
+    expect(messages[0]?.kind).toBe("setup");
     controller.abort();
     composer.dispose();
   });
@@ -224,6 +223,49 @@ describe("Composer.once", () => {
     await expect(compose(broken, { layout: fakeLayout }).once()).rejects.toThrow(
       /no source in <Show> declares/u,
     );
+  });
+});
+
+describe("host-owned revisions and bootstrap", () => {
+  it("counts revisions on from the host's, across composers and within one", async () => {
+    const revisions: number[] = [];
+    let revision = 1;
+    for (const color of ["#000000", "#ff0000", "#00ff00"]) {
+      const snapshot = await compose(colorShow(color), { revision, layout: fakeLayout }).once();
+      revisions.push(snapshot.revision);
+      revision = snapshot.revision + 1;
+    }
+    expect(revisions).toEqual([1, 2, 3]);
+
+    const store = createStore("#111111");
+    const composer = compose(<StoreShow store={store} />, { revision: 40, layout: fakeLayout });
+    expect((await composer.ready()).revision).toBe(40);
+    store.set("#222222");
+    expect((await composer.settled()).revision).toBe(41);
+    expect(composer.status).toMatchObject({ revision: 41, compiledRevision: 41 });
+    composer.dispose();
+  });
+
+  it("rejects a revision that is not a positive integer", () => {
+    for (const revision of [0, -1, 1.5, Number.NaN]) {
+      expect(() => compose(colorShow("#000000"), { revision })).toThrow(RangeError);
+    }
+  });
+
+  it("resolves with what the stream replays to a new subscriber, without disposing", async () => {
+    const store = createStore("#111111");
+    const serve = { stream: "https://show.example/stream" };
+    const composer = compose(<StoreShow store={store} />, { serve, layout: fakeLayout });
+    store.set("#222222");
+
+    const [setup, update] = await composer.bootstrap();
+    expect(setup).toMatchObject({ kind: "setup", canvas, serve });
+    expect(update.snapshot.sources[0]?.props).toMatchObject({ color: "#222222" });
+
+    const iterator = composer.stream()[Symbol.asyncIterator]();
+    expect([await next(iterator), await next(iterator)]).toEqual([setup, update]);
+    expect(composer.status.phase).toBe("ready");
+    composer.dispose();
   });
 });
 

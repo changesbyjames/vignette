@@ -41,12 +41,6 @@ function harness() {
   const routed: string[] = [];
   const machine = createKernelMachine<FakeHandle>().provide({
     actors: {
-      // Every kind has a plugin except "moq".
-      checkPlugins: fromPromise(({ input }) =>
-        input.includes("moq")
-          ? Promise.reject(new Error('missing source plugin for kind "moq"'))
-          : Promise.resolve(undefined),
-      ),
       ensureAssets: fromCallback(({ input, sendBack }) => {
         const stage: AssetStage = { setup: input, send: sendBack, stopped: false };
         stages.push(stage);
@@ -80,7 +74,8 @@ function harness() {
       },
     },
   });
-  const actor = createActor(machine, { input: { assets: true } });
+  // Every kind has a plugin except "moq".
+  const actor = createActor(machine, { input: { assets: true, plugins: new Set(["color"]) } });
   actor.start();
   return { actor, creates, applies, stages, disposed, evicted, routed };
 }
@@ -92,12 +87,11 @@ async function flush(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function setup(kinds: readonly string[] = ["color"], assets = 0): SetupMessage {
+function setup(assets = 0): SetupMessage {
   return {
     kind: "setup",
     id: "show",
     canvas: { width: 1920, height: 1080 },
-    kinds,
     assets: {
       version: "v1",
       entries: Array.from({ length: assets }, (_, index) => ({
@@ -148,22 +142,41 @@ function statuses(kernel: Harness) {
 }
 
 describe("target kernel machine", () => {
-  it("checks plugins first and stops on a missing kind before any asset is fetched", async () => {
-    const kernel = harness();
-    kernel.actor.send({ type: "setup", setup: setup(["color", "moq"], 2) });
-    expect(kernel.actor.getSnapshot().value).toBe("checking-plugins");
-
+  it("fails a revision using a kind without a plugin before touching anything", async () => {
+    const kernel = await ready();
+    update(kernel, 1, [color("a")]);
     await flush();
-    expect(kernel.actor.getSnapshot().value).toBe("error");
-    expect(kernel.actor.getSnapshot().context.error?.message).toBe(
-      'missing source plugin for kind "moq"',
-    );
-    expect(kernel.stages).toEqual([]);
+    const handle: FakeHandle = { name: "a" };
+    kernel.creates[0]?.send({ type: "handleCreated", id: "a", handle, source: color("a") });
+    await finishApply(kernel);
+    await finishApply(kernel);
+    const applied = kernel.applies.length;
+
+    update(kernel, 2, [color("a", "#ffffff"), { ...color("m"), kind: "moq" }]);
+    await flush();
+    expect(kernel.actor.getSnapshot().context).toMatchObject({
+      desired: 2,
+      settled: 1,
+      failed: 2,
+      error: new Error('missing source plugin for kind "moq"'),
+    });
+    expect({ applies: kernel.applies.length, creates: kernel.creates.length }).toEqual({
+      applies: applied,
+      creates: 1,
+    });
+    expect(kernel.disposed).toEqual([]);
+
+    // A later revision without the kind applies as usual and clears the error.
+    update(kernel, 3, [color("a", "#ffffff")]);
+    await flush();
+    expect(kernel.applies.at(-1)?.plan.updates).toMatchObject([{ id: "a" }]);
+    await finishApply(kernel);
+    expect(kernel.actor.getSnapshot().context).toMatchObject({ settled: 3, error: undefined });
   });
 
-  it("downloads assets after the plugin check and reports progress", async () => {
+  it("goes straight to the asset stage after setup and reports progress", async () => {
     const kernel = harness();
-    kernel.actor.send({ type: "setup", setup: setup(["color"], 2) });
+    kernel.actor.send({ type: "setup", setup: setup(2) });
     await flush();
     expect(kernel.actor.getSnapshot().value).toBe("downloading-assets");
     expect(kernel.stages).toHaveLength(1);
@@ -182,7 +195,7 @@ describe("target kernel machine", () => {
 
   it("holds updates during the asset stage and applies only the latest", async () => {
     const kernel = harness();
-    kernel.actor.send({ type: "setup", setup: setup(["color"], 1) });
+    kernel.actor.send({ type: "setup", setup: setup(1) });
     await flush();
     update(kernel, 1, [color("a")]);
     update(kernel, 2, [color("b")]);
@@ -311,13 +324,13 @@ describe("target kernel machine", () => {
     kernel.creates[0]?.send({ type: "handleCreated", id: "a", handle, source: color("a") });
     await finishApply(kernel);
 
-    const next = setup(["color"], 1);
+    const next = setup(1);
     kernel.actor.send({ type: "setup", setup: next });
     expect(kernel.disposed).toEqual([handle]);
     // The first setup evicted everything but its own (empty) manifest.
     expect(kernel.evicted).toEqual([[], next.assets.entries]);
     expect(kernel.creates[1]?.stopped).toBe(true);
-    expect(kernel.actor.getSnapshot().value).toBe("checking-plugins");
+    expect(kernel.actor.getSnapshot().value).toBe("downloading-assets");
     expect(kernel.actor.getSnapshot().context).toMatchObject({
       desired: undefined,
       settled: undefined,

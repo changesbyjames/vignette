@@ -86,8 +86,8 @@ export function createStreamClient(): StreamClient {
       let report: (next: TargetConnection) => void = () => undefined;
       const target = createTarget({
         kind: "react",
-        // Rendering is React's, so a handle is an empty record; the kernel still checks setup
-        // kinds against the plugins and tracks each source's status.
+        // Rendering is React's, so a handle is an empty record; the kernel still checks each
+        // revision's kinds against the plugins and tracks each source's status.
         sources: plugins.map((plugin) => ({ kind: plugin.kind, create: () => ({}) })),
         checkPlugins,
         // No asset store: the kernel skips its asset stage and `useAsset` downloads through

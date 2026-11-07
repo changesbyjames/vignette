@@ -20,6 +20,12 @@ import type { SourceStatus, TargetAssetProgress, TargetConnection } from "./stat
 export interface KernelInput {
   /** The target keeps an asset store, so setup runs the asset stage. */
   readonly assets: boolean;
+  /**
+   * The kinds the target has plugins for, when it checks them: a snapshot using any other kind
+   * fails its revision before any handle is created or the medium renders. Without it, a source
+   * of a kind with no plugin fails alone, as its `create` does.
+   */
+  readonly plugins?: ReadonlySet<string>;
 }
 
 /** One source's plugin handle, by source ID. */
@@ -178,8 +184,7 @@ export interface RouteParams<Handle> {
 }
 
 /**
- * The target kernel (plan §6.2). `createTarget` provides the I/O: `checkPlugins` (missing kinds),
- * `ensureAssets` (sends `assetProgress`/`assetsDone`), `createHandle` (sends `handleCreated`/
+ * The target kernel (plan §6.2). `createTarget` provides the I/O: `ensureAssets` (sends `assetProgress`/`assetsDone`), `createHandle` (sends `handleCreated`/
  * `handleFailed`; disposes a handle that resolves after it was stopped), `apply`, `connection`
  * and the fire-and-forget `disposeHandles`, `evictAssets` and `route` actions. Superseded work is
  * cancelled by stopping its actor: leaving a state stops its asset stage or apply, and removing a
@@ -196,7 +201,6 @@ export function createKernelMachine<Handle extends TargetHandle>() {
       input: {} as KernelInput,
     },
     actors: {
-      checkPlugins: fromPromise<undefined, readonly string[]>(missing),
       ensureAssets: fromCallback<EventObject, SetupMessage>(missing),
       createHandle: fromCallback<EventObject, CreateInput>(missing),
       apply: fromPromise<ApplyOutput, ApplyPlan<Handle>>(missing),
@@ -228,7 +232,7 @@ export function createKernelMachine<Handle extends TargetHandle>() {
         },
         {
           // A new stream: drop everything from the old one and start over.
-          target: ".checking-plugins",
+          target: ".starting",
           reenter: true,
           actions: enqueueActions(({ context, event, enqueue }) => {
             for (const [id, entry] of context.handles) {
@@ -299,19 +303,12 @@ export function createKernelMachine<Handle extends TargetHandle>() {
     },
     states: {
       idle: {},
-      "checking-plugins": {
-        invoke: {
-          src: "checkPlugins",
-          input: ({ context }) => context.setup?.kinds ?? [],
-          onDone: [
-            { guard: ({ context }) => assetCount(context) === 0, target: "ready" },
-            { target: "downloading-assets" },
-          ],
-          onError: {
-            target: "error",
-            actions: assign({ error: ({ event }) => asError(event.error) }),
-          },
-        },
+      // Transient: the asset stage, if the setup names assets this target keeps.
+      starting: {
+        always: [
+          { guard: ({ context }) => assetCount(context) === 0, target: "ready" },
+          { target: "downloading-assets" },
+        ],
       },
       "downloading-assets": {
         entry: assign({
@@ -342,35 +339,47 @@ export function createKernelMachine<Handle extends TargetHandle>() {
         states: {
           // Apply whenever something is pending: an update, or a handle that just arrived.
           idle: {
-            always: {
-              guard: ({ context }) => context.pending !== undefined,
-              target: "applying",
-              actions: enqueueActions(({ context, enqueue }) => {
-                // Diff handles against the pending snapshot: spawn creates, stop abandoned
-                // ones, and hand the rest to `apply` as its plan.
-                const snapshot = context.pending;
-                if (snapshot === undefined || context.setup === undefined) return;
-                const diff = diffHandles(context.handles, snapshot.sources);
-                for (const source of diff.create) {
-                  enqueue.spawnChild("createHandle", {
-                    id: creatorId(source.id),
-                    input: { source, setup: context.setup },
-                  });
-                }
-                for (const id of diff.abandon) enqueue.stopChild(creatorId(id));
-                enqueue.assign({
-                  handles: diff.handles,
-                  snapshot,
+            always: [
+              {
+                // A revision using a kind the target cannot render fails before anything is
+                // touched; the medium keeps the last revision it rendered.
+                guard: ({ context }) => unrenderable(context) !== undefined,
+                actions: assign(({ context }) => ({
                   pending: undefined,
-                  plan: {
+                  error: unrenderable(context),
+                  failed: context.pending?.revision,
+                })),
+              },
+              {
+                guard: ({ context }) => context.pending !== undefined,
+                target: "applying",
+                actions: enqueueActions(({ context, enqueue }) => {
+                  // Diff handles against the pending snapshot: spawn creates, stop abandoned
+                  // ones, and hand the rest to `apply` as its plan.
+                  const snapshot = context.pending;
+                  if (snapshot === undefined || context.setup === undefined) return;
+                  const diff = diffHandles(context.handles, snapshot.sources);
+                  for (const source of diff.create) {
+                    enqueue.spawnChild("createHandle", {
+                      id: creatorId(source.id),
+                      input: { source, setup: context.setup },
+                    });
+                  }
+                  for (const id of diff.abandon) enqueue.stopChild(creatorId(id));
+                  enqueue.assign({
+                    handles: diff.handles,
                     snapshot,
-                    disposals: diff.disposals,
-                    updates: diff.updates,
-                    handles: new Map(liveEntries(diff.handles)),
-                  },
-                });
-              }),
-            },
+                    pending: undefined,
+                    plan: {
+                      snapshot,
+                      disposals: diff.disposals,
+                      updates: diff.updates,
+                      handles: new Map(liveEntries(diff.handles)),
+                    },
+                  });
+                }),
+              },
+            ],
           },
           applying: {
             invoke: {
@@ -383,15 +392,15 @@ export function createKernelMachine<Handle extends TargetHandle>() {
                   const revision = context.plan?.snapshot.revision ?? 0;
                   const { error, failed } = event.output;
                   const handles = failSources(context.handles, failed);
-                  return error === undefined
-                    ? {
-                        handles,
-                        plan: undefined,
-                        settled: Math.max(context.settled ?? revision, revision),
-                        error: undefined,
-                        failed: undefined,
-                      }
-                    : { handles, plan: undefined, error, failed: revision };
+                  if (error !== undefined) {
+                    return { handles, plan: undefined, error, failed: revision };
+                  }
+                  const settled = Math.max(context.settled ?? revision, revision);
+                  // Re-rendering an older revision (a handle arrived after a newer one was
+                  // refused for a missing plugin) leaves that failure standing.
+                  return revision < (context.failed ?? 0)
+                    ? { handles, plan: undefined, settled }
+                    : { handles, plan: undefined, settled, error: undefined, failed: undefined };
                 }),
               },
             },
@@ -505,7 +514,7 @@ function withEntry<Handle>(
 }
 
 /**
- * Whether two setups describe the same stream: show, canvas, kinds, assets and serve locations.
+ * Whether two setups describe the same stream: show, canvas, assets and serve locations.
  * Setups are plain decoded data, so their JSON forms compare field by field.
  */
 function sameSetup(current: SetupMessage | undefined, next: SetupMessage): boolean {
@@ -535,6 +544,17 @@ export function liveEntries<Handle>(
 
 function liveHandles<Handle>(handles: ReadonlyMap<string, HandleEntry<Handle>>): Handle[] {
   return liveEntries(handles).map(([, handle]) => handle);
+}
+
+/** Why the pending snapshot cannot be rendered: kinds it uses that no plugin renders. */
+function unrenderable<Handle>(context: KernelContext<Handle>): Error | undefined {
+  const { pending, input } = context;
+  if (pending === undefined || input.plugins === undefined) return undefined;
+  const absent = [...new Set(pending.sources.map((source) => source.kind))]
+    .filter((kind) => input.plugins?.has(kind) !== true)
+    .sort();
+  if (absent.length === 0) return undefined;
+  return new Error(absent.map((kind) => `missing source plugin for kind "${kind}"`).join("; "));
 }
 
 function assetCount<Handle>(context: KernelContext<Handle>): number {

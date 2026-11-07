@@ -21,15 +21,11 @@ const logo: AssetEntry = {
   hash: `sha256-${createHash("sha256").update(logoBytes).digest("base64")}`,
 };
 
-function setup(
-  id = "show",
-  kinds: readonly string[] = ["browser", "color", "image"],
-): SetupMessage {
+function setup(id = "show"): SetupMessage {
   return {
     kind: "setup",
     id,
     canvas: { width: 1920, height: 1080 },
-    kinds,
     assets: { version: "v1", entries: [logo] },
     serve: {},
   };
@@ -172,7 +168,7 @@ describe("obsTarget", () => {
     clock.advance(250);
     await until(target, converged(1));
 
-    expect(phases).toEqual(["checking-plugins", "downloading-assets", "synchronising", "settled"]);
+    expect(phases).toEqual(["downloading-assets", "synchronising", "settled"]);
     expect(connections).toEqual(["connecting", "retry-wait", "connecting", "open"]);
     expect(names(obs)).toEqual([
       "vignette/show",
@@ -366,7 +362,7 @@ describe("obsTarget", () => {
     const reloads = () =>
       obs.calls("PressInputPropertiesButton").map((call) => call.requestData?.inputName);
 
-    target.apply(setup("show", ["color", "frame"]));
+    target.apply(setup("show"));
     target.apply(withClock(1));
     await until(target, converged(1));
     await until(target, () => reloads().length === 1);
@@ -375,7 +371,7 @@ describe("obsTarget", () => {
     target.apply(withClock(2));
     await until(target, converged(2));
     // A reconnecting stream replays its setup: the server may have been down meanwhile.
-    target.apply(setup("show", ["color", "frame"]));
+    target.apply(setup("show"));
     target.apply(withClock(3));
     await until(target, converged(3));
     await until(target, () => reloads().length === 2);
@@ -406,7 +402,7 @@ describe("obsTarget", () => {
 
     const reloads = () => obs.calls("PressInputPropertiesButton").length;
 
-    target.apply(setup("show", ["text"]));
+    target.apply(setup("show"));
     target.apply(title(1, "Fish & <chips>"));
     await until(target, converged(1));
     const first = page();
@@ -442,7 +438,7 @@ describe("obsTarget", () => {
     await target.dispose();
     expect(readFileSync(first, "utf8")).toContain("Live");
     const next = harness({ dir });
-    next.target.apply(setup("show", ["text"]));
+    next.target.apply(setup("show"));
     next.target.apply(title(1, "Again"));
     await until(next.target, converged(1));
     const input = next.obs.inputs.find((entry) => entry.inputName === "vignette/show/title");
@@ -458,7 +454,7 @@ describe("obsTarget", () => {
     await until(target, converged(1));
     const before = obs.requests.length;
 
-    target.apply(setup("other", ["color"]));
+    target.apply(setup("other"));
     target.apply({
       kind: "update",
       snapshot: {
@@ -482,7 +478,7 @@ describe("obsTarget", () => {
       size: { width: 1920, height: 1080 },
     };
     const { obs, target } = harness();
-    target.apply(setup("show", ["video"]));
+    target.apply(setup("show"));
     target.apply(
       update(1, {
         sources: [video],

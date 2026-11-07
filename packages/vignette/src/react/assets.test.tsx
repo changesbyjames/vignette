@@ -87,7 +87,6 @@ function messages(hash: AssetEntry["hash"]): readonly StreamMessage[] {
       kind: "setup",
       id: "show",
       canvas: { width: 1920, height: 1080 },
-      kinds: ["image"],
       assets: { version: "v1", entries: [{ name: "logo.png", hash }] },
       serve: { assets: "https://cdn.example/show/assets/" },
     },

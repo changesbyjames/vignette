@@ -18,7 +18,7 @@ export function useSnapshot(): Snapshot | undefined {
   return useStreamState((state) => state.snapshot);
 }
 
-/** The stream's setup message: show ID, canvas, kinds, asset manifest and `serve` locations. */
+/** The stream's setup message: show ID, canvas, asset manifest and `serve` locations. */
 export function useSetup(): SetupMessage | undefined {
   return useStreamState((state) => state.setup);
 }

@@ -44,7 +44,6 @@ describe("production kitchen-sink server", () => {
       expect(setup).toMatchObject({
         kind: "setup",
         id: "kitchen-sink",
-        kinds: expect.arrayContaining(["color", "frame", "image", "moq"]),
         serve: {
           stream: `${origin}/stream`,
           assets: `${origin}/vignette/assets/`,

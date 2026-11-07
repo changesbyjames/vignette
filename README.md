@@ -452,23 +452,38 @@ const composer = compose(show, {
 await composer.ready();
 ```
 
-| Option    | Purpose                                                                                                                                                                                                                                                                                              |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `assets`  | the manifest from `bundle`, or `scanAssets(dir)` from `@strangecyan/vignette/bundle` at startup if you skipped bundling assets. Required if the show uses an `Image` or `Video`; a name missing from it is a compile diagnostic                                                                      |
-| `serve`   | absolute URLs where the stream, assets and `frames.html` are served. Published in the stream's setup message so targets need no local configuration. `stream` and `frames` are required if the show uses a `Frame`, `assets` if it uses an `Image` or `Video`; a missing one is a compile diagnostic |
-| `layout`  | a layout engine from `loadYoga(wasm)`, for hosts that cannot compile wasm at runtime (see below)                                                                                                                                                                                                     |
-| `onError` | render and compile errors; also available as `status`                                                                                                                                                                                                                                                |
+| Option     | Purpose                                                                                                                                                                                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assets`   | the manifest from `bundle`, or `scanAssets(dir)` from `@strangecyan/vignette/bundle` at startup if you skipped bundling assets. Required if the show uses an `Image` or `Video`; a name missing from it is a compile diagnostic                                                                      |
+| `serve`    | absolute URLs where the stream, assets and `frames.html` are served. Published in the stream's setup message so targets need no local configuration. `stream` and `frames` are required if the show uses a `Frame`, `assets` if it uses an `Image` or `Video`; a missing one is a compile diagnostic |
+| `layout`   | a layout engine from `loadYoga(wasm)`, for hosts that cannot compile wasm at runtime (see below)                                                                                                                                                                                                     |
+| `revision` | the revision of the first commit, and so of the first snapshot; later commits count up from it. Default 1. A host that composes anew for each change passes one past the last revision it published, so targets see revisions move forward                                                           |
+| `onError`  | render and compile errors; also available as `status`                                                                                                                                                                                                                                                |
 
-| Member                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stream(signal?)`       | async iterable of stream messages; replays setup and the latest update. Setup is published before the first update, once the show has rendered, because its ID, canvas and kinds come from the show. A show's `id` and `canvas` are fixed for the composer's life: a render that changes either fails with `SHOW_IDENTITY_CHANGED` and the last snapshot stays live. Setup is published again only when a new source kind appears |
-| `snapshot`              | latest compiled snapshot                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `ready()`               | resolves after the first successful compile                                                                                                                                                                                                                                                                                                                                                                                       |
-| `settled()`             | flushes pending React work, resolves with the latest snapshot                                                                                                                                                                                                                                                                                                                                                                     |
-| `once()`                | render, settle, dispose, return the snapshot; rejects if the show does not compile, e.g. an `Image` without `assets`                                                                                                                                                                                                                                                                                                              |
-| `emit(event)`           | publish a one-shot event                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `status`, `subscribe()` | compile phase and diagnostics as an external store                                                                                                                                                                                                                                                                                                                                                                                |
-| `dispose()`             |                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Member                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stream(signal?)`       | async iterable of stream messages; replays setup and the latest update. Setup is published a single time, before the first update and after the show has rendered, because its ID and canvas come from the show; it never changes after. A show's `id` and `canvas` are fixed for the composer's life: a render that changes either fails with `SHOW_IDENTITY_CHANGED` and the last snapshot stays live |
+| `snapshot`              | latest compiled snapshot                                                                                                                                                                                                                                                                                                                                                                                |
+| `ready()`               | resolves after the first successful compile                                                                                                                                                                                                                                                                                                                                                             |
+| `settled()`             | flushes pending React work, resolves with the latest snapshot                                                                                                                                                                                                                                                                                                                                           |
+| `once()`                | render, settle, dispose, return the snapshot; rejects if the show does not compile, e.g. an `Image` without `assets`                                                                                                                                                                                                                                                                                    |
+| `bootstrap()`           | settle and return `[setup, update]`, exactly what `stream()` replays to a new subscriber; does not dispose                                                                                                                                                                                                                                                                                              |
+| `emit(event)`           | publish a one-shot event                                                                                                                                                                                                                                                                                                                                                                                |
+| `status`, `subscribe()` | compile phase and diagnostics as an external store                                                                                                                                                                                                                                                                                                                                                      |
+| `dispose()`             |                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+**Hosting without a long-lived composer.** A host that cannot keep a composer in memory, such as a
+Cloudflare Durable Object with hibernating WebSockets, keeps the show's state in storage and
+composes the show anew from it on each change. Setup is fixed for the life of a show, so the host
+saves it once; each change sends only the new update:
+
+```ts
+const composer = compose(show(state), { revision: saved.revision + 1, assets, serve, layout });
+const [setup, update] = await composer.bootstrap();
+composer.dispose();
+// Save { setup, update, revision: update.snapshot.revision }; send update to open sockets.
+// A new connection gets the saved setup, then the saved update.
+```
 
 **Step 4. Put the stream on a wire.** `composer.stream()` yields plain objects. `toSseEvent` and
 `fromSse` are helpers for the common case, not requirements. `fromSse(url, { onConnection })`
@@ -602,9 +617,9 @@ function Status() {
   setup `phase` reads `connecting`, or `disconnected` once the connection is `closed`.
 - **Plugins.** `sources={[MoqView]}` adds plugins and `builtins={false}` drops the built-in ones.
   `checkPlugins={false}` renders a kind without a plugin as an empty box (its source shows `error`)
-  instead of failing the stream; the preview pages use it. `sources`, `builtins` and `checkPlugins`
-  are read when the stream connects; changing them later has no effect until `url` or `source`
-  changes.
+  instead of failing the revision; the preview pages use it. `sources`, `builtins` and
+  `checkPlugins` are read when the stream connects; changing them later has no effect until `url` or
+  `source` changes.
 - **The client is show-agnostic.** It needs the source plugins for the kinds a show uses and nothing
   else: no show code, no scene list, no frame definitions. Frames render as iframes to the static
   frame page, exactly as in OBS.
@@ -710,14 +725,14 @@ There is no convention tier: the target never guesses a path, and it does not ma
 stream came from a URL, a socket, or an in-process call.
 
 **Status.** The OBS target reports the same `TargetStatus` as every target. `status.phase` runs
-`checking-plugins` → `downloading-assets` → `synchronising` → `settled`, or `error`; the asset stage
-comes first, and the target connects when the first snapshot is ready to apply. `status.connection`
-is the websocket: `connecting`, `open`, `retry-wait` while it backs off (with the error that dropped
-it), and `closed` when OBS refuses the session for good (close code 4011), which also fails the
-revision in flight. So "waiting for OBS" is `synchronising` with `connection.phase: "connecting"`,
-and "disconnected" is `connection.phase: "retry-wait"`; both are observable states rather than
-exceptions. `status.assets` reports `{ done, total, failed }` during the asset stage. A source whose
-plugin is still preparing shows as such while the rest of the scene converges around it.
+`downloading-assets` → `synchronising` → `settled`, or `error`; the asset stage comes first, and the
+target connects when the first snapshot is ready to apply. `status.connection` is the websocket:
+`connecting`, `open`, `retry-wait` while it backs off (with the error that dropped it), and `closed`
+when OBS refuses the session for good (close code 4011), which also fails the revision in flight. So
+"waiting for OBS" is `synchronising` with `connection.phase: "connecting"`, and "disconnected" is
+`connection.phase: "retry-wait"`; both are observable states rather than exceptions. `status.assets`
+reports `{ done, total, failed }` during the asset stage. A source whose plugin is still preparing
+shows as such while the rest of the scene converges around it.
 
 ---
 
@@ -967,11 +982,12 @@ obsTarget({ url, password, sources: [colorObs], builtins: false });  // only wha
 npx vignette obs https://show.example.com/stream --source @strangecyan/vignette-moq/obs
 ```
 
-The setup message lists the kinds the show uses. A target missing a plugin for one of them reports
-`missing source plugin for kind "moq"` in its status before touching anything, so a misconfigured
-OBS machine fails loudly and leaves OBS alone. A client that should render what it can instead
-(`<Stream checkPlugins={false}>`, `createTarget({ checkPlugins: false })`) marks only the sources of
-that kind `error`.
+A target checks each revision's source kinds against its plugins as it arrives. A revision using a
+kind it has no plugin for fails with `missing source plugin for kind "moq"` in its status before any
+of its sources is created or rendered, so a misconfigured OBS machine fails loudly and leaves OBS as
+it was; a later revision without that kind applies as usual. A client that should render what it can
+instead (`<Stream checkPlugins={false}>`, `createTarget({ checkPlugins: false })`) marks only the
+sources of that kind `error`.
 
 Published source packages ship the definition and one entry per target, for example
 `@strangecyan/vignette-moq`, `@strangecyan/vignette-moq/react`, `@strangecyan/vignette-moq/dom`,
@@ -979,7 +995,7 @@ Published source packages ship the definition and one entry per target, for exam
 
 ### A new target
 
-A target consumes a stream and produces side effects. `createTarget` provides setup checks, the
+A target consumes a stream and produces side effects. `createTarget` provides plugin checks, the
 asset stage, status, settlement and the plugin lifetime; you supply the medium.
 
 ```ts
@@ -1007,8 +1023,8 @@ like one that logs revisions, omits `sources`.
 The promise `update` returns is the only settlement signal: the revision counts as settled when it
 resolves, and a rejection is that revision's `error`. A medium with a connection of its own reports
 it through `connection(report)`, which the kernel starts once and stops on dispose; each report
-becomes `status.connection`. `checkPlugins: false` turns a kind without a plugin from a setup
-failure into an `error` on each source of that kind, for clients that render what they can.
+becomes `status.connection`. `checkPlugins: false` turns a kind without a plugin from a failed
+revision into an `error` on each source of that kind, for clients that render what they can.
 
 ### Events
 

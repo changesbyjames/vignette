@@ -15,20 +15,20 @@ export const ServeSchema = z
 export type Serve = z.output<typeof ServeSchema>;
 
 /**
- * First message of every stream, and replayed to late subscribers: the show's identity, the
- * source kinds it uses, its asset manifest and where things are served.
+ * First message of every stream, and replayed to late subscribers: the show's identity, its asset
+ * manifest and where things are served. It is fixed for the life of a show, so a host may save it
+ * once. A setup from an older composer that still lists `kinds` decodes; the list is dropped.
  */
 export const SetupMessageSchema = z
   .object({
     kind: z.literal("setup"),
     id: StableIdSchema,
     canvas: CanvasSchema,
-    kinds: z.array(z.string()).readonly(),
     assets: AssetManifestSchema,
     serve: ServeSchema,
   })
   .readonly();
-/** First message of every stream: identity, kinds in use, asset manifest and locations. */
+/** First message of every stream: identity, asset manifest and locations. */
 export type SetupMessage = z.output<typeof SetupMessageSchema>;
 
 /** A new snapshot: the complete desired state at one revision. */

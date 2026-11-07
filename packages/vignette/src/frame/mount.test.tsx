@@ -28,7 +28,6 @@ const setup: SetupMessage = {
   kind: "setup",
   id: "show",
   canvas: { width: 1920, height: 1080 },
-  kinds: ["frame"],
   assets: { version: "v1", entries: [] },
   serve: {},
 };

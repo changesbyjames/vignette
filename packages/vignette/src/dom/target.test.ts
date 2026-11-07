@@ -7,12 +7,11 @@ import type { SetupMessage, StreamMessage } from "../stream/messages.js";
 import type { DomSourcePlugin } from "./plugin.js";
 import { domTarget } from "./target.js";
 
-function setup(kinds: readonly string[]): SetupMessage {
+function setup(): SetupMessage {
   return {
     kind: "setup",
     id: "show",
     canvas: { width: 1920, height: 1080 },
-    kinds,
     assets: { version: "v1", entries: [] },
     serve: {},
   };
@@ -77,7 +76,7 @@ describe("domTarget", () => {
     // The wrapper takes the item frame; the iframe keeps its viewport and is scaled into it.
     const container = mount();
     const target = domTarget(container);
-    target.apply(setup(["color", "browser"]));
+    target.apply(setup());
     target.apply(showSnapshot(1, "main"));
     await target.settled(1);
     await waitFor(() => container.querySelectorAll("iframe").length === 1);
@@ -109,7 +108,7 @@ describe("domTarget", () => {
   it("keeps one element for a shared source across scene switches", async () => {
     const container = mount();
     const target = domTarget(container);
-    target.apply(setup(["color", "browser"]));
+    target.apply(setup());
     target.apply(showSnapshot(1, "main"));
     await target.settled(1);
     await waitFor(() => container.querySelector("iframe") !== null);
@@ -151,7 +150,7 @@ describe("domTarget", () => {
         scenes: [{ id: "main", items: [item("title", "title", 0, 640)] }],
       },
     });
-    target.apply(setup(["text"]));
+    target.apply(setup());
     target.apply(title("Up next\nThe roundup"));
     // `create` is asynchronous: the source is preparing until its element exists.
     const paragraph = await vi.waitFor(() => {
@@ -174,7 +173,7 @@ describe("domTarget", () => {
   it("shows only the configured scene when one is given", async () => {
     const container = mount();
     const target = domTarget(container, { scene: "brb" });
-    target.apply(setup(["color", "browser"]));
+    target.apply(setup());
     target.apply(showSnapshot(1, "main"));
     await target.settled(1);
     expect(container.querySelector("[data-vignette-layer='brb.chat']")).not.toBeNull();
@@ -193,7 +192,7 @@ describe("domTarget", () => {
       },
     };
     const target = domTarget(container, { sources: [custom] });
-    target.apply(setup(["color", "browser"]));
+    target.apply(setup());
     target.apply(showSnapshot(1, "main"));
     await target.settled(1);
     await waitFor(() => container.querySelector("[data-custom]") !== null);
@@ -204,7 +203,7 @@ describe("domTarget", () => {
   it("reports missing plugins without builtins and renders nothing", async () => {
     const container = mount();
     const target = domTarget(container, { builtins: false });
-    target.apply(setup(["color", "browser"]));
+    target.apply(setup());
     target.apply(showSnapshot(1, "main"));
     await expect(target.settled(1)).rejects.toThrow('missing source plugin for kind "color"');
     expect(target.status.phase).toBe("error");

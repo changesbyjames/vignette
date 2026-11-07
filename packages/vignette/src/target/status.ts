@@ -2,13 +2,13 @@ import type { ConnectionPhase } from "../stream/sse.js";
 
 /**
  * Where a target is in its lifecycle. `connecting` and `disconnected` apply to targets that own a
- * connection (OBS); every target passes through `checking-plugins` and `downloading-assets` after
- * each setup, then alternates between `synchronising` and `settled` as updates arrive.
+ * connection (OBS); every target passes through `downloading-assets` after each setup (when the
+ * setup names assets it keeps), then alternates between `synchronising` and `settled` as updates
+ * arrive.
  */
 export type TargetPhase =
   | "idle"
   | "connecting"
-  | "checking-plugins"
   | "downloading-assets"
   | "synchronising"
   | "settled"

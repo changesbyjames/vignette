@@ -77,8 +77,8 @@ The pipeline is **composer → stream → target**; use these names consistently
 - The **composer** runs the show in React (`compose`), compiles each commit into a snapshot and
   publishes the stream. It never knows what targets exist.
 - The **stream** is the ordered `setup` / `update` / `event` messages a composer publishes
-  (`StreamMessage`). Setup carries `{ id, canvas, kinds, assets, serve }`; it is the only channel
-  from composer to anything.
+  (`StreamMessage`). Setup carries `{ id, canvas, assets, serve }`, fixed for the life of a show; it
+  is the only channel from composer to anything.
 - A **target** renders snapshots in one medium (React, DOM, OBS, or a custom one from
   `createTarget`) and reports `TargetStatus`, the one status shape: `phase`, `revision`, `assets`,
   per-source state and `sourceErrors`, `error`, and `connection` (`connecting` / `open` /

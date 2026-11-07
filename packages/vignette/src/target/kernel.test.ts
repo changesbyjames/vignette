@@ -17,15 +17,11 @@ const logo: AssetEntry = {
   hash: `sha256-${createHash("sha256").update(logoBytes).digest("base64")}`,
 };
 
-function setup(
-  entries: readonly AssetEntry[] = [],
-  kinds: readonly string[] = ["test"],
-): SetupMessage {
+function setup(entries: readonly AssetEntry[] = []): SetupMessage {
   return {
     kind: "setup",
     id: "show",
     canvas: { width: 1920, height: 1080 },
-    kinds,
     assets: { version: "v1", entries },
     serve: { assets: "https://show.example/assets/" },
   };
@@ -190,28 +186,31 @@ describe("createTarget", () => {
       assets: memoryStore().store,
       update: () => undefined,
     });
-    target.apply({ ...setup([logo], []), serve: {} });
+    target.apply({ ...setup([logo]), serve: {} });
     await expect(target.settled()).rejects.toThrow(/MISSING_SERVE/u);
     expect(target.status).toMatchObject({ phase: "error", assets: { failed: ["logo.png"] } });
     await target.dispose();
   });
 
-  it("reports a missing plugin before fetching anything", async () => {
-    const fetched: string[] = [];
+  it("fails a revision using a kind without a plugin before creating or rendering it", async () => {
+    const rendered: number[] = [];
     const target = createTarget<RecordingHandle>({
       kind: "test",
       sources: [recordingPlugin],
-      assets: memoryStore().store,
-      fetchAsset: (entry) => {
-        fetched.push(entry.name);
-        return Promise.resolve(logoBytes);
+      update(snapshot) {
+        rendered.push(snapshot.revision);
       },
-      update: () => undefined,
     });
-    target.apply(setup([logo], ["test", "moq"]));
-    await expect(target.settled()).rejects.toThrow('missing source plugin for kind "moq"');
-    expect(target.status.phase).toBe("error");
-    expect(fetched).toEqual([]);
+    target.apply(setup());
+    target.apply(update(1, [source("a"), { ...source("m"), kind: "moq" }]));
+    await expect(target.settled(1)).rejects.toThrow('missing source plugin for kind "moq"');
+    expect(target.status).toMatchObject({ phase: "error", sources: {} });
+    expect(rendered).toEqual([]);
+
+    // The same stream carries on: a revision the target can render clears the error.
+    target.apply(update(2, [source("a")]));
+    await waitFor(() => target.status.phase === "settled" && target.status.sources.a === "live");
+    expect(target.status.error).toBeUndefined();
     await target.dispose();
   });
 
@@ -252,7 +251,7 @@ describe("createTarget", () => {
     });
     const first = createAsyncQueue<StreamMessage>();
     const stop = target.follow(first);
-    first.push(setup([], []));
+    first.push(setup([]));
     first.push(update(1, []));
     await target.settled(1);
     expect(target.status).toMatchObject({ phase: "settled", revision: { desired: 1, settled: 1 } });
@@ -277,7 +276,7 @@ describe("createTarget", () => {
       kind: "slow",
       update: async () => gate.promise,
     });
-    target.apply(setup([], []));
+    target.apply(setup([]));
     target.apply(update(1, []));
     target.apply(update(3, []));
     let settled = false;
@@ -306,7 +305,7 @@ describe("createTarget", () => {
         if (fail) throw new Error("medium refused");
       },
     });
-    target.apply(setup([], []));
+    target.apply(setup([]));
     target.apply(update(1, []));
     const first = target.settled(1);
     await waitFor(() => target.status.phase === "synchronising");
@@ -334,7 +333,7 @@ describe("createTarget", () => {
         rendered = [...handles.keys()];
       },
     });
-    target.apply(setup([], ["test", "moq"]));
+    target.apply(setup([]));
     target.apply(update(1, [source("a"), { ...source("m"), kind: "moq" }]));
     await target.settled(1);
     await waitFor(() => rendered.length === 1 && target.status.phase === "settled");
@@ -427,10 +426,10 @@ describe("createTarget", () => {
       fetchAsset: () => Promise.resolve(logoBytes),
       update: () => undefined,
     });
-    target.apply(setup([logo], []));
+    target.apply(setup([logo]));
     target.apply(update(1, []));
     await target.settled(1);
-    target.apply(setup([], []));
+    target.apply(setup([]));
     await waitFor(() => released.length === 1);
     expect(released).toEqual(["memory:logo.png"]);
     await target.dispose();
