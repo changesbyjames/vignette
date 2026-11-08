@@ -5,16 +5,19 @@ import { createPageFrame, disposePageFrame, navigatePageFrame } from "./page.js"
 /**
  * `<Frame>` as an iframe of the frame page, `serve.frames?frame=…&source=…&stream=…`, exactly as
  * OBS opens it. The page follows the stream and reads its params from there, so a params change
- * never reloads it; only a different frame name navigates.
+ * never reloads it; only a different frame name, or a new frame bundle's `build`, navigates.
  */
 export const frameDom: DomSourcePlugin<typeof Frame> = {
   kind: "frame",
   create(source, { document, frames }) {
-    const frame = createPageFrame(document, frames(source.props.frame, source.id));
+    const frame = createPageFrame(
+      document,
+      frames(source.props.frame, source.id, source.props.build),
+    );
     return {
       element: frame,
       update(next) {
-        navigatePageFrame(frame, frames(next.props.frame, next.id));
+        navigatePageFrame(frame, frames(next.props.frame, next.id, next.props.build));
       },
       dispose() {
         disposePageFrame(frame);

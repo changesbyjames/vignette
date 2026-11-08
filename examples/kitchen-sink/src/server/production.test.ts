@@ -56,12 +56,12 @@ describe("production kitchen-sink server", () => {
       expect(frames.map((source) => source.props)).toContainEqual({
         frame: "Clock",
         params: { title: "Vignette kitchen sink" },
+        build: expect.stringMatching(/^sha256-/u),
       });
 
       const page = await fetch(`${origin}/vignette/frames.html`);
       expect(page.status).toBe(200);
-      expect(await page.text()).toContain("frames.js");
-      expect((await fetch(`${origin}/vignette/frames.js`)).status).toBe(200);
+      expect(await page.text()).toMatch(/\.\/frames\.[0-9a-f]{16}\.js/u);
       expect((await fetch(`${origin}/vignette/assets/logo.png`)).status).toBe(200);
       expect((await fetch(origin)).status).toBe(200);
     } finally {

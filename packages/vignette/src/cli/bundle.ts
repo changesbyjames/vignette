@@ -20,11 +20,11 @@ export async function runBundle(
   process.stdout.write(
     `${where("assets.json")}  ${String(assets)} asset(s) in ${where("assets")}\n`,
   );
-  if (result.frames.length === 0) {
+  if (result.script === undefined) {
     process.stdout.write("no *.frame.tsx modules; no frames.html written\n");
     return;
   }
   process.stdout.write(
-    `${where("frames.html")}\n${where("frames.js")}  ${result.frames.join(", ")}\n`,
+    `${where("frames.html")}\n${where(result.script)}  ${result.frames.join(", ")}\n${where("frames.json")}  build ${String(result.build)}\n`,
   );
 }

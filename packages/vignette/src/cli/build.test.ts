@@ -103,10 +103,17 @@ describe("runBuild", () => {
 
     await runBuild({ show: join(dir, "show.tsx"), out });
 
-    for (const file of ["public/frames.js", "public/frames.html", "public/preview.js", "show.js"])
+    for (const file of ["public/frames.html", "public/preview.js", "show.js"])
       expect(await exists(join(out, file)), file).toBe(true);
     const manifest: unknown = JSON.parse(await readFile(join(out, "public/assets.json"), "utf8"));
     expect(manifest).toMatchObject({ entries: [{ name: "logo.png" }] });
+    const { build } = z
+      .object({ build: z.string() })
+      .parse(JSON.parse(await readFile(join(out, "public/frames.json"), "utf8")));
+    const script = /frames\.[0-9a-f]+\.js/u.exec(
+      await readFile(join(out, "public/frames.html"), "utf8"),
+    )?.[0];
+    expect(script).toBeDefined();
 
     const port = await freePort();
     const origin = `http://127.0.0.1:${String(port)}`;
@@ -124,8 +131,16 @@ describe("runBuild", () => {
         serve: { frames: `${origin}/vignette/frames.html` },
       });
       expect(messages[1]?.kind).toBe("update");
+      // The frame source carries the bundle's build.
+      const sources = messages[1]?.kind === "update" ? messages[1].snapshot.sources : [];
+      expect(sources.find((source) => source.kind === "frame")?.props).toMatchObject({ build });
 
-      expect((await fetch(`${origin}/vignette/frames.html`)).status).toBe(200);
+      const page = await fetch(`${origin}/vignette/frames.html`);
+      expect(page.status).toBe(200);
+      expect(page.headers.get("cache-control")).toBe("no-cache");
+      const bundle = await fetch(`${origin}/vignette/${String(script)}`);
+      expect(bundle.headers.get("cache-control")).toContain("immutable");
+      expect(await bundle.text()).toContain(build);
       expect(await (await fetch(`${origin}/vignette/assets/logo.png`)).text()).toBe("logo");
       expect(await (await fetch(`${origin}/`)).text()).toContain("/vignette/preview.js");
       expect((await fetch(`${origin}/vignette/..%2fshow.js`)).status).toBe(404);

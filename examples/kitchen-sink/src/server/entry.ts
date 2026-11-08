@@ -10,7 +10,13 @@ import { streamSSE } from "hono/streaming";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { AssetManifestSchema, compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
+import {
+  AssetManifestSchema,
+  compose,
+  FramesJsonSchema,
+  streamOptions,
+  toSseEvent,
+} from "@strangecyan/vignette";
 import { obsTarget } from "@strangecyan/vignette/obs";
 
 import show from "../show.js";
@@ -25,10 +31,15 @@ const clientDir = fileURLToPath(new URL("../client", import.meta.url));
 const manifest = AssetManifestSchema.parse(
   JSON.parse(await readFile(`${bundleDir}/assets.json`, "utf8")),
 );
+const { build: frameBuild } = FramesJsonSchema.parse(
+  JSON.parse(await readFile(`${bundleDir}/frames.json`, "utf8")),
+);
 
 // Step 3: run the composer and tell it where step 2's output and the stream are served.
 const composer = compose(show, {
   assets: manifest,
+  // A new frame bundle changes only the frame sources: their pages reload, nothing else does.
+  frameBuild,
   serve: {
     stream: `${origin}/stream`,
     assets: `${origin}/vignette/assets/`,

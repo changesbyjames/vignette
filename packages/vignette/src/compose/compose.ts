@@ -36,6 +36,12 @@ export interface ComposeOptions {
   readonly assets?: AssetManifest;
   /** Absolute URLs where the stream, assets and `frames.html` are served. Published in setup. */
   readonly serve?: Serve;
+  /**
+   * The frame bundle's build hash from `bundle` (`frames.json`'s `build`). Never published in
+   * setup: the composer stamps it on every `<Frame>` source as its `build` prop, so a new bundle
+   * is an update of the frame sources alone, whose page URLs change (`v=`) and reload.
+   */
+  readonly frameBuild?: string;
   /** A layout engine from `loadYoga`, for hosts that cannot compile wasm at runtime. */
   readonly layout?: LayoutEngine;
   /**
@@ -112,7 +118,7 @@ export interface Composer {
  * last snapshot stays live. A host that wants another show composes it anew.
  *
  * ```ts
- * const composer = compose(show, { assets: manifest, serve });
+ * const composer = compose(show, { assets: manifest, frameBuild, serve });
  * await composer.ready();
  * ```
  */
@@ -329,7 +335,7 @@ async function compileRevision(
       return failure(revision, diagnostics);
     }
     const layoutEngine = options.layout ?? (await loadDefaultLayoutEngine());
-    const result = compileShow(tree, { revision, layoutEngine });
+    const result = compileShow(tree, { revision, layoutEngine, frameBuild: options.frameBuild });
     if (!result.ok) return failure(revision, result.diagnostics);
     return { ok: true, revision, snapshot: result.snapshot, diagnostics: result.diagnostics };
   } catch (cause) {

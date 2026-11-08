@@ -5,6 +5,9 @@ import type { Canvas, Source } from "../core/snapshot.js";
 import type { SetupMessage } from "../stream/messages.js";
 import { STREAM_SOURCE_PARAM } from "../stream/source-stream.js";
 
+/** The frame page URL parameter carrying the frame bundle's build hash. */
+export const FRAME_BUILD_PARAM = "v";
+
 /** What every target's source plugin has: the kind it renders. */
 export interface SourcePluginBase {
   readonly kind: string;
@@ -39,17 +42,25 @@ export interface PluginContextBase<Resolved = string> {
   readonly assets: PluginAssets<Resolved>;
   /**
    * The page URL of a frame source: `serve.frames?frame=…&source=…&stream=…`, from the setup,
-   * whose stream is `serve.stream?source=…`, narrowed to the source. Throws when the setup does
-   * not publish `serve.frames` and `serve.stream`.
+   * whose stream is `serve.stream?source=…`, narrowed to the source, plus `&v=<build>` when the
+   * source carries the frame bundle's `build`. Throws when the setup does not publish
+   * `serve.frames` and `serve.stream`.
    */
-  readonly frames: (frame: string, sourceId: string) => string;
+  readonly frames: (frame: string, sourceId: string, build?: string) => string;
 }
 
 /**
- * `serve.frames?frame=…&source=…&stream=…`. The page's stream asks for its one source with
- * `?source=`; a host that serves the whole stream regardless still works.
+ * `serve.frames?frame=…&source=…&stream=…`, and `&v=<build>` for a frame source carrying the
+ * frame bundle's build hash, so a new bundle is a new URL that targets navigate to and caches miss.
+ * The page's stream asks for its one source with `?source=`; a host that serves the whole stream
+ * regardless still works.
  */
-export function frameUrl(setup: SetupMessage, frame: string, sourceId: string): string {
+export function frameUrl(
+  setup: SetupMessage,
+  frame: string,
+  sourceId: string,
+  build?: string,
+): string {
   const { frames, stream } = setup.serve;
   if (frames === undefined || stream === undefined) {
     throw new Error(
@@ -62,5 +73,6 @@ export function frameUrl(setup: SetupMessage, frame: string, sourceId: string): 
   const own = new URL(stream);
   own.searchParams.set(STREAM_SOURCE_PARAM, sourceId);
   url.searchParams.set("stream", own.href);
+  if (build !== undefined) url.searchParams.set(FRAME_BUILD_PARAM, build);
   return url.href;
 }

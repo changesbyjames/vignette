@@ -14,7 +14,9 @@ authoring side is in [README §2](../README.md#2-making-a-show).
 - Shared sources are one live instance across scene switches in every target.
 - Frames receive the same validated params. Every target shows a frame as `frames.html` in an iframe
   (OBS: a browser source); the page follows the stream for its params, so a params change never
-  reloads the page. Clients bundle no frame components and know nothing about the show.
+  reloads the page. A new frame bundle build (`compose({ frameBuild })`) changes the page URL's
+  `v=`, which reloads only the frame pages. Clients bundle no frame components and know nothing
+  about the show.
 
 ## Built-in kinds
 

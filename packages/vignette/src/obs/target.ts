@@ -73,8 +73,11 @@ export interface ObsTargetOptions {
    * Default `vignette/obs` in the user's cache directory.
    */
   readonly dir?: string;
-  /** The page URL of a frame source; defaults to `serve.frames` and `serve.stream` from setup. */
-  readonly frames?: (frame: string, sourceId: string) => string;
+  /**
+   * The page URL of a frame source; defaults to `serve.frames` and `serve.stream` from setup. A
+   * URL that changes with `build`, the frame bundle's build hash, reloads the page on a new bundle.
+   */
+  readonly frames?: (frame: string, sourceId: string, build?: string) => string;
   /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
   readonly sources?: readonly ObsSourcePlugin[];
   /** Registers the built-in color, image, video, browser, frame and text plugins. Default `true`. */

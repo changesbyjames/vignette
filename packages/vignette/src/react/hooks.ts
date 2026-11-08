@@ -37,14 +37,15 @@ export function useStreamStatus(): TargetStatus {
 }
 
 /**
- * The frame page URL of a frame source, `serve.frames?frame=…&source=…&stream=serve.stream`,
- * exactly as the DOM and OBS targets open it. Suspends until the setup arrives; throws when the
- * setup publishes no `serve.frames` and `serve.stream`.
+ * The frame page URL of a frame source, `serve.frames?frame=…&source=…&stream=serve.stream`
+ * (plus `&v=<build>` given the source's `build`), exactly as the DOM and OBS targets open it.
+ * Suspends until the setup arrives; throws when the setup publishes no `serve.frames` and
+ * `serve.stream`.
  */
-export function useFrameUrl(frame: string, sourceId: string): string {
+export function useFrameUrl(frame: string, sourceId: string, build?: string): string {
   const { client } = useStreamContext();
   const setup = useSetup() ?? use(client.setup);
-  return frameUrl(setup, frame, sourceId);
+  return frameUrl(setup, frame, sourceId, build);
 }
 
 /** A scene of the latest snapshot: `id`, else the snapshot's `activeScene`, else its first. */

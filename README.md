@@ -151,7 +151,12 @@ not measure the text, so give the layer the room the text needs.
   <Text
     text={"Up next\nThe weekly roundup"}
     font="fonts/Inter.woff2"
-    style={{ fontSize: 64, textAlign: "center", textWrap: "balance", verticalAlign: "middle" }}
+    style={{
+      fontSize: 64,
+      textAlign: "center",
+      textWrap: "balance",
+      verticalAlign: "middle",
+    }}
   />
 </Layer>
 ```
@@ -272,7 +277,15 @@ export default function Esports() {
         <Layer style={{ flex: 1 }}>
           <Browser url="https://example.com/game" />
         </Layer>
-        <Layer style={{ position: "absolute", top: 48, right: 48, width: 400, height: 120 }}>
+        <Layer
+          style={{
+            position: "absolute",
+            top: 48,
+            right: 48,
+            width: 400,
+            height: 120,
+          }}
+        >
           <Frame of={Scoreboard} params={score} />
         </Layer>
       </Scene>
@@ -329,10 +342,10 @@ Params are validated against the schema in the show and again in the page. The s
 **How a frame gets data, and the one rule about it.** The show's stream is the only channel. Every
 target, OBS and browser alike, shows a frame as the static frame page in an iframe. That page
 follows the same stream, finds its source by ID, and re-renders when params change, so updating
-params never reloads the page. The page learns the stream's URL from its own query string, which the
-target fills in from the stream's setup message. Anything a frame needs from the server goes through
-the show as params; anything else it fetches itself, as any web page would. There is no separate
-frame data channel, store or endpoint.
+params never reloads the page; only a new frame bundle does (see `frameBuild` in §4). The page
+learns the stream's URL from its own query string, which the target fills in from the stream's setup
+message. Anything a frame needs from the server goes through the show as params; anything else it
+fetches itself, as any web page would. There is no separate frame data channel, store or endpoint.
 
 A consequence worth stating: **clients know nothing about shows, scenes or frames.** A preview page
 needs source plugins for the kinds the show uses and nothing else. The frame page is the only place
@@ -420,18 +433,22 @@ It compiles every `*.frame.tsx` (or `.jsx`) under the show's directory, hashes t
 
 ```
 public/vignette/
-  frames.html        # the page OBS opens; static, the same for every deployment
-  frames.js          # every frame, React DOM and the mount code, one file
+  frames.html        # the page OBS opens; static, it only names the bundle below
+  frames.<hash>.js   # every frame, React DOM and the mount code, one file named by its hash
+  frames.json        # { "build": "sha256-…" }: the frame bundle's build hash, for compose()
   assets/            # the files referenced by <Image src> and <Video src>
   assets.json        # the manifest: names and content hashes, for compose()
 ```
 
 Serve that directory statically from anywhere: your server, a CDN, an S3 bucket. Nothing in it knows
-where it will be hosted or where the stream is. `bundle` compiles frames with Vite, so it needs
-`vite` installed. The same thing is available as a function for build scripts,
-`bundle(showPath, { out })` from `@strangecyan/vignette/bundle`. If your frontend already uses Vite,
-`vignette({ show })` from `@strangecyan/vignette/vite` composes the show inside `vite dev` and
-serves its stream, frame page and assets there; production builds still run `bundle`.
+where it will be hosted or where the stream is. Serve `frames.html` (and `frames.json`) with
+`Cache-Control: no-cache` and `frames.<hash>.js` as immutable
+(`Cache-Control: public, max-age=31536000, immutable`): a new bundle has a new file name, so only
+the small page is ever revalidated. `bundle` compiles frames with Vite, so it needs `vite`
+installed. The same thing is available as a function for build scripts, `bundle(showPath, { out })`
+from `@strangecyan/vignette/bundle`. If your frontend already uses Vite, `vignette({ show })` from
+`@strangecyan/vignette/vite` composes the show inside `vite dev` and serves its stream, frame page
+and assets there; production builds still run `bundle`.
 
 **Step 3. Run the composer** in your process and tell it where things will be served: step 2's
 output, and the stream itself.
@@ -439,10 +456,12 @@ output, and the stream itself.
 ```ts
 import { compose } from "@strangecyan/vignette";
 import manifest from "./public/vignette/assets.json" with { type: "json" };
+import frames from "./public/vignette/frames.json" with { type: "json" };
 import show from "./show.js";
 
 const composer = compose(show, {
   assets: manifest,
+  frameBuild: frames.build,
   serve: {
     stream: "https://show.example.com/show/stream",
     assets: "https://show.example.com/vignette/assets/",
@@ -452,13 +471,14 @@ const composer = compose(show, {
 await composer.ready();
 ```
 
-| Option     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `assets`   | the manifest from `bundle`, or `scanAssets(dir)` from `@strangecyan/vignette/bundle` at startup if you skipped bundling assets. Required if any source names an asset; a name missing from it is a compile diagnostic. Targets download every entry, so a non-empty manifest also requires `serve.assets`                                                                                                                                                            |
-| `serve`    | absolute URLs where the stream, assets and `frames.html` are served. Published in the stream's setup message so targets need no local configuration. `stream` and `frames` are required if the show uses a `Frame`, `assets` if any source names an asset (an `Image` or `Video` `src`, a `Text` `font`) or `assets` lists any entry, since targets download every entry; a missing one is a compile diagnostic. An empty or absent manifest needs no `serve.assets` |
-| `layout`   | a layout engine from `loadYoga(wasm)`, for hosts that cannot compile wasm at runtime (see below)                                                                                                                                                                                                                                                                                                                                                                     |
-| `revision` | the revision of the first commit, and so of the first snapshot; later commits count up from it. Default 1. A host that composes anew for each change passes one past the last revision it published, so targets see revisions move forward                                                                                                                                                                                                                           |
-| `onError`  | render and compile errors; also available as `status`                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Option       | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assets`     | the manifest from `bundle`, or `scanAssets(dir)` from `@strangecyan/vignette/bundle` at startup if you skipped bundling assets. Required if any source names an asset; a name missing from it is a compile diagnostic. Targets download every entry, so a non-empty manifest also requires `serve.assets`                                                                                                                                                                                                                                             |
+| `frameBuild` | the frame bundle's build hash from `bundle` (`frames.json`'s `build`). The composer stamps it on every `Frame` source as a `build` prop, and targets add it to the frame page URL as `v=`. It is not in setup, so deploying a new bundle and composing anew (with `revision`) is an ordinary update: OBS reloads just the frames' browser sources and the React and DOM targets just their iframes; every other source stays as it is. A frame page that still loaded the old code (a cached `frames.html`) sees the mismatch and reloads itself once |
+| `serve`      | absolute URLs where the stream, assets and `frames.html` are served. Published in the stream's setup message so targets need no local configuration. `stream` and `frames` are required if the show uses a `Frame`, `assets` if any source names an asset (an `Image` or `Video` `src`, a `Text` `font`) or `assets` lists any entry, since targets download every entry; a missing one is a compile diagnostic. An empty or absent manifest needs no `serve.assets`                                                                                  |
+| `layout`     | a layout engine from `loadYoga(wasm)`, for hosts that cannot compile wasm at runtime (see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `revision`   | the revision of the first commit, and so of the first snapshot; later commits count up from it. Default 1. A host that composes anew for each change passes one past the last revision it published, so targets see revisions move forward                                                                                                                                                                                                                                                                                                            |
+| `onError`    | render and compile errors; also available as `status`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 | Member                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -478,7 +498,12 @@ composes the show anew from it on each change. Setup is fixed for the life of a 
 saves it once; each change sends only the new update:
 
 ```ts
-const composer = compose(show(state), { revision: saved.revision + 1, assets, serve, layout });
+const composer = compose(show(state), {
+  revision: saved.revision + 1,
+  assets,
+  serve,
+  layout,
+});
 const [setup, update] = await composer.bootstrap();
 composer.dispose();
 // Save { setup, update, revision: update.snapshot.revision }; send update to open sockets.
@@ -543,12 +568,14 @@ import express from "express";
 import { compose, streamOptions, toSseEvent } from "@strangecyan/vignette";
 import { obsTarget } from "@strangecyan/vignette/obs";
 import manifest from "../public/vignette/assets.json" with { type: "json" };
+import frames from "../public/vignette/frames.json" with { type: "json" };
 import show from "./show.js";
 
 const app = express();
 const origin = process.env.PUBLIC_ORIGIN ?? "http://127.0.0.1:3000";
 const composer = compose(show, {
   assets: manifest,
+  frameBuild: frames.build,
   serve: {
     stream: `${origin}/show/stream`,
     assets: `${origin}/vignette/assets/`,
@@ -569,10 +596,23 @@ app.get("/show/stream", (req, res) => {
   })();
 });
 
-app.use("/vignette", express.static("public/vignette")); // frames.html, frames.js, assets/
+// frames.html, frames.<hash>.js, assets/; only the hashed bundle is cached for good
+app.use(
+  "/vignette",
+  express.static("public/vignette", {
+    setHeaders: (res, file) =>
+      res.setHeader(
+        "cache-control",
+        /frames\.[0-9a-f]+\.js$/.test(file) ? "public, max-age=31536000, immutable" : "no-cache",
+      ),
+  }),
+);
 
 // optional: OBS in this same process, reading the composer directly
-const obs = obsTarget({ url: process.env.OBS_URL, password: process.env.OBS_PASSWORD });
+const obs = obsTarget({
+  url: process.env.OBS_URL,
+  password: process.env.OBS_PASSWORD,
+});
 obs.follow(composer.stream());
 
 app.listen(3000);
@@ -846,7 +886,11 @@ export const moqDom: DomSourcePlugin<typeof Moq> = {
       el.setAttribute("latency", String(props.latencyMs));
     };
     apply(source.props);
-    return { element: el, update: (next) => apply(next.props), dispose: () => el.remove() };
+    return {
+      element: el,
+      update: (next) => apply(next.props),
+      dispose: () => el.remove(),
+    };
   },
 };
 ```
@@ -955,7 +999,11 @@ export const colorDom: DomSourcePlugin<typeof Color> = {
       el.style.background = props.color;
     };
     apply(source.props);
-    return { element: el, update: (next) => apply(next.props), dispose: () => el.remove() };
+    return {
+      element: el,
+      update: (next) => apply(next.props),
+      dispose: () => el.remove(),
+    };
   },
 };
 

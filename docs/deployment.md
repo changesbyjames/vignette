@@ -11,9 +11,16 @@ Hono.
   are published in setup; no target derives a location. When the OBS machine reaches the host at
   another address, publish that address, or override per target with
   `obsTarget({ assets: { fetch }, frames })`.
-- `frames.html` and `frames.js` are the same for every deployment; serve them, and `assets/`, from
-  any static host or CDN. `frames.js` is not content-hashed, so serve it with a short cache
-  lifetime.
+- Serve `frames.html`, `frames.<hash>.js` and `assets/` from any static host or CDN. The bundle is
+  named by its content hash, so serve it as immutable
+  (`Cache-Control: public, max-age=31536000, immutable`) and `frames.html` with `no-cache`; a new
+  bundle is a new file name, and only the small page is revalidated. `vignette build`'s `server.js`
+  sends these headers.
+- Pass `frames.json`'s `build` to `compose({ frameBuild })`. Each frame source then carries it, and
+  its page URL ends in `v=<build>`, so after a deploy the targets reload just the frame pages: OBS
+  gets a new browser source URL, and React and DOM iframes navigate. It is not in setup, so nothing
+  else reconnects. A page that still runs old code (served from a cache) reloads itself once with
+  `?reload=<build>`.
 - Run `vignette obs <stream-url>` (or `obsTarget` in your process) on the machine with OBS, with
   `--source <module>` for every custom kind the show uses.
 - One composer per show. Each SSE subscriber gets setup and the latest update replayed, so

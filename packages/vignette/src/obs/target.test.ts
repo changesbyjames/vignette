@@ -378,6 +378,45 @@ describe("obsTarget", () => {
     await target.dispose();
   });
 
+  it("points a frame's browser source at a new URL when its bundle build changes", async () => {
+    const { obs, target } = harness();
+    const clock = (build: string): Source => ({
+      id: "clock",
+      kind: "frame",
+      props: { frame: "Clock", params: {}, build },
+      size: { width: 640, height: 360 },
+    });
+    const withClock = (revision: number, build: string): StreamMessage =>
+      update(revision, {
+        sources: [bg, clock(build)],
+        scenes: [{ id: "main", items: [item("main.0", "bg", 0), item("main.1", "clock", 0)] }],
+      });
+    const url = () => {
+      const input = obs.inputs.find((entry) => entry.inputName === "vignette/show/clock");
+      return new URL(z.string().parse(input?.inputSettings.url));
+    };
+
+    target.apply({
+      ...setup(),
+      serve: {
+        stream: "https://show.example/stream",
+        frames: "https://show.example/vignette/frames.html",
+      },
+    });
+    target.apply(withClock(1, "sha256-one"));
+    await until(target, converged(1));
+    expect(url().searchParams.get("v")).toBe("sha256-one");
+    expect(url().searchParams.get("frame")).toBe("Clock");
+
+    target.apply(withClock(2, "sha256-two"));
+    await until(target, converged(2));
+    expect(url().searchParams.get("v")).toBe("sha256-two");
+    // The same input, only its settings converged: nothing else is removed or recreated.
+    expect(obs.calls("CreateInput")).toHaveLength(2);
+    expect(obs.calls("RemoveInput")).toEqual([]);
+    await target.dispose();
+  });
+
   it("renders text as a lasting local page, pushing changes into it or reloading it", async () => {
     const dir = mkdtempSync(join(tmpdir(), "vignette-obs-test-"));
     const { obs, target } = harness({ dir });

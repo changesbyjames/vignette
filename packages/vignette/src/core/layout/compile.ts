@@ -42,6 +42,11 @@ interface CompileFailure {
 export interface CompileOptions {
   readonly revision: number;
   readonly layoutEngine: LayoutEngine;
+  /**
+   * The frame bundle's build hash, stamped on every `frame` source as its `build` prop, so a new
+   * bundle changes the frame page URL targets open. Omitted, frame sources carry no `build`.
+   */
+  readonly frameBuild?: string;
 }
 
 /** Successful immutable snapshot compilation or deterministic diagnostics. */
@@ -86,10 +91,18 @@ export function compileShow(tree: ShowTree, options: CompileOptions): CompileRes
     id: tree.id,
     canvas: { ...tree.canvas },
     activeScene: tree.activeScene,
-    sources: [...tree.sharedSources, ...context.inlineSources],
+    sources: stampFrameBuild([...tree.sharedSources, ...context.inlineSources], options.frameBuild),
     scenes,
   });
   return { ok: true, snapshot, diagnostics };
+}
+
+/** `sources` with every `frame` source carrying `build`; unchanged without one. */
+function stampFrameBuild(sources: readonly Source[], build: string | undefined): readonly Source[] {
+  if (build === undefined) return sources;
+  return sources.map((source) =>
+    source.kind === "frame" ? { ...source, props: { ...source.props, build } } : source,
+  );
 }
 
 /** Keep layout failures local to their scene so diagnostics from other scenes remain deterministic. */

@@ -16,7 +16,8 @@ Every part of Vignette in one show, hosted the way
 - [`src/app.tsx`](src/app.tsx) is the browser preview:
   `<Stream url="/stream" sources={[MoqView]}><Stage /></Stream>` with a `useStreamStatus` readout.
 - [`scripts/bundle.mjs`](scripts/bundle.mjs) calls `bundle()` from `@strangecyan/vignette/bundle`,
-  writing `public/vignette/` (`frames.html`, `frames.js`, `assets/`, `assets.json`).
+  writing `public/vignette/` (`frames.html`, `frames.<hash>.js`, `frames.json`, `assets/`,
+  `assets.json`).
 
 ## Run it
 
