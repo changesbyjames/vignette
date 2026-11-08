@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { extname } from "node:path";
+import { basename, extname } from "node:path";
 
 import {
   cssText,
@@ -10,6 +9,7 @@ import {
   type Text,
   type TextProps,
 } from "../../core/sources/text.js";
+import { ObsDisconnectedError } from "../errors.js";
 import type { ObsJsonObject } from "../operations.js";
 import type { ObsPluginContext, ObsSourcePlugin } from "../plugin.js";
 import { localPageInput } from "./browser.js";
@@ -21,20 +21,32 @@ const UPDATE_EVENT = "vignette-text";
  * `<Text>` as a `browser_source` of a local HTML page this plugin writes, with the `font` asset
  * embedded, so OBS needs neither the font installed nor a server. A change is pushed into the
  * open page through obs-browser's `emit_event`, so the page never reloads: a navigation would show
- * an empty frame, most visibly when the change lands with a cut to the text's scene. The page file
- * is rewritten too, for whenever OBS loads it afresh. Its path is the same on every run and the
- * file is never deleted: OBS saves the path in its scene collection and asks for a missing file
- * when it starts. A change that cannot be pushed reloads the page, now or when OBS reconnects.
+ * an empty frame, most visibly when the change lands with a cut to the text's scene. Its path is
+ * the same on every run and the file is never deleted: OBS saves the path in its scene collection
+ * and asks for a missing file when it starts.
+ *
+ * Every state the page can show carries a sequence number that only grows, and the page ignores
+ * an older one than it shows, so a state may arrive any number of times and in any order. `update`
+ * rewrites the file with the new state, then pushes it. The push runs before OBS resizes the
+ * input, and obs-browser may drop an event that lands mid-resize, so the page also re-reads its
+ * own file on load and on every resize, which recovers the state the push carried.
+ *
+ * A push that fails reloads the page; a reload that fails too is ignored, since the file already
+ * holds the state for the next load or resize. While OBS is disconnected nothing is sent, because
+ * the target reloads text pages when OBS reconnects.
  */
 export const textObs: ObsSourcePlugin<typeof Text> = {
   kind: "text",
   async create(source, context) {
     const file = await context.sourceFile(source.id, ".html");
-    // Every text page hears every event; the token picks out this page's.
-    const token = randomUUID();
+    // Every text page hears every event; the token picks out this page's. The file name is
+    // unique per show and source and the same on every run, so a page OBS kept from an earlier
+    // run, or from an earlier handle, still hears this one.
+    const token = basename(file, extname(file));
     let current = source;
     let page = await renderPage(source.props, context);
-    await writeFile(file, pageHtml(page, token));
+    let seq = nextSeq(0);
+    await writeFile(file, pageHtml(page, token, seq));
     return {
       get input() {
         return localPageInput(file, current.size);
@@ -43,27 +55,32 @@ export const textObs: ObsSourcePlugin<typeof Text> = {
         const previous = page;
         current = next;
         page = await renderPage(next.props, context);
-        await writeFile(file, pageHtml(page, token));
-        await context
-          .request(next.id, "CallVendorRequest", {
+        seq = nextSeq(seq);
+        await writeFile(file, pageHtml(page, token, seq));
+        try {
+          await context.request(next.id, "CallVendorRequest", {
             vendorName: "obs-browser",
             requestType: "emit_event",
             requestData: {
               event_name: UPDATE_EVENT,
-              event_data: pageUpdate(previous, page, token),
+              event_data: pageUpdate(previous, page, token, seq),
             },
-          })
-          .catch(() =>
-            // Disconnected, this rejects too; the target reloads text pages once OBS reconnects.
-            context.request(next.id, "PressInputPropertiesButton", {
-              propertyName: "refreshnocache",
-            }),
-          )
-          .catch(() => undefined);
+          });
+        } catch (cause) {
+          if (cause instanceof ObsDisconnectedError) return;
+          await context
+            .request(next.id, "PressInputPropertiesButton", { propertyName: "refreshnocache" })
+            .catch(() => undefined);
+        }
       },
     };
   },
 };
+
+/** A sequence number above `previous`; time-based, so it keeps growing across runs. */
+function nextSeq(previous: number): number {
+  return Math.max(previous + 1, Date.now());
+}
 
 /** Everything a text page shows: the `@font-face` rule, the box and text CSS, and the text. */
 interface TextPage {
@@ -83,28 +100,54 @@ async function renderPage(props: TextProps, { assets }: ObsPluginContext): Promi
   return { face, box: cssText(css.box), style: cssText(css.text), text: props.text };
 }
 
-/**
- * The event payload: the page as it should now be, leaving out an unchanged (large) font. A text
- * page applies `face` only when present.
- */
-function pageUpdate(previous: TextPage, next: TextPage, token: string): ObsJsonObject {
-  const update = { token, box: next.box, style: next.style, text: next.text };
-  return next.face === previous.face ? update : { ...update, face: next.face };
+/** A state the page can show; the font face goes in the page's own style element. */
+function pageState(page: TextPage, token: string, seq: number): ObsJsonObject {
+  return { token, seq, box: page.box, style: page.style, text: page.text };
 }
 
-/** The page, and a script applying later updates addressed to `token`. */
-function pageHtml(page: TextPage, token: string): string {
+/**
+ * The event payload: the state, leaving out an unchanged (large) font. A text page applies `face`
+ * only when present.
+ */
+function pageUpdate(previous: TextPage, next: TextPage, token: string, seq: number): ObsJsonObject {
+  const state = pageState(next, token, seq);
+  return next.face === previous.face ? state : { ...state, face: next.face };
+}
+
+/**
+ * The page showing state `seq`, which it also holds as JSON for re-reads, and a script applying
+ * later states addressed to `token`. On load and on every resize, the page fetches its own file
+ * and applies the state there if it is not older than the one it shows.
+ */
+function pageHtml(page: TextPage, token: string, seq: number): string {
+  // The script must not contain "<", which the embedding below escapes.
   const script = `
 const token = ${JSON.stringify(token)};
-window.addEventListener(${JSON.stringify(UPDATE_EVENT)}, (event) => {
-  const update = event.detail;
-  if (!update || update.token !== token) return;
-  if (typeof update.face === "string") document.getElementById("face").textContent = update.face;
-  document.getElementById("box").style.cssText = update.box;
-  const text = document.getElementById("text");
-  text.style.cssText = update.style;
-  text.textContent = update.text;
-});`;
+const face = document.getElementById("face");
+const box = document.getElementById("box");
+const text = document.getElementById("text");
+let applied = JSON.parse(document.getElementById("state").textContent).seq;
+function apply(state) {
+  if (!state || state.token !== token || typeof state.seq !== "number" || applied > state.seq) return;
+  applied = state.seq;
+  if (typeof state.face === "string" && face.textContent !== state.face) face.textContent = state.face;
+  box.style.cssText = state.box;
+  text.style.cssText = state.style;
+  text.textContent = state.text;
+}
+window.addEventListener(${JSON.stringify(UPDATE_EVENT)}, (event) => apply(event.detail));
+async function reread() {
+  try {
+    const response = await fetch(location.href, { cache: "no-store" });
+    const page = new DOMParser().parseFromString(await response.text(), "text/html");
+    const state = JSON.parse(page.getElementById("state").textContent);
+    apply({ ...state, face: page.getElementById("face").textContent });
+  } catch {
+    // A file being rewritten, or a page that may not fetch itself: the next push still arrives.
+  }
+}
+window.addEventListener("resize", () => void reread());
+void reread();`;
   return [
     "<!doctype html>",
     '<html><head><meta charset="utf-8">',
@@ -113,7 +156,9 @@ window.addEventListener(${JSON.stringify(UPDATE_EVENT)}, (event) => {
     "</head><body>",
     `<div id="box" style="${escapeAttribute(page.box)}">`,
     `<p id="text" style="${escapeAttribute(page.style)}">${escapeText(page.text)}</p>`,
-    `</div><script>${script.replaceAll("<", "\\u003c")}</script></body></html>`,
+    // After the face: a re-read of a half-written file finds no state and changes nothing.
+    `</div><script type="application/json" id="state">${escapeScript(JSON.stringify(pageState(page, token, seq)))}</script>`,
+    `<script>${escapeScript(script)}</script></body></html>`,
   ].join("");
 }
 
@@ -136,6 +181,11 @@ function escapeText(value: string): string {
 
 function escapeAttribute(value: string): string {
   return escapeText(value).replaceAll('"', "&quot;");
+}
+
+/** Keeps a script element's content from closing it; valid in JSON and in JavaScript strings. */
+function escapeScript(value: string): string {
+  return value.replaceAll("<", "\\u003c");
 }
 
 /** Keeps a style element's content from closing it. */

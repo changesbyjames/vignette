@@ -42,7 +42,8 @@ export interface ObsPluginContext extends PluginContextBase {
   sourceFile(sourceId: string, extension: string): Promise<string>;
   /**
    * Sends one obs-websocket request about a source's managed input, with its `inputName` filled
-   * in, e.g. `TriggerMediaInputAction`. Rejects while OBS is disconnected.
+   * in, e.g. `TriggerMediaInputAction`. Rejects with an `ObsDisconnectedError` while OBS is
+   * disconnected.
    */
   request(
     sourceId: string,

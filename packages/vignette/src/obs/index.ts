@@ -5,6 +5,7 @@ export {
   type ObsRetryOptions,
   type ObsTargetOptions,
 } from "./target.js";
+export { ObsDisconnectedError } from "./errors.js";
 export type { ObsHandle, ObsInput, ObsPluginContext, ObsSourcePlugin } from "./plugin.js";
 export type { ObsTransport } from "./transport.js";
 export { browserObs } from "./sources/browser.js";
