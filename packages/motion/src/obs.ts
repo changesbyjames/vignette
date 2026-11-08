@@ -49,22 +49,16 @@ export const motionObsLayer: ObsLayerPlugin<typeof MotionLayer> = {
   async place(placements, context) {
     const chunks: Chunk[] = [];
     for (const placement of placements) {
-      // Defaults per placement: no props, no `initial`, the default transition.
       const motion = motionOf(placement.item) ?? {};
-      const rest = restVisual(placement);
       await prepareItem(placement, motion, context);
-      chunks.push({
-        placement,
-        label: placement.previous === undefined ? "enter" : "retarget",
-        from: startVisual(motion, rest, placement.previous),
-        to: apply(rest, motion.animate ?? {}),
-        transition: motion.transition ?? DEFAULT_TRANSITION,
-      });
+      const chunk = placementChunk(placement, motion);
+      if (chunk === undefined) await placeAtRest(placement, context);
+      else chunks.push(chunk);
     }
     const fallback = async () => {
-      for (const placement of placements) await placeAtRest(placement, context);
+      for (const chunk of chunks) await placeAtRest(chunk.placement, context);
     };
-    await run(context, chunks, { wait: false, fallback });
+    if (chunks.length > 0) await run(context, chunks, { wait: false, fallback });
   },
 
   // Only placements with an `exit` make a chunk; none means nothing to wait for.
@@ -86,14 +80,29 @@ export const motionObsLayer: ObsLayerPlugin<typeof MotionLayer> = {
   },
 };
 
-/** A new item starts at `initial` (unless `false`); a re-placed one continues from its chunk. */
-function startVisual(
-  motion: MotionProps,
-  rest: Visual,
-  previous: Item | undefined,
-): Visual | undefined {
-  if (previous !== undefined || motion.initial === false) return undefined;
-  return apply(rest, motion.initial ?? {});
+/**
+ * The chunk a placement needs, by visibility: becoming visible (or new) enters from `initial`,
+ * staying visible retargets, becoming hidden exits, and staying hidden needs no chunk at all
+ * (undefined: the item is put at rest, disabled).
+ */
+function placementChunk(placement: ObsPlacement, motion: MotionProps): Chunk | undefined {
+  const { item, previous } = placement;
+  const rest = restVisual(placement);
+  const transition = motion.transition ?? DEFAULT_TRANSITION;
+  const wasVisible = previous?.visible === true;
+  if (!item.visible) return wasVisible ? hideChunk(placement, motion, rest) : undefined;
+  const to = apply(rest, motion.animate ?? {});
+  if (wasVisible) return { placement, label: "retarget", to, transition };
+  // `initial={false}` starts at `animate` with no enter; never from OBS's default for a new item.
+  const from = motion.initial === false ? to : apply(rest, motion.initial ?? {});
+  return { placement, label: "enter", from, to, transition };
+}
+
+/** The exit a shown item plays on becoming hidden; none without an `exit`: it just hides. */
+function hideChunk(placement: ObsPlacement, motion: MotionProps, rest: Visual): Chunk | undefined {
+  if (motion.exit === undefined) return undefined;
+  const transition = motion.transition ?? DEFAULT_TRANSITION;
+  return { placement, label: "hide", to: apply(rest, motion.exit), transition, hideAtEnd: true };
 }
 
 /** What a plain layer would get: the loader is missing, so the item just sits at rest. */

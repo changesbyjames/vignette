@@ -101,7 +101,8 @@ obsTarget({ url, password, layers: [motionObsLayer] }); // OBS
 ```
 
 The React plugin renders each item as a `motion.div` inside `AnimatePresence`; the DOM plugin
-animates the item's box with Motion's `animate()`. Both depend on the `motion` package.
+animates the item's box with Motion's `animate()`. Both animate Yoga's frame and the offsets in
+canvas pixels, so scaling the stage does not change the motion. Both depend on the `motion` package.
 
 ## OBS
 
