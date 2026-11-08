@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MoqView } from "@strangecyan/vignette-moq/react";
 import { Suspense, type ReactElement } from "react";
 import { Stage, Stream, useStreamStatus } from "@strangecyan/vignette/react";
+import { motionReactLayer } from "@strangecyan/vignette-motion/react";
 
 const queryClient = new QueryClient();
 const sources = [MoqView];
@@ -13,7 +14,7 @@ const sources = [MoqView];
 export function App(): ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
-      <Stream url="/stream" sources={sources}>
+      <Stream url="/stream" sources={sources} layers={[motionReactLayer]}>
         <main>
           <header>
             <div>

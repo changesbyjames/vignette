@@ -25,6 +25,8 @@ function item(id: string, sourceId: string, overrides: Partial<Item> = {}): Item
     visible: true,
     opacity: 1,
     rotation: 0,
+    kind: "layer",
+    props: {},
     ...overrides,
   };
 }
@@ -122,6 +124,8 @@ function sceneItem(
       positionX: 0,
       positionY: 0,
       rotation: 0,
+      kind: "layer",
+      props: {},
       alignment: 5,
       boundsType: "OBS_BOUNDS_STRETCH",
       boundsAlignment: 5,
@@ -329,6 +333,82 @@ describe("planObsUpdate", () => {
         observed: { ...placedObserved(), programSceneName: managedSceneName(show, "main") },
       }),
     ).toEqual([]);
+  });
+
+  describe("layer kinds", () => {
+    const motion = (props: Item["props"] = { animate: { x: 10 } }) =>
+      item("main.0", "bg", { kind: "motion", props });
+    const desired = (props?: Item["props"]) =>
+      snapshot({ scenes: [{ id: "main", items: [motion(props)] }] });
+
+    it("hands an item of a kind with a plugin to it instead of transforming it", () => {
+      const result = kinds({ desired: desired(), layers: new Set(["motion"]) });
+      expect(result).toContain("place-item");
+      expect(result).not.toContain("set-transform");
+      expect(result).not.toContain("set-enabled");
+      expect(result.indexOf("place-item")).toBeGreaterThan(result.indexOf("create-placement"));
+    });
+
+    it("treats a kind without a plugin as a plain layer", () => {
+      const result = kinds({ desired: desired(), layers: new Set() });
+      expect(result).toContain("set-transform");
+      expect(result).not.toContain("place-item");
+    });
+
+    it("hands an item over again only when it changed since it was last placed", () => {
+      const same = plan({
+        desired: desired(),
+        observed: placedObserved(),
+        layers: new Set(["motion"]),
+        placed: new Map([["main:main.0", motion()]]),
+      });
+      if (!same.ok) throw new Error(same.problems.join(" "));
+      expect(same.plan.operations).toEqual([]);
+
+      const changed = plan({
+        desired: desired({ animate: { x: 20 } }),
+        observed: placedObserved(),
+        layers: new Set(["motion"]),
+        placed: new Map([["main:main.0", motion()]]),
+      });
+      if (!changed.ok) throw new Error(changed.problems.join(" "));
+      expect(changed.plan.operations).toMatchObject([
+        { kind: "place-item", item: { id: "main.0" }, previous: { props: { animate: { x: 10 } } } },
+      ]);
+    });
+
+    it("releases a handed-over item through its plugin, then removes it", () => {
+      const result = plan({
+        desired: snapshot({ scenes: [{ id: "main", items: [] }] }),
+        observed: placedObserved(),
+        layers: new Set(["motion"]),
+        placed: new Map([["main:main.0", motion()]]),
+        previous: desired(),
+      });
+      if (!result.ok) throw new Error(result.problems.join(" "));
+      expect(result.plan.operations.map((operation) => operation.kind)).toEqual([
+        "release-placement",
+      ]);
+      expect(result.plan.operations[0]).toMatchObject({ sceneId: "main", item: { id: "main.0" } });
+    });
+
+    it("leaves an item and its input alone while its plugin plays the exit", () => {
+      const result = plan({
+        desired: snapshot({ sources: [], scenes: [{ id: "main", items: [] }] }),
+        observed: placedObserved(),
+        handles: new Map(),
+        layers: new Set(["motion"]),
+        placed: new Map(),
+        leaving: new Set(["main:main.0"]),
+        previous: desired(),
+      });
+      if (!result.ok) throw new Error(result.problems.join(" "));
+      // Only the registry's item goes now; the input waits for the leaving item to be removed.
+      expect(result.plan.operations.map((operation) => operation.kind)).toEqual([
+        "remove-placement",
+      ]);
+      expect(result.plan.operations[0]).toMatchObject({ sceneUuid: "registry-1" });
+    });
   });
 
   it("refuses snapshots OBS cannot represent safely", () => {

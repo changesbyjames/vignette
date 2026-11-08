@@ -1,3 +1,5 @@
+import type { Item } from "../core/snapshot.js";
+
 /** JSON primitive accepted by obs-websocket settings. */
 export type ObsJsonPrimitive = string | number | boolean | null;
 /** Recursive JSON value accepted by obs-websocket settings. */
@@ -33,6 +35,8 @@ export type ObsPlanPhase =
   | "ordering"
   | "enable"
   | "program"
+  | "place"
+  | "release"
   | "remove-placements"
   | "remove-scenes"
   | "remove-inputs";
@@ -134,6 +138,30 @@ export interface SetProgramSceneOperation extends ObsOperationBase {
   readonly sceneId: string;
 }
 
+/**
+ * Hands a placed item of a layer kind to the kind's plugin: after the item exists and its scene is
+ * ordered, instead of the transform and visibility the planner converges for a plain layer.
+ * `previous` is the item the plugin last placed under this key, if any.
+ */
+export interface PlaceItemOperation extends ObsOperationBase {
+  readonly kind: "place-item";
+  readonly phase: "place";
+  readonly sceneId: string;
+  readonly placement: ObsPlacementRef;
+  readonly item: Item;
+  readonly previous?: Item;
+}
+
+/** Lets a layer kind's plugin release an obsolete placement (play its exit), then removes it. */
+export interface ReleasePlacementOperation extends ObsOperationBase {
+  readonly kind: "release-placement";
+  readonly phase: "release";
+  readonly sceneId: string;
+  readonly sceneUuid: string;
+  readonly sceneItemId: number;
+  readonly item: Item;
+}
+
 /** Removes an obsolete placement. */
 export interface RemovePlacementOperation extends ObsOperationBase {
   readonly kind: "remove-placement";
@@ -167,6 +195,8 @@ export type ObsOperation =
   | SetOrderOperation
   | SetEnabledOperation
   | SetProgramSceneOperation
+  | PlaceItemOperation
+  | ReleasePlacementOperation
   | RemovePlacementOperation
   | RemoveSceneOperation
   | RemoveInputOperation;
@@ -188,6 +218,8 @@ export const OBS_PHASES: readonly ObsPlanPhase[] = [
   "ordering",
   "enable",
   "program",
+  "place",
+  "release",
   "remove-placements",
   "remove-scenes",
   "remove-inputs",

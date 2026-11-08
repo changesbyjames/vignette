@@ -23,7 +23,12 @@ import {
   type KernelContext,
   type RouteParams,
 } from "./kernel-machine.js";
-import { frameUrl, type PluginContextBase, type SourcePluginBase } from "./plugins.js";
+import {
+  frameUrl,
+  type LayerPluginBase,
+  type PluginContextBase,
+  type SourcePluginBase,
+} from "./plugins.js";
 import type { SourceStatus, TargetConnection, TargetPhase, TargetStatus } from "./status.js";
 
 /**
@@ -78,12 +83,17 @@ export interface CreateTargetOptions<
    * without a notion of sources omits it and receives an empty handle map.
    */
   readonly sources?: readonly TargetSourcePlugin<Handle, Context>[];
+  /**
+   * Plugins for the layer kinds this target places, for the plugin check only; how a medium
+   * calls them is its own. A plain layer needs none.
+   */
+  readonly layers?: readonly LayerPluginBase[];
   /** Where downloaded assets are kept. Omit for targets that do not resolve assets. */
   readonly assets?: AssetStore;
   /** Overrides how asset bytes are fetched; defaults to `serve.assets` + name. */
   readonly fetchAsset?: AssetFetcher;
   /**
-   * Fail a revision that uses a kind with no plugin, before any of its handles is created or the
+   * Fail a revision that uses a source or layer kind with no plugin, before any of its handles is created or the
    * medium renders it: `status.error` names the kinds, and the medium keeps the last revision it
    * rendered until one without them arrives. Default `true`. When `false`, a source whose kind
    * has no plugin is `error` and the rest of the scene renders.
@@ -122,6 +132,7 @@ export function createTarget<
 >(options: CreateTargetOptions<Handle, Context>): Target {
   const abort = new AbortController();
   const plugins = new Map((options.sources ?? []).map((plugin) => [plugin.kind, plugin]));
+  const layerKinds = new Set((options.layers ?? []).map((plugin) => plugin.kind));
   const loads = new Map<string, Promise<void>>();
   const listeners = new Set<() => void>();
   let follows = 0;
@@ -156,9 +167,12 @@ export function createTarget<
     return options.context?.(base) ?? (base as Context);
   }
 
-  /** Disposes gone handles, updates changed ones, then renders; never rejects. */
+  /**
+   * Updates changed handles, renders, then disposes gone handles; never rejects. Disposal comes
+   * last so a medium can let a gone source leave (play an exit, remove its input) while the
+   * handle still runs what the source needs, such as a relay process.
+   */
   async function apply(plan: ApplyPlan<Handle>): Promise<ApplyOutput> {
-    await Promise.all(plan.disposals.map(disposeHandle));
     const handles = new Map(plan.handles);
     const failed: SourceFailure[] = [];
     for (const { id, handle, source } of plan.updates) {
@@ -178,6 +192,8 @@ export function createTarget<
         failed,
         error: asError(cause, `Revision ${String(plan.snapshot.revision)} failed.`),
       };
+    } finally {
+      await Promise.all(plan.disposals.map(disposeHandle));
     }
   }
 
@@ -252,6 +268,7 @@ export function createTarget<
     input: {
       assets: options.assets !== undefined,
       plugins: options.checkPlugins === false ? undefined : new Set(plugins.keys()),
+      layers: options.checkPlugins === false ? undefined : layerKinds,
     },
   });
   let status = statusOf(actor.getSnapshot());

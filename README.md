@@ -776,6 +776,29 @@ export const Moq = defineSource({
 The composer validates props with the schema, uses `size` for `fit`, and carries kind and props
 through the snapshot. Nothing is registered with the composer; importing the component is enough.
 
+### Defining a layer kind
+
+A layer kind is to `<Layer>` what a source kind is to a source: a `<Layer>` with extra, validated
+props, placed by a plugin per target instead of the target's own placement.
+
+```ts
+import { defineLayer } from "@strangecyan/vignette";
+import { z } from "zod";
+
+export const MotionLayer = defineLayer({
+  kind: "motion",
+  props: z.object({ animate: z.object({ x: z.number().optional() }).optional() }),
+});
+```
+
+`defineLayer` returns a component that takes every `<Layer>` prop plus the schema's input. The
+composer validates the kind's props, and the snapshot carries `kind` and `props` on the item, as it
+does on a source; a plain `<Layer>` is the kind `"layer"`. A kind on a layer that groups other
+layers is a diagnostic: only a layer that places a source is ever placed. Each target has a layer
+plugin interface (`ReactLayerPlugin`, `DomLayerPlugin`, `ObsLayerPlugin`) that owns the placement of
+items of its kind: their frame, visibility and opacity, and their removal, so a plugin can play an
+exit first. `@strangecyan/vignette-motion` is the reference.
+
 ### The plugin lifetime
 
 Every target asks a plugin to **create** a handle when a source ID first appears in a snapshot,
@@ -972,22 +995,23 @@ back door.
 Plugins go to the target that runs them. Built-ins are present unless you say otherwise.
 
 ```ts
-<Stream url="/stream" sources={[MoqView]} />                          // React
-domTarget(el, { sources: [moqDom] });                                 // DOM
-obsTarget({ url, password, sources: [moqObs, myBrowserObs] });       // later entries win per kind
-obsTarget({ url, password, sources: [colorObs], builtins: false });  // only what you list
+<Stream url="/stream" sources={[MoqView]} layers={[motionReactLayer]} />   // React
+domTarget(el, { sources: [moqDom], layers: [motionDomLayer] });            // DOM
+obsTarget({ url, password, sources: [moqObs, myBrowserObs] });            // later entries win per kind
+obsTarget({ url, password, sources: [colorObs], builtins: false });       // only what you list
 ```
 
 ```sh
 npx vignette obs https://show.example.com/stream --source @strangecyan/vignette-moq/obs
 ```
 
-A target checks each revision's source kinds against its plugins as it arrives. A revision using a
-kind it has no plugin for fails with `missing source plugin for kind "moq"` in its status before any
-of its sources is created or rendered, so a misconfigured OBS machine fails loudly and leaves OBS as
-it was; a later revision without that kind applies as usual. A client that should render what it can
-instead (`<Stream checkPlugins={false}>`, `createTarget({ checkPlugins: false })`) marks only the
-sources of that kind `error`.
+A target checks each revision's source and layer kinds against its plugins as it arrives. A revision
+using a kind it has no plugin for fails with `missing source plugin for kind "moq"` (or
+`missing layer plugin for kind "…"`) in its status before any of its sources is created or rendered,
+so a misconfigured OBS machine fails loudly and leaves OBS as it was; a later revision without that
+kind applies as usual. A client that should render what it can instead
+(`<Stream checkPlugins={false}>`, `createTarget({ checkPlugins: false })`) marks only the sources of
+that kind `error`.
 
 Published source packages ship the definition and one entry per target, for example
 `@strangecyan/vignette-moq`, `@strangecyan/vignette-moq/react`, `@strangecyan/vignette-moq/dom`,

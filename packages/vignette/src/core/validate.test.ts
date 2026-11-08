@@ -126,11 +126,11 @@ function show(parts: ShowParts): ShowTree {
 }
 
 function scene(id: string, children: readonly LayoutNode[]): ShowTree["scenes"][number] {
-  return { id, root: { id, layer: {}, children } };
+  return { id, root: { id, layer: {}, kind: "layer", props: {}, children } };
 }
 
 function placed(id: string, source: InlineSource | SourceRef): LayoutNode {
-  return { id, layer: {}, source };
+  return { id, layer: {}, kind: "layer", props: {}, source };
 }
 
 function inline(

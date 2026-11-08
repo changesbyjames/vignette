@@ -121,7 +121,7 @@ function programmeTree(): ShowTree {
 }
 
 function group(id: string, style: LayoutStyle, children: readonly LayoutNode[]): LayoutNode {
-  return { id, style, layer: {}, children };
+  return { id, style, layer: {}, kind: "layer", props: {}, children };
 }
 
 function placed(
@@ -130,7 +130,7 @@ function placed(
   style: LayoutStyle,
   layer: LayerProps = {},
 ): LayoutNode {
-  return { id, style, layer, source };
+  return { id, style, layer, kind: "layer", props: {}, source };
 }
 
 function fixed(id: string, kind: string): InlineSource {

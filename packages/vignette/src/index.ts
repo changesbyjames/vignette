@@ -17,6 +17,17 @@ export {
 } from "./react-authoring/elements.js";
 
 export {
+  defineLayer,
+  itemProps,
+  PLAIN_LAYER_KIND,
+  type HasLayerDefinition,
+  type ItemOf,
+  type LayerComponent,
+  type LayerComponentProps,
+  type LayerDefinition,
+  type LayerPropsSchemaType,
+} from "./core/define-layer.js";
+export {
   defineSource,
   type HasSourceDefinition,
   type SourceComponent,
