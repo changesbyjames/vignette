@@ -92,6 +92,8 @@ describe("domTarget", () => {
     const frame = wrapper?.querySelector("iframe");
     expect(frame?.getAttribute("src")).toBe("https://example.com/chat");
     expect(frame?.style).toMatchObject({ width: "1280px", height: "720px" });
+    // A dark host's scheme would give the transparent page an opaque backdrop.
+    expect(frame?.style.colorScheme).toBe("normal");
     expect(frame?.style.transform).toBe("scale(0.5, 0.1388888888888889)");
 
     const fill = container.querySelector<HTMLElement>("[data-vignette-layer='bg'] div div");

@@ -304,6 +304,8 @@ describe("<Stream> and <Stage>", () => {
     await settle();
     expect(layer(container, "s")?.querySelector("iframe")).toBe(page);
     expect(page?.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
+    // A dark host's scheme would give the transparent frame page an opaque backdrop.
+    expect(page?.style.colorScheme).toBe("normal");
   });
 
   it("delivers show events to useStreamEvents", async () => {
