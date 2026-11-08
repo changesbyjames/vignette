@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { z } from "zod";
 
@@ -21,7 +21,16 @@ export interface MountFramesOptions {
    * later one wins for a scheme. `bundle({ transports })` passes those its modules export.
    */
   readonly transports?: readonly StreamTransport[];
+  /**
+   * The build hash of the bundle this code is part of; `bundle()` embeds it in `frames.js`. When
+   * the source's `build` differs, the page is stale (a cached page or `frames.js`) and reloads
+   * itself once, bypassing caches with `?reload=<build>`.
+   */
+  readonly build?: string;
 }
+
+/** The query parameter a stale frame page adds when it reloads itself for a new build. */
+const RELOAD_PARAM = "reload";
 
 /**
  * The exports of one or more frame modules, keyed by export name. Values that are not frame
@@ -52,8 +61,12 @@ type MountedFrame = z.output<typeof MountedFrameSchema>;
 /** Any value with the members of a `StreamTransport`: `protocols` and a `connect` function. */
 const TransportExportSchema = z.custom<StreamTransport>(
   (value) =>
-    z.object({ protocols: z.array(z.string()), connect: z.instanceof(Function) }).safeParse(value)
-      .success,
+    z
+      .object({
+        protocols: z.array(z.string()),
+        connect: z.instanceof(Function),
+      })
+      .safeParse(value).success,
 );
 type TransportExport = z.output<typeof TransportExportSchema>;
 
@@ -86,12 +99,14 @@ export function mountFrames(frames: FrameExports, options: MountFramesOptions = 
   const definitions = frameDefinitions(frames);
   const element = options.root ?? document.getElementById("frame");
   if (element === null) throw new Error("mountFrames: the page has no #frame element.");
-  const query = new URLSearchParams(element.ownerDocument.defaultView?.location.search ?? "");
+  const location = element.ownerDocument.defaultView?.location;
+  const query = new URLSearchParams(location?.search ?? "");
   const root = createRoot(element);
   root.render(
     framePage(query, definitions, {
       queryClient: () => options.queryClient ?? new QueryClient(),
       transports: options.transports ?? [],
+      page: { build: options.build, location },
     }),
   );
   return () => {
@@ -128,6 +143,7 @@ export function streamTransports(...modules: readonly FrameExports[]): readonly 
 interface FramePageContext {
   readonly queryClient: () => QueryClient;
   readonly transports: readonly StreamTransport[];
+  readonly page: PageBuild;
 }
 
 /**
@@ -137,7 +153,7 @@ interface FramePageContext {
 function framePage(
   query: URLSearchParams,
   definitions: readonly MountedFrame[],
-  { queryClient, transports }: FramePageContext,
+  { queryClient, transports, page }: FramePageContext,
 ): ReactNode {
   const frame = query.get("frame");
   const source = query.get("source");
@@ -153,7 +169,7 @@ function framePage(
     <QueryClientProvider client={queryClient()}>
       {/* The page renders its one source itself, so kinds without a React plugin are fine. */}
       <Stream url={stream} transports={transports} checkPlugins={false}>
-        <FrameFromSource key={source} source={source} definition={definition} />
+        <FrameFromSource key={source} source={source} definition={definition} page={page} />
       </Stream>
     </QueryClientProvider>
   );
@@ -173,10 +189,17 @@ function frameDefinitions(exports: FrameExports): readonly MountedFrame[] {
   return [...byName.values()];
 }
 
+/** The build this page's code is part of, and the page's location to reload when stale. */
+interface PageBuild {
+  readonly build: string | undefined;
+  readonly location: Location | undefined;
+}
+
 /** Props of {@link FrameFromSource}. */
 interface FrameFromSourceProps {
   readonly source: string;
   readonly definition: MountedFrame;
+  readonly page: PageBuild;
 }
 
 /** The source is not in the snapshot (yet), or it is not this frame: render nothing. */
@@ -188,12 +211,16 @@ interface AbsentFrame {
 interface InvalidFrame {
   readonly kind: "invalid";
   readonly message: string;
+  /** The frame bundle build the source asks for. */
+  readonly build: string | undefined;
 }
 
 /** The params the frame's view renders with. */
 interface ReadyFrame {
   readonly kind: "ready";
   readonly params: object;
+  /** The frame bundle build the source asks for. */
+  readonly build: string | undefined;
 }
 
 /** What the page shows for its source. */
@@ -203,12 +230,16 @@ type FrameState = AbsentFrame | InvalidFrame | ReadyFrame;
  * Renders `definition` with the params of source `source` from the latest snapshot. Renders
  * nothing while connecting, while the source is absent, or when it is not this frame.
  */
-function FrameFromSource({ source, definition }: FrameFromSourceProps): ReactNode {
+function FrameFromSource({ source, definition, page }: FrameFromSourceProps): ReactNode {
   const snapshot = useSnapshot();
   const props = snapshot?.sources.find(
     (entry) => entry.id === source && entry.kind === "frame",
   )?.props;
   const state = useMemo(() => frameState(props, definition), [props, definition]);
+  const wanted = state.kind === "absent" ? undefined : state.build;
+  useEffect(() => {
+    reloadIfStale(page, wanted);
+  }, [page, wanted]);
   if (state.kind === "absent") return null;
   if (state.kind === "invalid") return <FrameError message={state.message} />;
   const View = definition.view;
@@ -223,16 +254,42 @@ function FrameFromSource({ source, definition }: FrameFromSourceProps): ReactNod
 function frameState(props: Source["props"] | undefined, definition: MountedFrame): FrameState {
   const checked = Frame.definition.props.safeParse(props);
   if (!checked.success || checked.data.frame !== definition.name) return { kind: "absent" };
+  const { build } = checked.data;
   try {
     // Snapshot params are JSON; the frame's schema decides whether they are valid.
-    return { kind: "ready", params: definition.params.parse(checked.data.params) };
+    return {
+      kind: "ready",
+      params: definition.params.parse(checked.data.params),
+      build,
+    };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     return {
       kind: "invalid",
       message: `Invalid params for frame "${definition.name}": ${message}`,
+      build,
     };
   }
+}
+
+/**
+ * Reloads the page, bypassing caches, when its source asks for another frame bundle build than
+ * the one this code is part of. Once per build: a page already reloaded for `wanted` that is
+ * still stale (a host still serving the old bundle) keeps running rather than loop.
+ */
+function reloadIfStale({ build, location }: PageBuild, wanted: string | undefined): void {
+  if (build === undefined || wanted === undefined || wanted === build || location === undefined) {
+    return;
+  }
+  const url = new URL(location.href);
+  if (url.searchParams.get(RELOAD_PARAM) === wanted) {
+    console.warn(
+      `vignette: frame page is build ${build} but its source wants ${wanted}, even after reloading; is the new frames.html deployed?`,
+    );
+    return;
+  }
+  url.searchParams.set(RELOAD_PARAM, wanted);
+  location.replace(url.href);
 }
 
 /** Props of {@link FrameError}. */

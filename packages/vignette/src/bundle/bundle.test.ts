@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,23 +38,51 @@ export const X = frame({ name: "XFrameName", view: () => <div>x</div> });
 
 describe("bundle", () => {
   // Builds `@strangecyan/vignette/frame` from `dist`, so `pnpm build` must have run.
-  it("writes the assets, their manifest, frames.html and frames.js", async () => {
+  it("writes the assets, their manifest, frames.html, the hashed bundle and its build", async () => {
     const dir = await createProject();
     const out = join(dir, "public", "vignette");
 
     const result = await bundle(join(dir, "show.tsx"), { out });
 
     const manifest = await scanAssets(join(dir, "assets"));
-    expect(result).toEqual({ manifest, frames: ["x.frame.tsx"] });
+    const { build, script } = result;
+    expect(build).toMatch(/^sha256-[A-Za-z0-9+/]{43}=$/u);
+    expect(script).toMatch(/^frames\.[0-9a-f]{16}\.js$/u);
+    expect(result).toEqual({ manifest, frames: ["x.frame.tsx"], build, script });
     expect(JSON.parse(await readFile(join(out, "assets.json"), "utf8"))).toEqual(manifest);
+    expect(JSON.parse(await readFile(join(out, "frames.json"), "utf8"))).toEqual({ build });
     expect(await readFile(join(out, "assets", "logo.png"), "utf8")).toBe("logo");
     expect(await readFile(join(out, "frames.html"), "utf8")).toBe(
-      framesHtml({ script: "./frames.js" }),
+      framesHtml({ script: `./${String(script)}` }),
     );
-    const script = await readFile(join(out, "frames.js"), "utf8");
-    expect(script).toContain("XFrameName");
+    const code = await readFile(join(out, String(script)), "utf8");
+    expect(code).toContain("XFrameName");
+    // The page checks its source's build against the one it was built with.
+    expect(code).toContain(String(build));
+    expect(await readdir(out)).not.toContain("frames.js");
 
-    await bundle(join(dir, "show.tsx"), { out });
-    expect(await readFile(join(out, "frames.js"), "utf8")).toBe(script);
+    // The same sources build the same bundle and hash.
+    expect(await bundle(join(dir, "show.tsx"), { out })).toEqual(result);
+    expect(await readFile(join(out, String(script)), "utf8")).toBe(code);
+
+    // Changed frame code is a new build, and the old bundle is gone.
+    await writeFile(
+      join(dir, "x.frame.tsx"),
+      `import { frame } from "@strangecyan/vignette/frame";
+export const X = frame({ name: "XFrameName", view: () => <div>y</div> });
+`,
+    );
+    const changed = await bundle(join(dir, "show.tsx"), { out });
+    expect(changed.build).not.toBe(build);
+    expect(changed.script).not.toBe(script);
+    expect((await readdir(out)).filter((file) => file.endsWith(".js"))).toEqual([changed.script]);
+
+    // Without frames, there is no page, no bundle and no build.
+    await rm(join(dir, "x.frame.tsx"));
+    expect(await bundle(join(dir, "show.tsx"), { out })).toEqual({ manifest, frames: [] });
+    expect(JSON.parse(await readFile(join(out, "frames.json"), "utf8"))).toEqual({});
+    expect((await readdir(out)).filter((file) => file.startsWith("frames."))).toEqual([
+      "frames.json",
+    ]);
   }, 120_000);
 });

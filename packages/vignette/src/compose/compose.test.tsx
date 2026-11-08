@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Browser } from "../core/sources/browser.js";
 import { Color } from "../core/sources/color.js";
+import { Frame, type FrameReference } from "../core/sources/frame.js";
 import { Text } from "../core/sources/text.js";
 import type { LayoutEngine, LayoutRecord } from "../core/layout/layout-engine.js";
 import type { Size } from "../core/geometry.js";
@@ -22,7 +23,12 @@ describe("compose", () => {
     const snapshot = await composer.ready();
 
     expect(layout).toHaveBeenCalledOnce();
-    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({ x: 0, y: 0, width: 1280, height: 720 });
+    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    });
     composer.dispose();
   });
 
@@ -36,7 +42,10 @@ describe("compose", () => {
     } as const;
     const composer = compose(Weekly, {
       assets: manifest,
-      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
+      serve: {
+        stream: "https://show.example/stream",
+        assets: "https://show.example/assets",
+      },
     });
 
     const snapshot = await composer.ready();
@@ -53,7 +62,10 @@ describe("compose", () => {
       id: "weekly",
       canvas,
       assets: manifest,
-      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
+      serve: {
+        stream: "https://show.example/stream",
+        assets: "https://show.example/assets",
+      },
     });
     expect(await next(iterator)).toEqual({ kind: "update", snapshot });
     controller.abort();
@@ -92,7 +104,10 @@ describe("compose", () => {
   it("keeps the last valid snapshot and reports diagnostics when a later commit is invalid", async () => {
     const store = createStore("#111111");
     const onError = vi.fn<(error: Error) => void>();
-    const composer = compose(<StoreShow store={store} />, { layout: fakeLayout, onError });
+    const composer = compose(<StoreShow store={store} />, {
+      layout: fakeLayout,
+      onError,
+    });
     const first = await composer.ready();
 
     store.set("missing");
@@ -136,7 +151,11 @@ describe("compose", () => {
 
     await composer.ready();
     expect(composer.status).toBe(composer.status);
-    expect(composer.status).toMatchObject({ phase: "ready", revision: 1, compiledRevision: 1 });
+    expect(composer.status).toMatchObject({
+      phase: "ready",
+      revision: 1,
+      compiledRevision: 1,
+    });
     composer.dispose();
     expect(phases).toEqual(["ready", "disposed"]);
   });
@@ -146,7 +165,10 @@ describe("show identity", () => {
   it("fails a commit that changes the show's id or canvas and keeps the first show live", async () => {
     const store = createStore("weekly");
     const onError = vi.fn<(error: Error) => void>();
-    const composer = compose(<IdentityShow store={store} />, { layout: fakeLayout, onError });
+    const composer = compose(<IdentityShow store={store} />, {
+      layout: fakeLayout,
+      onError,
+    });
     const first = await composer.ready();
 
     store.set("daily");
@@ -168,7 +190,9 @@ describe("show identity", () => {
 
   it("publishes setup once, however the kinds the show uses change", async () => {
     const store = createStore("color");
-    const composer = compose(<KindShow store={store} />, { layout: fakeLayout });
+    const composer = compose(<KindShow store={store} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
     const messages: StreamMessage[] = [];
     const controller = new AbortController();
@@ -204,7 +228,12 @@ describe("Composer.once", () => {
 
     expect(snapshot.id).toBe("weekly");
     expect(snapshot.sources[0]).toMatchObject({ kind: "color", size: canvas });
-    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({ x: 0, y: 0, width: 1280, height: 720 });
+    expect(snapshot.scenes[0]?.items[0]?.frame).toEqual({
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    });
     expect(composer.status.phase).toBe("disposed");
     expect(cleanup).toHaveBeenCalledOnce();
     await expect(composer.settled()).rejects.toThrow(/disposed/u);
@@ -231,11 +260,17 @@ describe("serve", () => {
   it("composes a Text without a font with no serve", async () => {
     const snapshot = await compose(textShow(), { layout: fakeLayout }).once();
 
-    expect(snapshot.sources[0]).toMatchObject({ kind: "text", props: { text: "No streams" } });
+    expect(snapshot.sources[0]).toMatchObject({
+      kind: "text",
+      props: { text: "No streams" },
+    });
   });
 
   it("still requires serve.assets for a Text that names a font", async () => {
-    const assets = { version: "v1", entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }] };
+    const assets = {
+      version: "v1",
+      entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }],
+    };
 
     await expect(
       compose(textShow("Inter.woff2"), { assets, layout: fakeLayout }).once(),
@@ -247,7 +282,10 @@ describe("serve", () => {
 
 describe("serve with an asset manifest", () => {
   it("requires serve.assets when the manifest lists assets the show does not name", async () => {
-    const assets = { version: "v1", entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }] };
+    const assets = {
+      version: "v1",
+      entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }],
+    };
 
     await expect(compose(textShow(), { assets, layout: fakeLayout }).once()).rejects.toThrow(
       /The asset manifest passed to compose\(\) lists assets, which targets download/u,
@@ -278,18 +316,27 @@ describe("host-owned revisions and bootstrap", () => {
     const revisions: number[] = [];
     let revision = 1;
     for (const color of ["#000000", "#ff0000", "#00ff00"]) {
-      const snapshot = await compose(colorShow(color), { revision, layout: fakeLayout }).once();
+      const snapshot = await compose(colorShow(color), {
+        revision,
+        layout: fakeLayout,
+      }).once();
       revisions.push(snapshot.revision);
       revision = snapshot.revision + 1;
     }
     expect(revisions).toEqual([1, 2, 3]);
 
     const store = createStore("#111111");
-    const composer = compose(<StoreShow store={store} />, { revision: 40, layout: fakeLayout });
+    const composer = compose(<StoreShow store={store} />, {
+      revision: 40,
+      layout: fakeLayout,
+    });
     expect((await composer.ready()).revision).toBe(40);
     store.set("#222222");
     expect((await composer.settled()).revision).toBe(41);
-    expect(composer.status).toMatchObject({ revision: 41, compiledRevision: 41 });
+    expect(composer.status).toMatchObject({
+      revision: 41,
+      compiledRevision: 41,
+    });
     composer.dispose();
   });
 
@@ -302,12 +349,17 @@ describe("host-owned revisions and bootstrap", () => {
   it("resolves with what the stream replays to a new subscriber, without disposing", async () => {
     const store = createStore("#111111");
     const serve = { stream: "https://show.example/stream" };
-    const composer = compose(<StoreShow store={store} />, { serve, layout: fakeLayout });
+    const composer = compose(<StoreShow store={store} />, {
+      serve,
+      layout: fakeLayout,
+    });
     store.set("#222222");
 
     const [setup, update] = await composer.bootstrap();
     expect(setup).toMatchObject({ kind: "setup", canvas, serve });
-    expect(update.snapshot.sources[0]?.props).toMatchObject({ color: "#222222" });
+    expect(update.snapshot.sources[0]?.props).toMatchObject({
+      color: "#222222",
+    });
 
     const iterator = composer.stream()[Symbol.asyncIterator]();
     expect([await next(iterator), await next(iterator)]).toEqual([setup, update]);
@@ -316,10 +368,85 @@ describe("host-owned revisions and bootstrap", () => {
   });
 });
 
+describe("frame bundle builds", () => {
+  const serve = {
+    stream: "https://show.example/stream",
+    frames: "https://show.example/vignette/frames.html",
+  };
+  const Clock: FrameReference<Record<string, never>> = {
+    name: "Clock",
+    params: { parse: () => ({}) },
+  };
+  const frameShow = (
+    <Show id="weekly" canvas={canvas}>
+      <Frame id="clock" of={Clock} />
+      <Scene id="main">
+        <Layer style={{ width: "100%", height: "100%" }}>
+          <Color color="#222222" />
+        </Layer>
+        <Layer style={{ width: 400, height: 120 }}>
+          <Use source="clock" />
+        </Layer>
+        <Layer style={{ width: 400, height: 120 }}>
+          <Frame of={Clock} />
+        </Layer>
+      </Scene>
+    </Show>
+  );
+
+  it("stamps the build on every frame source, and a new build changes only those", async () => {
+    const one = compose(frameShow, {
+      serve,
+      frameBuild: "sha256-one",
+      layout: fakeLayout,
+    });
+    const [before, first] = await one.bootstrap();
+    one.dispose();
+    // A host deploying a new bundle composes the show anew, its revisions counting on.
+    const two = compose(frameShow, {
+      serve,
+      frameBuild: "sha256-two",
+      revision: first.snapshot.revision + 1,
+      layout: fakeLayout,
+    });
+    const [after, second] = await two.bootstrap();
+    two.dispose();
+
+    // Setup stays the same, so targets keep every handle and converge the update.
+    expect(after).toEqual(before);
+    const builds = (snapshot: Snapshot) =>
+      snapshot.sources.map((source) => [source.kind, source.props.build]);
+    expect(builds(first.snapshot)).toEqual([
+      ["frame", "sha256-one"],
+      ["color", undefined],
+      ["frame", "sha256-one"],
+    ]);
+    expect(builds(second.snapshot)).toEqual([
+      ["frame", "sha256-two"],
+      ["color", undefined],
+      ["frame", "sha256-two"],
+    ]);
+    expect(second.snapshot.sources.map((source) => source.id)).toEqual(
+      first.snapshot.sources.map((source) => source.id),
+    );
+    expect(second.snapshot.sources[1]).toEqual(first.snapshot.sources[1]);
+  });
+
+  it("leaves frame sources without a build when the host passes none", async () => {
+    const snapshot = await compose(frameShow, {
+      serve,
+      layout: fakeLayout,
+    }).once();
+    expect(snapshot.sources[0]?.props).toEqual({ frame: "Clock", params: {} });
+  });
+});
+
 describe("Composer.settled", () => {
   it("flushes external-store changes and resolves the latest synchronous change", async () => {
     const store = createStore("#111111");
-    const composer = compose(<StoreShow store={store} />, { layout: fakeLayout });
+    const composer = compose(<StoreShow store={store} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
 
     store.set("#222222");
@@ -342,7 +469,9 @@ describe("Composer.settled", () => {
       detail: { devtools: { track: "Host" } },
     });
     const store = createStore("#111111");
-    const composer = compose(<StoreShow store={store} />, { layout: fakeLayout });
+    const composer = compose(<StoreShow store={store} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
 
     reactMeasure("\u200bLayer", { track: "Components ⚛" });
@@ -357,7 +486,9 @@ describe("Composer.settled", () => {
   });
 
   it("resolves immediately to the current snapshot when no work is pending", async () => {
-    const composer = compose(<StoreShow store={createStore("#111111")} />, { layout: fakeLayout });
+    const composer = compose(<StoreShow store={createStore("#111111")} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
 
     await expect(composer.settled()).resolves.toBe(composer.snapshot);
@@ -365,7 +496,9 @@ describe("Composer.settled", () => {
   });
 
   it("replays setup and the latest update and streams events without changing replay state", async () => {
-    const composer = compose(<StoreShow store={createStore("#111111")} />, { layout: fakeLayout });
+    const composer = compose(<StoreShow store={createStore("#111111")} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
     const event = { kind: "media:restart", sourceId: "main.0" };
     composer.emit(event);
@@ -378,41 +511,64 @@ describe("Composer.settled", () => {
     composer.emit(event);
     expect(await next(iterator)).toEqual({ kind: "event", event });
     controller.abort();
-    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
+    await expect(iterator.next()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
 
     const late = composer.stream()[Symbol.asyncIterator]();
     expect((await next(late)).kind).toBe("setup");
     expect((await next(late)).kind).toBe("update");
     composer.dispose();
-    await expect(late.next()).resolves.toEqual({ done: true, value: undefined });
+    await expect(late.next()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
     // A disposed composer replays nothing, so a reconnect to a server shutting down gets no show.
     const afterDispose = composer.stream()[Symbol.asyncIterator]();
-    await expect(afterDispose.next()).resolves.toEqual({ done: true, value: undefined });
+    await expect(afterDispose.next()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
   });
 
   it("narrows a stream to one source, sent only when that source changes", async () => {
     const left = createStore("#111111");
     const right = createStore("#222222");
-    const composer = compose(<PairShow left={left} right={right} />, { layout: fakeLayout });
+    const composer = compose(<PairShow left={left} right={right} />, {
+      layout: fakeLayout,
+    });
     await composer.ready();
     const controller = new AbortController();
     const narrowed = composer.stream(controller.signal, { source: "right" });
     const iterator = narrowed[Symbol.asyncIterator]();
 
     expect((await next(iterator)).kind).toBe("setup");
-    expect(narrowedTo(await next(iterator))).toEqual({ sources: ['right:"#222222"'], scenes: 0 });
+    expect(narrowedTo(await next(iterator))).toEqual({
+      sources: ['right:"#222222"'],
+      scenes: 0,
+    });
 
     // Another source changing, and events for it, send this page nothing.
     left.set("#333333");
     await composer.settled();
     composer.emit({ kind: "media:restart", sourceId: "left" });
     composer.emit({ kind: "flash" });
-    expect(await next(iterator)).toEqual({ kind: "event", event: { kind: "flash" } });
+    expect(await next(iterator)).toEqual({
+      kind: "event",
+      event: { kind: "flash" },
+    });
 
     right.set("#444444");
-    expect(narrowedTo(await next(iterator))).toEqual({ sources: ['right:"#444444"'], scenes: 0 });
+    expect(narrowedTo(await next(iterator))).toEqual({
+      sources: ['right:"#444444"'],
+      scenes: 0,
+    });
     right.set("gone");
-    expect(narrowedTo(await next(iterator))).toEqual({ sources: [], scenes: 0 });
+    expect(narrowedTo(await next(iterator))).toEqual({
+      sources: [],
+      scenes: 0,
+    });
     controller.abort();
     composer.dispose();
   });

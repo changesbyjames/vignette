@@ -3,10 +3,18 @@ import { z } from "zod";
 
 import { defineSource, type SourceIdProp } from "../define-source.js";
 
-/** The `frame` source kind: a frame page identified by its name, with JSON params. */
+/**
+ * The `frame` source kind: a frame page identified by its name, with JSON params. `build` is the
+ * frame bundle's build hash, which the composer stamps on every frame source when the host passes
+ * `compose({ frameBuild })`; authors never set it.
+ */
 const FrameSource = defineSource({
   kind: "frame",
-  props: z.object({ frame: z.string().min(1), params: z.json().default({}) }),
+  props: z.object({
+    frame: z.string().min(1),
+    params: z.json().default({}),
+    build: z.string().min(1).optional(),
+  }),
   size: (_props, { canvas, layer }) => layer ?? canvas,
 });
 

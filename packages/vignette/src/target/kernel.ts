@@ -150,7 +150,7 @@ export function createTarget<
             resolve(options.assets.resolve(name));
           }),
       },
-      frames: (frame, sourceId) => frameUrl(setup, frame, sourceId),
+      frames: (frame, sourceId, build) => frameUrl(setup, frame, sourceId, build),
     };
     // SAFETY: Without a `context` extension the target's Context is the base context.
     return options.context?.(base) ?? (base as Context);

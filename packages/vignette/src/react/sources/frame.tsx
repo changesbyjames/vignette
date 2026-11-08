@@ -8,7 +8,8 @@ import { PageFrame } from "./page.js";
 /**
  * `<Frame>` as an iframe of the frame page, `serve.frames?frame=…&source=…&stream=…`, exactly as
  * the DOM and OBS targets open it. The page follows the stream and reads its params from there,
- * so a params change never reloads it; only a different frame name navigates.
+ * so a params change never reloads it; only a different frame name, or a new frame bundle's
+ * `build`, navigates.
  */
 export const FrameView: ReactSourcePlugin<typeof Frame> = {
   kind: "frame",
@@ -16,5 +17,10 @@ export const FrameView: ReactSourcePlugin<typeof Frame> = {
 };
 
 function FrameSource({ source }: ReactSourceViewProps<typeof Frame>): ReactNode {
-  return <PageFrame url={useFrameUrl(source.props.frame, source.id)} title={source.id} />;
+  return (
+    <PageFrame
+      url={useFrameUrl(source.props.frame, source.id, source.props.build)}
+      title={source.id}
+    />
+  );
 }
