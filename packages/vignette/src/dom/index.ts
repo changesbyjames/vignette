@@ -7,3 +7,5 @@ export { imageDom } from "./sources/image.js";
 export { textDom } from "./sources/text.js";
 export { videoDom } from "./sources/video.js";
 export { fromSse } from "../stream/sse.js";
+export { connectStream, type StreamTransport } from "../stream/transport.js";
+export { fromWebSocket } from "../stream/websocket.js";

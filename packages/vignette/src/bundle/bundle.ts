@@ -12,6 +12,12 @@ import { createAssetManifest, scanAssetFiles, type ScannedAsset } from "./scan-a
 export interface BundleOptions {
   /** Directory to write `frames.html`, `frames.js`, `assets/` and `assets.json` into. */
   readonly out: string;
+  /**
+   * Modules compiled into `frames.js` whose exported `StreamTransport`s (or arrays of them) the
+   * frame page can read its stream with, for `serve.stream` schemes beyond SSE and WebSocket.
+   * Package specifiers and relative paths resolve from the show's directory.
+   */
+  readonly transports?: readonly string[];
 }
 
 /** What {@link bundle} wrote. */
@@ -29,7 +35,10 @@ const ENTRY_ID = "\0vignette-frames-entry";
  * their manifest, and every `*.frame.tsx`/`*.frame.jsx` under the show's directory compiled into
  * `frames.js` behind the static `frames.html`. Nothing written depends on where it is served.
  */
-export async function bundle(showPath: string, { out }: BundleOptions): Promise<BundleResult> {
+export async function bundle(
+  showPath: string,
+  { out, transports = [] }: BundleOptions,
+): Promise<BundleResult> {
   const root = dirname(resolve(showPath));
   const outDir = resolve(out);
   const manifest = await bundleAssets(join(root, "assets"), outDir);
@@ -38,7 +47,10 @@ export async function bundle(showPath: string, { out }: BundleOptions): Promise<
     await rm(join(outDir, "frames.js"), { force: true });
     await rm(join(outDir, "frames.html"), { force: true });
   } else {
-    await buildFrames(root, frames, outDir);
+    const modules = transports.map((specifier) =>
+      specifier.startsWith(".") ? resolve(root, specifier) : specifier,
+    );
+    await buildFrames(root, generateFrameEntry(frames, modules), outDir);
     await writeFile(join(outDir, "frames.html"), framesHtml({ script: "./frames.js" }));
   }
   return { manifest, frames: frames.map((file) => relative(root, file).replaceAll("\\", "/")) };
@@ -71,23 +83,36 @@ export async function discoverFrames(root: string, out: string): Promise<string[
 
 /**
  * The module `frames.js` is built from. `mountFrames` ignores exports that are not frames, so
- * every export of every frame module can be passed through.
+ * every export of every frame module can be passed through; `streamTransports` picks the
+ * transports out of each transport module.
  */
-export function generateFrameEntry(frames: readonly string[]): string {
-  const imports = frames.map(
-    (file, index) => `import * as f${String(index)} from ${JSON.stringify(file)};`,
-  );
+export function generateFrameEntry(
+  frames: readonly string[],
+  transports: readonly string[] = [],
+): string {
+  const imports = [
+    ...frames.map((file, index) => `import * as f${String(index)} from ${JSON.stringify(file)};`),
+    ...transports.map(
+      (specifier, index) => `import * as t${String(index)} from ${JSON.stringify(specifier)};`,
+    ),
+  ];
   const spread = frames.map((_, index) => `...f${String(index)}`).join(", ");
-  return `${imports.join("\n")}
+  if (transports.length === 0) {
+    return `${imports.join("\n")}
 import { mountFrames } from "@strangecyan/vignette/frame/mount";
 mountFrames({ ${spread} });
+`;
+  }
+  const modules = transports.map((_, index) => `t${String(index)}`).join(", ");
+  return `${imports.join("\n")}
+import { mountFrames, streamTransports } from "@strangecyan/vignette/frame/mount";
+mountFrames({ ${spread} }, { transports: streamTransports(${modules}) });
 `;
 }
 
 /** Compiles the frames entry, with React DOM and everything it imports, into `out/frames.js`. */
-async function buildFrames(root: string, frames: readonly string[], out: string): Promise<void> {
+async function buildFrames(root: string, entry: string, out: string): Promise<void> {
   const { build } = await loadVite();
-  const entry = generateFrameEntry(frames);
   await build({
     root,
     configFile: false,

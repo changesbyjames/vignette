@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { Source } from "../core/snapshot.js";
 import { Frame } from "../core/sources/frame.js";
+import type { StreamTransport } from "../stream/transport.js";
 import type { FrameDefinition } from "./definition.js";
 import { useSnapshot } from "../react/hooks.js";
 import { Stream } from "../react/stream.js";
@@ -15,6 +16,11 @@ export interface MountFramesOptions {
   readonly root?: HTMLElement;
   /** The TanStack client `<Stream>` downloads assets with; defaults to a new one. */
   readonly queryClient?: QueryClient;
+  /**
+   * Transports for `?stream=` URL schemes beyond SSE (`http(s):`) and WebSocket (`ws(s):`); a
+   * later one wins for a scheme. `bundle({ transports })` passes those its modules export.
+   */
+  readonly transports?: readonly StreamTransport[];
 }
 
 /**
@@ -43,6 +49,17 @@ const MountedFrameSchema = z.custom<FrameDefinition<object>>((value) => {
 });
 type MountedFrame = z.output<typeof MountedFrameSchema>;
 
+/** Any value with the members of a `StreamTransport`: `protocols` and a `connect` function. */
+const TransportExportSchema = z.custom<StreamTransport>(
+  (value) =>
+    z.object({ protocols: z.array(z.string()), connect: z.instanceof(Function) }).safeParse(value)
+      .success,
+);
+type TransportExport = z.output<typeof TransportExportSchema>;
+
+const ExportedListSchema = z.array(z.unknown());
+type ExportedList = z.output<typeof ExportedListSchema>;
+
 /** Fills the page (or the nearest positioned ancestor of a custom root). */
 const FILL: CSSProperties = {
   position: "absolute",
@@ -61,7 +78,7 @@ const ERROR_STYLE: CSSProperties = {
 
 /**
  * Mounts the frame page: renders the frame named by `?frame=` for the source `?source=` of the
- * stream at `?stream=`, re-rendering in place whenever that source's params change. `frames` is
+ * stream at `?stream=`, read with the transport for its scheme, re-rendering in place whenever that source's params change. `frames` is
  * any object whose values include frame definitions, such as spread module namespaces; other
  * values are ignored. Two frames with one name are an error. Returns a function that unmounts.
  */
@@ -71,10 +88,46 @@ export function mountFrames(frames: FrameExports, options: MountFramesOptions = 
   if (element === null) throw new Error("mountFrames: the page has no #frame element.");
   const query = new URLSearchParams(element.ownerDocument.defaultView?.location.search ?? "");
   const root = createRoot(element);
-  root.render(framePage(query, definitions, () => options.queryClient ?? new QueryClient()));
+  root.render(
+    framePage(query, definitions, {
+      queryClient: () => options.queryClient ?? new QueryClient(),
+      transports: options.transports ?? [],
+    }),
+  );
   return () => {
     root.unmount();
   };
+}
+
+/**
+ * The stream transports among the exports of each module, directly or inside an exported array,
+ * for {@link MountFramesOptions.transports}; other exports are ignored. A module that exports
+ * none is an error, as it is surely the wrong module.
+ */
+export function streamTransports(...modules: readonly FrameExports[]): readonly StreamTransport[] {
+  return modules.flatMap((exports, index) => {
+    const found = Object.values(exports)
+      .flatMap((value): ExportedList => {
+        const list = ExportedListSchema.safeParse(value);
+        return list.success ? list.data : [value];
+      })
+      .flatMap((value): readonly TransportExport[] => {
+        const transport = TransportExportSchema.safeParse(value);
+        return transport.success ? [transport.data] : [];
+      });
+    if (found.length === 0) {
+      throw new Error(
+        `mountFrames: transport module ${String(index + 1)} exports no stream transports (objects with protocols and connect).`,
+      );
+    }
+    return found;
+  });
+}
+
+/** What the frame page needs besides its query and frames. */
+interface FramePageContext {
+  readonly queryClient: () => QueryClient;
+  readonly transports: readonly StreamTransport[];
 }
 
 /**
@@ -84,7 +137,7 @@ export function mountFrames(frames: FrameExports, options: MountFramesOptions = 
 function framePage(
   query: URLSearchParams,
   definitions: readonly MountedFrame[],
-  queryClient: () => QueryClient,
+  { queryClient, transports }: FramePageContext,
 ): ReactNode {
   const frame = query.get("frame");
   const source = query.get("source");
@@ -99,7 +152,7 @@ function framePage(
   return (
     <QueryClientProvider client={queryClient()}>
       {/* The page renders its one source itself, so kinds without a React plugin are fine. */}
-      <Stream url={stream} checkPlugins={false}>
+      <Stream url={stream} transports={transports} checkPlugins={false}>
         <FrameFromSource key={source} source={source} definition={definition} />
       </Stream>
     </QueryClientProvider>

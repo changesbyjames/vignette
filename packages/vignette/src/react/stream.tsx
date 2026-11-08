@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 
 import type { Snapshot } from "../core/snapshot.js";
 import type { StreamMessage } from "../stream/messages.js";
+import type { StreamTransport } from "../stream/transport.js";
 import { revokeRemovedAssets } from "./assets.js";
 import { createStreamClient } from "./client.js";
 import { StreamContext, type StreamContextValue } from "./context.js";
@@ -29,8 +30,13 @@ import { VideoView } from "./sources/video.js";
 
 /** Props of {@link Stream}. */
 export interface StreamProps {
-  /** A server-sent events URL, followed with `fromSse` and reconnected on failure. */
+  /**
+   * The stream's URL, followed by the transport for its scheme (SSE for `http(s):`, WebSocket for
+   * `ws(s):`, or one of `transports`) and reconnected on failure.
+   */
   readonly url?: string;
+  /** Transports for `url` schemes beyond SSE and WebSocket; a later one wins for a scheme. */
+  readonly transports?: readonly StreamTransport[];
   /** Any other wire, e.g. `composer.stream()` in the same page. Takes precedence over `url`. */
   readonly source?: AsyncIterable<StreamMessage>;
   /** Plugins for source kinds; later entries win per kind, including over the built-ins. */
@@ -60,12 +66,14 @@ const BUILTIN_PLUGINS: readonly ReactSourcePlugin[] = [
 /**
  * Owns one connection to a show's stream and provides its snapshot, setup and status to
  * `<Stage>` and the hooks. Requires a TanStack `QueryClientProvider` above it, because assets
- * download as queries. `sources`, `builtins` and `checkPlugins` are read when the stream connects;
+ * download as queries. `sources`, `transports`, `builtins` and `checkPlugins` are read when the stream
+ * connects;
  * changing `url` or `source` reconnects.
  */
 export function Stream({
   url,
   source,
+  transports,
   sources,
   builtins = true,
   checkPlugins = true,
@@ -83,9 +91,9 @@ export function Stream({
       new Map([...(builtins ? BUILTIN_PLUGINS : []), ...(sources ?? [])].map((p) => [p.kind, p])),
     [builtins, sources],
   );
-  const latest = useRef({ plugins, checkPlugins });
+  const latest = useRef({ plugins, transports, checkPlugins });
   useEffect(() => {
-    latest.current = { plugins, checkPlugins };
+    latest.current = { plugins, transports, checkPlugins };
   });
 
   useEffect(() => {
@@ -97,6 +105,7 @@ export function Stream({
         { url, source },
         {
           plugins: [...latest.current.plugins.values()],
+          transports: latest.current.transports,
           checkPlugins: latest.current.checkPlugins,
         },
       ),
