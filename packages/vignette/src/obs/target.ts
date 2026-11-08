@@ -19,7 +19,7 @@ import type { TargetConnection } from "../target/status.js";
 import { fileAssetStore } from "./asset-store.js";
 import { bootstrapObsState } from "./bootstrap.js";
 import { defaultObsDirectory } from "./directory.js";
-import { ObsPreflightError } from "./errors.js";
+import { ObsDisconnectedError, ObsPreflightError } from "./errors.js";
 import { subscribeToObsEvents } from "./events.js";
 import { executeObsPlan } from "./executor.js";
 import { obsMachine, type ObsDesired, type ObsMachineContext, type ObsOutcome } from "./machine.js";
@@ -194,7 +194,7 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
       async request(sourceId, requestType, data) {
         const { context } = actor.getSnapshot();
         const connected = actor.getSnapshot().matches({ connection: "connected" });
-        if (!connected || context.show === undefined) throw new Error("OBS is not connected.");
+        if (!connected || context.show === undefined) throw new ObsDisconnectedError();
         const inputName = managedSourceName(context.show, sourceId);
         return transport.call(requestType, { ...data, inputName });
       },

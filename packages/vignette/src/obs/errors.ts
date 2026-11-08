@@ -27,6 +27,14 @@ export class ObsExecutionError extends Error {
   }
 }
 
+/** A plugin's request could not be sent: the target is not connected to OBS. */
+export class ObsDisconnectedError extends Error {
+  constructor() {
+    super("OBS is not connected.");
+    this.name = "ObsDisconnectedError";
+  }
+}
+
 /** One obs-websocket request returned an unsuccessful status. */
 export class ObsRequestError extends Error {
   readonly code: number;

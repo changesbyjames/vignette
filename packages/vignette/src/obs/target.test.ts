@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -13,7 +14,7 @@ import type { Target } from "../target/kernel.js";
 import type { TargetStatus } from "../target/status.js";
 import { ObsRequestError } from "./errors.js";
 import { obsTarget, type ObsTargetOptions } from "./target.js";
-import { FakeObs, ManualClock } from "./testing.js";
+import { FakeObs, ManualClock, type FakeObsRequest } from "./testing.js";
 
 const logoBytes = new TextEncoder().encode("not really a png");
 const logo: AssetEntry = {
@@ -153,6 +154,121 @@ function itemsOf(obs: FakeObs, sceneName: string): readonly string[] {
       .find((scene) => scene.sceneName === sceneName)
       ?.items.map((entry) => entry.sourceName) ?? []
   );
+}
+
+/** A show with one `<Text>` label of `size`. */
+function label(revision: number, size: Source["size"], fontSize: number): StreamMessage {
+  const title: Source = {
+    id: "title",
+    kind: "text",
+    props: { text: "Camera 1", style: { fontSize, color: "#ffffff" } },
+    size,
+  };
+  return update(revision, {
+    sources: [title],
+    scenes: [{ id: "main", items: [item("main.0", "title", 0)] }],
+  });
+}
+
+/** The parts of a text page state these tests read. */
+const PageStateSchema = z.looseObject({ seq: z.number(), style: z.string() });
+type PageState = z.output<typeof PageStateSchema>;
+
+/** The page states pushed through obs-browser `emit_event` among `requests`, in order. */
+function pushesOf(requests: readonly FakeObsRequest[]): readonly PageState[] {
+  return requests.flatMap((request) => {
+    if (request.requestType !== "CallVendorRequest") return [];
+    const data = z.object({ event_data: PageStateSchema }).parse(request.requestData?.requestData);
+    return [data.event_data];
+  });
+}
+
+/** The text page's file, as OBS would load it. */
+function pageFile(obs: FakeObs): string {
+  const input = obs.inputs.find((entry) => entry.inputName === "vignette/show/title");
+  return z.string().parse(input?.inputSettings.local_file);
+}
+
+/** An element's inline style, as a text page's script sets it. */
+interface PageStyle {
+  cssText: string;
+}
+
+/** A page element the text page's script touches. */
+interface PageElement {
+  textContent: string;
+  readonly style: PageStyle;
+}
+
+/** An event a text page's script listens for; only `vignette-text` carries a state. */
+interface PageEvent {
+  readonly detail?: PageState;
+}
+
+type PageListener = (event: PageEvent) => void;
+
+/** The elements with an `id` in `html`, with their raw text content and `style` attribute. */
+function pageElements(html: string): Map<string, PageElement> {
+  const elements = new Map<string, PageElement>();
+  for (const match of html.matchAll(/<(\w+)([^>]*)>([^<]*)/gu)) {
+    // Each opening tag, its attributes, and the text up to the next tag: enough for the page's
+    // own elements, none of which holds another element before its text. Tags without an `id`
+    // are skipped; a missing group or `style` reads as empty.
+    const attributes = match[2] ?? "";
+    const id = /\bid="([^"]*)"/u.exec(attributes)?.[1];
+    if (id === undefined) continue;
+    const cssText = /\bstyle="([^"]*)"/u.exec(attributes)?.[1] ?? "";
+    elements.set(id, { textContent: match[3] ?? "", style: { cssText } });
+  }
+  return elements;
+}
+
+/** A text page as obs-browser shows it, open on its file. */
+interface OpenPage {
+  /** The text's CSS as the page shows it now. */
+  style(): string | undefined;
+  /** Delivers an `emit_event`; resolves once the page has handled it. */
+  push(state: PageState): Promise<void>;
+  /** Fires the window's `resize`; resolves once the page has re-read its file. */
+  resize(): Promise<void>;
+}
+
+/**
+ * Runs the script of the text page in `file` against the elements it touches. Its `fetch` of
+ * itself reads the file as it is at that moment.
+ */
+async function openPage(file: string): Promise<OpenPage> {
+  const html = readFileSync(file, "utf8");
+  const elements = pageElements(html);
+  const listeners = new Map<string, PageListener[]>();
+  const script = z.string().parse(/<script>([\s\S]*?)<\/script>/u.exec(html)?.[1]);
+  const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const dispatch = (type: string, detail?: PageState) => {
+    for (const listener of listeners.get(type) ?? []) listener({ detail });
+    return settle();
+  };
+  runInNewContext(script, {
+    document: { getElementById: (id: string) => elements.get(id) ?? null },
+    window: {
+      addEventListener(type: string, listener: PageListener) {
+        listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+      },
+    },
+    location: { href: file },
+    fetch: () => Promise.resolve({ text: () => Promise.resolve(readFileSync(file, "utf8")) }),
+    DOMParser: class {
+      parseFromString(source: string) {
+        const parsed = pageElements(source);
+        return { getElementById: (id: string) => parsed.get(id) ?? null };
+      }
+    },
+  });
+  await settle();
+  return {
+    style: () => elements.get("text")?.style.cssText,
+    push: (state) => dispatch("vignette-text", state),
+    resize: () => dispatch("resize"),
+  };
 }
 
 describe("obsTarget", () => {
@@ -445,6 +561,84 @@ describe("obsTarget", () => {
     expect(input?.inputSettings.local_file).toBe(first);
     expect(readFileSync(first, "utf8")).toContain("Again");
     await next.target.dispose();
+  });
+
+  it("writes and pushes a resized text's new style, which the page re-reads if the push is lost", async () => {
+    const { obs, target } = harness();
+    target.apply(setup("show"));
+    target.apply(label(1, { width: 1216, height: 96 }, 52));
+    await until(target, converged(1));
+    const page = await openPage(pageFile(obs));
+    expect(page.style()).toContain("font-size: 52px");
+    const before = obs.requests.length;
+
+    // The label moves to a smaller slot: a resize and a style change in one update.
+    target.apply(label(2, { width: 608, height: 48 }, 26));
+    await until(target, converged(2));
+    const after = obs.requests.slice(before);
+    const resized = after.some(
+      (request) =>
+        request.requestType === "SetInputSettings" &&
+        z.looseObject({ width: z.number() }).safeParse(request.requestData?.inputSettings).data
+          ?.width === 608,
+    );
+    expect(resized).toBe(true);
+    const pushes = pushesOf(after);
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]?.style).toContain("font-size: 26px");
+
+    // obs-browser dropped the push mid-resize; the resize makes the page re-read its file.
+    expect(page.style()).toContain("font-size: 52px");
+    await page.resize();
+    expect(page.style()).toContain("font-size: 26px");
+    expect(target.status.sourceErrors).toEqual({});
+    await target.dispose();
+  });
+
+  it("keeps a text page on the newest state when an older one arrives late", async () => {
+    const { obs, target } = harness();
+    target.apply(setup("show"));
+    target.apply(label(1, { width: 1216, height: 96 }, 52));
+    await until(target, converged(1));
+    const page = await openPage(pageFile(obs));
+
+    target.apply(label(2, { width: 608, height: 48 }, 26));
+    await until(target, converged(2));
+    target.apply(label(3, { width: 1216, height: 96 }, 40));
+    await until(target, converged(3));
+    const [older, newer] = pushesOf(obs.requests);
+    expect(older?.style).toContain("font-size: 26px");
+    expect(newer?.style).toContain("font-size: 40px");
+
+    await page.push(PageStateSchema.parse(newer));
+    expect(page.style()).toContain("font-size: 40px");
+    await page.push(PageStateSchema.parse(older));
+    expect(page.style()).toContain("font-size: 40px");
+    // The file holds the newest state too, so a re-read keeps it.
+    await page.resize();
+    expect(page.style()).toContain("font-size: 40px");
+    await target.dispose();
+  });
+
+  it("keeps a text source live when OBS refuses both its push and its reload", async () => {
+    const { obs, target } = harness();
+    target.apply(setup("show"));
+    target.apply(label(1, { width: 1216, height: 96 }, 52));
+    await until(target, converged(1));
+    // The reload every setup asks for, out of the way first.
+    const reloads = () => obs.calls("PressInputPropertiesButton").length;
+    await until(target, () => reloads() === 1);
+
+    obs.fail("CallVendorRequest", new Error("No vendor."));
+    obs.fail("PressInputPropertiesButton", new Error("No button."));
+    target.apply(label(2, { width: 608, height: 48 }, 26));
+    await until(target, converged(2));
+    expect(target.status.sourceErrors).toEqual({});
+    expect(reloads()).toBe(2);
+    // The file has the new state, for the page's next load or resize.
+    const page = await openPage(pageFile(obs));
+    expect(page.style()).toContain("font-size: 26px");
+    await target.dispose();
   });
 
   it("refuses a stream for a different show without touching OBS", async () => {
