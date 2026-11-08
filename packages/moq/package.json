@@ -1,6 +1,6 @@
 {
   "name": "@strangecyan/vignette-moq",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Media over QUIC source kind for Vignette, with React, DOM and OBS plugins.",
   "license": "MIT",
   "repository": {
@@ -48,7 +48,7 @@
   },
   "peerDependencies": {
     "react": "^19.2.0",
-    "@strangecyan/vignette": "^2.0.0"
+    "@strangecyan/vignette": "^2.1.0"
   },
   "peerDependenciesMeta": {
     "react": {
