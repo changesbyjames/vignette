@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Browser } from "../core/sources/browser.js";
 import { Color } from "../core/sources/color.js";
+import { Text } from "../core/sources/text.js";
 import type { LayoutEngine, LayoutRecord } from "../core/layout/layout-engine.js";
 import type { Size } from "../core/geometry.js";
 import type { LayoutNode } from "../core/show-tree.js";
@@ -35,7 +36,7 @@ describe("compose", () => {
     } as const;
     const composer = compose(Weekly, {
       assets: manifest,
-      serve: { stream: "https://show.example/stream" },
+      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
     });
 
     const snapshot = await composer.ready();
@@ -52,7 +53,7 @@ describe("compose", () => {
       id: "weekly",
       canvas,
       assets: manifest,
-      serve: { stream: "https://show.example/stream" },
+      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
     });
     expect(await next(iterator)).toEqual({ kind: "update", snapshot });
     controller.abort();
@@ -225,6 +226,52 @@ describe("Composer.once", () => {
     );
   });
 });
+
+describe("serve", () => {
+  it("composes a Text without a font with no serve", async () => {
+    const snapshot = await compose(textShow(), { layout: fakeLayout }).once();
+
+    expect(snapshot.sources[0]).toMatchObject({ kind: "text", props: { text: "No streams" } });
+  });
+
+  it("still requires serve.assets for a Text that names a font", async () => {
+    const assets = { version: "v1", entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }] };
+
+    await expect(
+      compose(textShow("Inter.woff2"), { assets, layout: fakeLayout }).once(),
+    ).rejects.toThrow(
+      /The show uses the text kind, so compose\(\) needs serve\.assets: the absolute URL it is served at\./u,
+    );
+  });
+});
+
+describe("serve with an asset manifest", () => {
+  it("requires serve.assets when the manifest lists assets the show does not name", async () => {
+    const assets = { version: "v1", entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }] };
+
+    await expect(compose(textShow(), { assets, layout: fakeLayout }).once()).rejects.toThrow(
+      /The asset manifest passed to compose\(\) lists assets, which targets download/u,
+    );
+  });
+
+  it("composes with an empty manifest and no serve", async () => {
+    const assets = { version: "v0", entries: [] };
+
+    await expect(compose(textShow(), { assets, layout: fakeLayout }).once()).resolves.toBeDefined();
+  });
+});
+
+function textShow(font?: string) {
+  return (
+    <Show id="text" canvas={canvas}>
+      <Scene id="main">
+        <Layer>
+          <Text text="No streams" {...(font === undefined ? {} : { font })} />
+        </Layer>
+      </Scene>
+    </Show>
+  );
+}
 
 describe("host-owned revisions and bootstrap", () => {
   it("counts revisions on from the host's, across composers and within one", async () => {

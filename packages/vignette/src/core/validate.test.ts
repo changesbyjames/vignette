@@ -6,12 +6,13 @@ import { Browser } from "./sources/browser.js";
 import { Color } from "./sources/color.js";
 import { Frame } from "./sources/frame.js";
 import { Image } from "./sources/image.js";
+import { Text } from "./sources/text.js";
 import type { Source } from "./snapshot.js";
 import { validateShow, type ValidateOptions } from "./validate.js";
 
 const canvas = { width: 1280, height: 720 };
 const definitions = new Map<string, SourceDefinition>(
-  [Browser, Color, Frame, Image].map((component) => [
+  [Browser, Color, Frame, Image, Text].map((component) => [
     component.definition.kind,
     component.definition,
   ]),
@@ -83,6 +84,44 @@ describe("validateShow", () => {
 
     expect(codes(validate(tree, { assets: manifest("logo.png"), serve: {} }))).toEqual([
       ["MISSING_SERVE", "serve.assets"],
+    ]);
+  });
+
+  it("requires serve.assets only when a source names an asset", () => {
+    const unnamed = show({ sharedSources: [shared("title", "text", { text: "Up next" })] });
+    const named = show({
+      sharedSources: [shared("title", "text", { text: "Up next", font: "Inter.woff2" })],
+    });
+
+    expect(validate(unnamed, { serve: undefined })).toEqual([]);
+    expect(validate(named, { assets: manifest("Inter.woff2"), serve: undefined })).toMatchObject([
+      {
+        code: "MISSING_SERVE",
+        path: "serve.assets",
+        message:
+          "The show uses the text kind, so compose() needs serve.assets: the absolute URL it is served at.",
+      },
+    ]);
+  });
+
+  it("requires serve.assets when the manifest lists assets, once", () => {
+    const unnamed = show({ sharedSources: [shared("title", "text", { text: "Up next" })] });
+    const named = show({
+      sharedSources: [shared("title", "text", { text: "Up next", font: "Inter.woff2" })],
+    });
+    const empty = { version: "v0", entries: [] };
+
+    expect(validate(unnamed, { assets: empty, serve: undefined })).toEqual([]);
+    expect(validate(unnamed, { assets: manifest("Inter.woff2"), serve: undefined })).toMatchObject([
+      {
+        code: "MISSING_SERVE",
+        path: "serve.assets",
+        message:
+          "The asset manifest passed to compose() lists assets, which targets download, so compose() needs serve.assets: the absolute URL they are served at.",
+      },
+    ]);
+    expect(validate(named, { assets: manifest("Inter.woff2"), serve: undefined })).toMatchObject([
+      { code: "MISSING_SERVE", path: "serve.assets", message: expect.stringMatching(/text kind/u) },
     ]);
   });
 
