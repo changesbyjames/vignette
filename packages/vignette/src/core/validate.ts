@@ -12,7 +12,7 @@ import {
   type ShowTree,
   type ShowTreeScene,
 } from "./show-tree.js";
-import type { Source, SourceProps } from "./snapshot.js";
+import type { Source } from "./snapshot.js";
 
 /** What structural validation needs besides the tree: the kinds in use and the host's options. */
 export interface ValidateOptions {
@@ -126,7 +126,10 @@ function validateScene(
   return inline;
 }
 
-/** `serve` must be absolute URLs, with `assets` for asset-bearing kinds and frame locations for frames. */
+/**
+ * `serve` must be absolute URLs, with `assets` when some source names an asset and frame
+ * locations for frames.
+ */
 function validateServe(sources: readonly SourceIdentity[], options: ValidateOptions): Diagnostic[] {
   const parsed = ServeSchema.safeParse(options.serve ?? {});
   if (!parsed.success) {
@@ -141,12 +144,14 @@ function validateServe(sources: readonly SourceIdentity[], options: ValidateOpti
   }
   const serve = parsed.data;
   const kinds = new Set(sources.map((source) => source.kind));
-  const assetKinds = [...kinds].filter(
-    (kind) => (options.definitions.get(kind)?.assets?.length ?? 0) > 0,
+  const assetKinds = new Set(
+    sources
+      .filter((source) => namedAssets(source, options.definitions).length > 0)
+      .map((source) => source.kind),
   );
   const missing: Diagnostic[] = [];
-  if (assetKinds.length > 0 && serve.assets === undefined) {
-    missing.push(missingServe("assets", `the ${assetKinds.sort().join(", ")} kind`));
+  if (assetKinds.size > 0 && serve.assets === undefined) {
+    missing.push(missingServe("assets", `the ${[...assetKinds].sort().join(", ")} kind`));
   }
   if (kinds.has("frame")) {
     if (serve.frames === undefined) missing.push(missingServe("frames", "a <Frame>"));
@@ -169,20 +174,16 @@ const AssetNameSchema = z.string();
 /** A prop value that names an asset. */
 type AssetName = z.output<typeof AssetNameSchema>;
 
-/**
- * Every asset name an asset-bearing prop holds must be in the manifest. Props without a string
- * value (an optional asset left out) name nothing and are skipped.
- */
+/** Every asset name a source names must be in the manifest. */
 function validateAssets(
   sources: readonly SourceIdentity[],
   options: ValidateOptions,
 ): Diagnostic[] {
   const names = new Set(options.assets?.entries.map((entry) => entry.name));
   return sources.flatMap((source) =>
-    (options.definitions.get(source.kind)?.assets ?? []).flatMap((key) => {
-      const name = assetName(source.props, key);
-      if (name === undefined || names.has(name)) return [];
-      return [
+    namedAssets(source, options.definitions)
+      .filter(({ name }) => !names.has(name))
+      .map(({ key, name }) =>
         diagnostic(
           "MISSING_ASSET",
           "error",
@@ -190,14 +191,28 @@ function validateAssets(
           `Asset '${name}' is not in the asset manifest passed to compose().`,
           [source.id],
         ),
-      ];
-    }),
+      ),
   );
 }
 
-function assetName(props: SourceProps, key: string): AssetName | undefined {
-  const parsed = AssetNameSchema.safeParse(props[key]);
-  return parsed.success ? parsed.data : undefined;
+/** An asset a source names: the prop holding it and the name. */
+interface NamedAsset {
+  readonly key: string;
+  readonly name: AssetName;
+}
+
+/**
+ * The assets one source names: each asset-bearing prop of its kind with a string value. Props
+ * without a string value (an optional asset left out) name nothing and are skipped.
+ */
+function namedAssets(
+  source: SourceIdentity,
+  definitions: ValidateOptions["definitions"],
+): NamedAsset[] {
+  return (definitions.get(source.kind)?.assets ?? []).flatMap((key) => {
+    const parsed = AssetNameSchema.safeParse(source.props[key]);
+    return parsed.success ? [{ key, name: parsed.data }] : [];
+  });
 }
 
 function flatten(node: LayoutNode): LayoutNode[] {
