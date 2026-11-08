@@ -127,8 +127,8 @@ function validateScene(
 }
 
 /**
- * `serve` must be absolute URLs, with `assets` when some source names an asset and frame
- * locations for frames.
+ * `serve` must be absolute URLs, with `assets` when some source names an asset or the manifest
+ * lists any (targets download every entry), and frame locations for frames.
  */
 function validateServe(sources: readonly SourceIdentity[], options: ValidateOptions): Diagnostic[] {
   const parsed = ServeSchema.safeParse(options.serve ?? {});
@@ -144,20 +144,40 @@ function validateServe(sources: readonly SourceIdentity[], options: ValidateOpti
   }
   const serve = parsed.data;
   const kinds = new Set(sources.map((source) => source.kind));
-  const assetKinds = new Set(
-    sources
-      .filter((source) => namedAssets(source, options.definitions).length > 0)
-      .map((source) => source.kind),
-  );
   const missing: Diagnostic[] = [];
-  if (assetKinds.size > 0 && serve.assets === undefined) {
-    missing.push(missingServe("assets", `the ${[...assetKinds].sort().join(", ")} kind`));
-  }
+  if (serve.assets === undefined) missing.push(...missingAssetsServe(sources, options));
   if (kinds.has("frame")) {
     if (serve.frames === undefined) missing.push(missingServe("frames", "a <Frame>"));
     if (serve.stream === undefined) missing.push(missingServe("stream", "a <Frame>"));
   }
   return missing;
+}
+
+/**
+ * Why a show without `serve.assets` needs it, as at most one diagnostic: a source names an asset,
+ * or failing that the manifest lists any, since targets download every entry either way.
+ */
+function missingAssetsServe(
+  sources: readonly SourceIdentity[],
+  options: ValidateOptions,
+): Diagnostic[] {
+  const assetKinds = new Set(
+    sources
+      .filter((source) => namedAssets(source, options.definitions).length > 0)
+      .map((source) => source.kind),
+  );
+  if (assetKinds.size > 0) {
+    return [missingServe("assets", `the ${[...assetKinds].sort().join(", ")} kind`)];
+  }
+  if ((options.assets?.entries.length ?? 0) === 0) return [];
+  return [
+    diagnostic(
+      "MISSING_SERVE",
+      "error",
+      "serve.assets",
+      "The asset manifest passed to compose() lists assets, which targets download, so compose() needs serve.assets: the absolute URL they are served at.",
+    ),
+  ];
 }
 
 function missingServe(key: keyof Serve, user: string): Diagnostic {

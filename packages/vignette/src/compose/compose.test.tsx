@@ -36,7 +36,7 @@ describe("compose", () => {
     } as const;
     const composer = compose(Weekly, {
       assets: manifest,
-      serve: { stream: "https://show.example/stream" },
+      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
     });
 
     const snapshot = await composer.ready();
@@ -53,7 +53,7 @@ describe("compose", () => {
       id: "weekly",
       canvas,
       assets: manifest,
-      serve: { stream: "https://show.example/stream" },
+      serve: { stream: "https://show.example/stream", assets: "https://show.example/assets" },
     });
     expect(await next(iterator)).toEqual({ kind: "update", snapshot });
     controller.abort();
@@ -242,6 +242,22 @@ describe("serve", () => {
     ).rejects.toThrow(
       /The show uses the text kind, so compose\(\) needs serve\.assets: the absolute URL it is served at\./u,
     );
+  });
+});
+
+describe("serve with an asset manifest", () => {
+  it("requires serve.assets when the manifest lists assets the show does not name", async () => {
+    const assets = { version: "v1", entries: [{ name: "Inter.woff2", hash: "sha256-x" as const }] };
+
+    await expect(compose(textShow(), { assets, layout: fakeLayout }).once()).rejects.toThrow(
+      /The asset manifest passed to compose\(\) lists assets, which targets download/u,
+    );
+  });
+
+  it("composes with an empty manifest and no serve", async () => {
+    const assets = { version: "v0", entries: [] };
+
+    await expect(compose(textShow(), { assets, layout: fakeLayout }).once()).resolves.toBeDefined();
   });
 });
 

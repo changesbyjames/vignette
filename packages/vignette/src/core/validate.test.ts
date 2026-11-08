@@ -104,6 +104,27 @@ describe("validateShow", () => {
     ]);
   });
 
+  it("requires serve.assets when the manifest lists assets, once", () => {
+    const unnamed = show({ sharedSources: [shared("title", "text", { text: "Up next" })] });
+    const named = show({
+      sharedSources: [shared("title", "text", { text: "Up next", font: "Inter.woff2" })],
+    });
+    const empty = { version: "v0", entries: [] };
+
+    expect(validate(unnamed, { assets: empty, serve: undefined })).toEqual([]);
+    expect(validate(unnamed, { assets: manifest("Inter.woff2"), serve: undefined })).toMatchObject([
+      {
+        code: "MISSING_SERVE",
+        path: "serve.assets",
+        message:
+          "The asset manifest passed to compose() lists assets, which targets download, so compose() needs serve.assets: the absolute URL they are served at.",
+      },
+    ]);
+    expect(validate(named, { assets: manifest("Inter.woff2"), serve: undefined })).toMatchObject([
+      { code: "MISSING_SERVE", path: "serve.assets", message: expect.stringMatching(/text kind/u) },
+    ]);
+  });
+
   it("requires serve.frames and serve.stream when a frame is used", () => {
     const tree = show({
       sharedSources: [shared("score", "frame", { frame: "Score", params: {} })],
