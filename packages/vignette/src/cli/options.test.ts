@@ -43,12 +43,25 @@ describe("parseCommandLine", () => {
     expect(parseCommandLine(["build", "show.tsx", "--out", "site"])).toMatchObject({ out: "site" });
   });
 
-  it("parses bundle and requires --out", () => {
+  it("parses bundle with repeatable --transport and requires --out", () => {
     expect(parseCommandLine(["bundle", "show.tsx", "--out", "public/vignette"])).toEqual({
       command: "bundle",
       show: "show.tsx",
       out: "public/vignette",
+      transports: [],
     });
+    expect(
+      parseCommandLine([
+        "bundle",
+        "show.tsx",
+        "--transport",
+        "./nats.ts",
+        "--out",
+        "out",
+        "--transport",
+        "@acme/moq-transport",
+      ]),
+    ).toMatchObject({ transports: ["./nats.ts", "@acme/moq-transport"] });
     expect(() => parseCommandLine(["bundle", "show.tsx"])).toThrow("--out is required");
   });
 
@@ -128,9 +141,15 @@ describe("parseCommandLine", () => {
     );
   });
 
-  it("requires an absolute HTTP(S) stream URL", () => {
+  it("requires an absolute HTTP(S) or WS(S) stream URL", () => {
+    expect(parseCommandLine(["obs", "wss://show.example.com/stream"])).toMatchObject({
+      stream: "wss://show.example.com/stream",
+    });
     expect(() => parseCommandLine(["obs", "/stream"])).toThrow(
-      "<stream-url> must be an absolute HTTP(S) URL",
+      "<stream-url> must be an absolute HTTP(S) or WS(S) URL",
+    );
+    expect(() => parseCommandLine(["obs", "nats://show.example.com/stream"])).toThrow(
+      "<stream-url> must be an absolute HTTP(S) or WS(S) URL",
     );
     expect(() => parseCommandLine(["obs"])).toThrow("<stream-url> is required");
   });

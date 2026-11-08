@@ -4,7 +4,7 @@ Commands:
   dev <show>          Compose a show and serve its preview, stream, frames and assets
   build <show>        Write a server entry plus everything \`bundle\` produces
   bundle <show>       Write frames.html, frames.js, assets/ and assets.json
-  obs <stream-url>    Converge the local OBS to a stream
+  obs <stream-url>    Converge the local OBS to a stream (SSE or WebSocket URL)
   preview <stream-url>
                       Render scenes of a running stream to PNG
 
@@ -30,8 +30,11 @@ Options:
 export const BUNDLE_HELP = `Usage: vignette bundle <show> --out <dir>
 
 Options:
-  --out <dir>   Output directory (required)
-  --help        Show this help`;
+  --out <dir>            Output directory (required)
+  --transport <module>   Compile a module's stream transports into frames.js, for serve.stream
+                         schemes beyond http(s) and ws(s) (repeatable; resolved from the
+                         current directory)
+  --help                 Show this help`;
 
 export const OBS_HELP = `Usage: vignette obs <stream-url> [options]
 
@@ -83,6 +86,8 @@ export interface BundleCommand {
   readonly command: "bundle";
   readonly show: string;
   readonly out: string;
+  /** Transport module specifiers passed with `--transport`, in order. */
+  readonly transports: readonly string[];
 }
 
 export interface ObsCommand {
@@ -144,7 +149,12 @@ const SPECS = {
     switches: new Set(["--obs"]),
   },
   build: { help: BUILD_HELP, positional: "<show>", valueFlags: new Set(["--out"]) },
-  bundle: { help: BUNDLE_HELP, positional: "<show>", valueFlags: new Set(["--out"]) },
+  bundle: {
+    help: BUNDLE_HELP,
+    positional: "<show>",
+    valueFlags: new Set(["--out"]),
+    repeatableFlags: new Set(["--transport"]),
+  },
   obs: {
     help: OBS_HELP,
     positional: "<stream-url>",
@@ -175,6 +185,7 @@ const COMMANDS = {
     command: "bundle",
     show: parsed.positional,
     out: requiredFlag(parsed, "--out", BUNDLE_HELP),
+    transports: parsed.repeated.get("--transport") ?? [],
   }),
   obs: obsCommand,
   preview: previewCommand,
@@ -223,7 +234,7 @@ function devCommand(parsed: ParsedCommand): DevCommand {
 function obsCommand(parsed: ParsedCommand): ObsCommand {
   return {
     command: "obs",
-    stream: httpUrl(parsed.positional, "<stream-url>"),
+    stream: streamUrl(parsed.positional, "<stream-url>"),
     obsUrl: parsed.values.get("--obs-url"),
     password: parsed.values.get("--password"),
     sources: parsed.repeated.get("--source") ?? [],
@@ -245,7 +256,7 @@ function previewCommand(parsed: ParsedCommand): PreviewCommand {
   }
   return {
     command: "preview",
-    stream: httpUrl(parsed.positional, "<stream-url>"),
+    stream: streamUrl(parsed.positional, "<stream-url>"),
     scene,
     out: parsed.values.get("--out"),
     allScenes,
@@ -262,11 +273,14 @@ function parsePort(raw: string): number {
   return port;
 }
 
-/** Only absolute `http:` and `https:` URLs; a relative path has no origin to connect to. */
-function httpUrl(value: string, name: string): string {
-  const url = URL.parse(value);
-  if (url?.protocol === "http:" || url?.protocol === "https:") return value;
-  throw new Error(`${name} must be an absolute HTTP(S) URL; received '${value}'.`);
+/** Absolute URLs with a built-in transport: SSE over `http(s):`, or WebSocket `ws(s):`. */
+const STREAM_PROTOCOLS: ReadonlySet<string> = new Set(["http:", "https:", "ws:", "wss:"]);
+
+/** Only absolute stream URLs a built-in transport reads; a relative path has no origin. */
+function streamUrl(value: string, name: string): string {
+  const protocol = URL.parse(value)?.protocol;
+  if (protocol !== undefined && STREAM_PROTOCOLS.has(protocol)) return value;
+  throw new Error(`${name} must be an absolute HTTP(S) or WS(S) URL; received '${value}'.`);
 }
 
 /**

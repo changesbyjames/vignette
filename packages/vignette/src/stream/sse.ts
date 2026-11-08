@@ -1,36 +1,23 @@
-import { z } from "zod";
-
 import type { StreamMessage } from "./messages.js";
+import {
+  reconnecting,
+  type ConnectionPhase,
+  type RetryOptions,
+  type StreamConnectOptions,
+  type StreamConnection,
+} from "./reconnect.js";
 import { decodeStreamSseEvent, STREAM_SSE_EVENTS, type StreamSseEvent } from "./sse-codec.js";
 
-/** Reconnection delays for a URL stream: doubling from `initialDelayMs` up to `maximumDelayMs`. */
-export interface SseRetryOptions {
-  /** Delay before the first reconnect; default 500 ms. */
-  readonly initialDelayMs?: number;
-  /** Upper bound of the doubling delay; default 10 s. */
-  readonly maximumDelayMs?: number;
-}
+export type { ConnectionPhase };
 
-/** Where a connection is (plan §6.5). */
-export type ConnectionPhase = "connecting" | "open" | "retry-wait" | "closed";
+/** Reconnection delays for a URL stream; the same for every transport. */
+export type SseRetryOptions = RetryOptions;
 
-/** What `onConnection` reports for a URL stream. */
-export interface SseConnection {
-  readonly phase: ConnectionPhase;
-  /** Consecutive connections that failed, or ended sooner than the backoff they now wait. */
-  readonly attempt: number;
-  /** The last failure, until a connection delivers a message. */
-  readonly error?: Error;
-}
+/** What `onConnection` reports for a URL stream; the same for every transport. */
+export type SseConnection = StreamConnection;
 
-/** Options of {@link fromSse}. */
-export interface FromSseOptions {
-  /** Ends the stream and closes the connection. */
-  readonly signal?: AbortSignal;
-  readonly retry?: SseRetryOptions;
-  /** Called with the connection state of a URL stream whenever it changes. */
-  readonly onConnection?: (state: SseConnection) => void;
-}
+/** Options of {@link fromSse}; the same for every reconnecting transport. */
+export type FromSseOptions = StreamConnectOptions;
 
 /** Anything `fromSse` can read: a URL to connect to, or a response or body to read once. */
 export type SseInput = string | URL | Response | ReadableStream<Uint8Array>;
@@ -53,71 +40,7 @@ export function fromSse(
   if (input instanceof ReadableStream) {
     return { [Symbol.asyncIterator]: () => readBody(input, signal) };
   }
-  return { [Symbol.asyncIterator]: () => reconnecting(input, options, signal) };
-}
-
-/**
- * Connects to `url` until `signal` aborts (plan §6.5): `connecting` until the response is OK,
- * `open` while its body is read, `retry-wait` for the backoff after it ends or fails, `closed`
- * when the signal aborts or a malformed message ends the stream. The backoff resets only after a
- * connection stays open at least as long as the delay it would otherwise wait: every connection
- * replays setup, so a server that accepts and ends at once (one shutting down, a proxy cutting
- * streams) is retried with growing delays instead of in a tight loop.
- */
-async function* reconnect(
-  url: string | URL,
-  options: FromSseOptions,
-  signal: AbortSignal,
-): AsyncGenerator<StreamMessage> {
-  let attempt = 0;
-  let error: Error | undefined = undefined;
-  const report = (phase: ConnectionPhase) => {
-    options.onConnection?.({ phase, attempt, error });
-  };
-  let openedAt: number | undefined = undefined;
-  const opened = () => {
-    openedAt = Date.now();
-    report("open");
-  };
-  // A delivered message clears the last failure; only staying open resets the backoff.
-  const delivered = () => {
-    if (error === undefined) return;
-    error = undefined;
-    report("open");
-  };
-  try {
-    // Connect, read until the body ends or fails, back off, repeat; abort ends it in any phase.
-    while (!signal.aborted) {
-      // One connection: its messages reset the backoff; its failure is kept for the report.
-      report("connecting");
-      try {
-        for await (const message of connection(url, signal, opened)) {
-          delivered();
-          yield message;
-        }
-      } catch (cause) {
-        if (signal.aborted) return;
-        error = cause instanceof Error ? cause : new Error(String(cause));
-        // Retrying would receive the same malformed message again.
-        if (isMalformed(cause)) throw cause;
-      }
-      if (signal.aborted) return;
-      if (openedAt !== undefined && Date.now() - openedAt >= backoff(attempt + 1, options.retry)) {
-        attempt = 0;
-      }
-      openedAt = undefined;
-      attempt += 1;
-      report("retry-wait");
-      await sleep(backoff(attempt, options.retry), signal);
-    }
-  } finally {
-    report("closed");
-  }
-}
-
-/** A record that is not a valid stream message. */
-function isMalformed(cause: unknown): boolean {
-  return cause instanceof SyntaxError || cause instanceof z.ZodError;
+  return reconnecting(input, connection, options);
 }
 
 /** One request: calls `opened` once the response is OK, then yields its messages. */
@@ -130,45 +53,6 @@ async function* connection(
   const body = bodyOf(response);
   opened();
   yield* readBody(body, signal);
-}
-
-/** The delay before reconnect `attempt` (from 1): doubling, capped; 500 ms up to 10 s by default. */
-function backoff(attempt: number, retry: SseRetryOptions = {}): number {
-  const { initialDelayMs = 500, maximumDelayMs = 10_000 } = retry;
-  return Math.min(initialDelayMs * 2 ** (attempt - 1), maximumDelayMs);
-}
-
-/** Resolves after `ms`, or as soon as `signal` aborts. */
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", done);
-      resolve();
-    };
-    const timer = setTimeout(done, ms);
-    signal.addEventListener("abort", done, { once: true });
-  });
-}
-
-/**
- * Iterates `reconnect` with its own abort, so stopping iteration (`break`, `return()`) closes the
- * connection or cuts the backoff short instead of waiting for them.
- */
-function reconnecting(
-  url: string | URL,
-  options: FromSseOptions,
-  signal: AbortSignal,
-): AsyncIterator<StreamMessage> {
-  const stop = new AbortController();
-  const generator = reconnect(url, options, AbortSignal.any([signal, stop.signal]));
-  return {
-    next: () => generator.next(),
-    return: () => {
-      stop.abort();
-      return generator.return(undefined);
-    },
-  };
 }
 
 /** The body of an OK response. */

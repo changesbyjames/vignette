@@ -19,3 +19,5 @@ export { ImageView } from "./sources/image.js";
 export { TextView } from "./sources/text.js";
 export { VideoView } from "./sources/video.js";
 export { fromSse } from "../stream/sse.js";
+export { connectStream, type StreamTransport } from "../stream/transport.js";
+export { fromWebSocket } from "../stream/websocket.js";

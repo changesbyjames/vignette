@@ -36,3 +36,19 @@ export {
   type SseInput,
   type SseRetryOptions,
 } from "./sse.js";
+export {
+  reconnecting,
+  type OpenConnection,
+  type RetryOptions,
+  type StreamConnection,
+  type StreamConnectOptions,
+} from "./reconnect.js";
+export {
+  connectStream,
+  DEFAULT_STREAM_TRANSPORTS,
+  sseTransport,
+  webSocketTransport,
+  type ConnectStreamOptions,
+  type StreamTransport,
+} from "./transport.js";
+export { decodeStreamMessage, encodeStreamMessage, fromWebSocket } from "./websocket.js";

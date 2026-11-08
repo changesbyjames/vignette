@@ -7,7 +7,7 @@ import type * as Playwright from "playwright";
 
 import { loadVite } from "../bundle/load-vite.js";
 import type { Snapshot, SnapshotScene } from "../core/snapshot.js";
-import { fromSse } from "../stream/sse.js";
+import { connectStream } from "../stream/transport.js";
 import { previewEntry, previewHtml } from "../vite/pages.js";
 
 /** Options of {@link runPreview}. */
@@ -88,7 +88,7 @@ async function firstSnapshot(stream: string, timeoutMs: number): Promise<Snapsho
   const done = new AbortController();
   const signal = AbortSignal.any([done.signal, AbortSignal.timeout(timeoutMs)]);
   try {
-    for await (const message of fromSse(stream, { signal })) {
+    for await (const message of connectStream(stream, { signal })) {
       if (message.kind === "update") return message.snapshot;
     }
   } finally {

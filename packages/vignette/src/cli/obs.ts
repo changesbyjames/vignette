@@ -1,12 +1,12 @@
 import { obsTarget } from "../obs/target.js";
 import type { ObsTransport } from "../obs/transport.js";
-import { fromSse } from "../stream/sse.js";
+import { connectStream } from "../stream/transport.js";
 import type { TargetStatus } from "../target/status.js";
 import { loadPlugins } from "./load-plugins.js";
 
 /** Options of {@link runObs}. */
 export interface RunObsOptions {
-  /** The stream's server-sent events URL. */
+  /** The stream's URL: server-sent events over `http(s):`, or a `ws(s):` WebSocket. */
   readonly stream: string;
   /** obs-websocket URL; the target's default when omitted. */
   readonly obsUrl?: string;
@@ -43,7 +43,7 @@ export async function runObs(options: RunObsOptions): Promise<void> {
   };
   const unsubscribe = target.subscribe(report);
   report();
-  target.follow(fromSse(options.stream, { signal }));
+  target.follow(connectStream(options.stream, { signal }));
   try {
     await aborted(signal);
   } finally {

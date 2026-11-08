@@ -1,6 +1,6 @@
 import type { Snapshot } from "../core/snapshot.js";
 import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
-import { fromSse } from "../stream/sse.js";
+import { connectStream, type StreamTransport } from "../stream/transport.js";
 import { createTarget } from "../target/kernel.js";
 import type { TargetConnection, TargetStatus } from "../target/status.js";
 import type { ReactSourcePlugin } from "./plugin.js";
@@ -22,6 +22,8 @@ export interface StreamInput {
 /** What `<Stream>` hands the target when it connects. */
 export interface ConnectOptions {
   readonly plugins: readonly ReactSourcePlugin[];
+  /** Transports for `url` schemes beyond SSE and WebSocket. */
+  readonly transports?: readonly StreamTransport[];
   readonly checkPlugins: boolean;
 }
 
@@ -75,13 +77,13 @@ export function createStreamClient(): StreamClient {
     },
     setup: firstSetup,
     shared: createSharedSources(),
-    connect({ url, source }, { plugins, checkPlugins }) {
+    connect({ url, source }, { plugins, transports, checkPlugins }) {
       if (url === undefined && source === undefined) {
         throw new Error("<Stream> needs a `url` or a `source`.");
       }
       let active = true;
       const abort = new AbortController();
-      // `fromSse` reports its connection; the kernel shows the latest as `status.connection`.
+      // A URL stream reports its connection; the kernel shows the latest as `status.connection`.
       let connection: TargetConnection | undefined = undefined;
       let report: (next: TargetConnection) => void = () => undefined;
       const target = createTarget({
@@ -114,7 +116,8 @@ export function createStreamClient(): StreamClient {
       publish();
       const messages =
         source ??
-        fromSse(url ?? "", {
+        connectStream(url ?? "", {
+          transports,
           signal: abort.signal,
           onConnection: (next) => {
             connection = next;

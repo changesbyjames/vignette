@@ -23,7 +23,7 @@ export async function runCli(argv: readonly string[], signal: AbortSignal): Prom
       process.stdout.write(`built ${command.out}\n`);
       return;
     case "bundle":
-      await runBundle(command.show, command.out);
+      await runBundle(command.show, command.out, command.transports);
       return;
     case "obs":
       await runObs({ ...command, signal });

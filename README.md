@@ -494,10 +494,23 @@ still works; every page just receives the whole snapshot every revision.
 
 ```ts
 for await (const m of composer.stream(signal)) await sse.writeSSE(toSseEvent(m)); // SSE
-for await (const m of composer.stream(signal)) socket.send(JSON.stringify(m)); // WebSocket
+for await (const m of composer.stream(signal)) socket.send(encodeStreamMessage(m)); // WebSocket
 for await (const m of composer.stream(signal)) port.postMessage(m); // IPC, queue, file
 obs.follow(composer.stream()); // same process
 ```
+
+Frame pages, `<Stream url>`, `vignette obs` and `vignette preview` connect to a URL, and pick the
+transport by its scheme: SSE for `http(s):`, WebSocket for `ws(s):` (`fromWebSocket`, one JSON
+message per WebSocket message, reconnecting like `fromSse`). So `serve.stream` decides how frame
+pages connect: publish `wss://show.example.com/stream` and every frame page uses WebSocket, with
+`?source=<id>` on the URL as before. For any other scheme, write a `StreamTransport`,
+`{ protocols: ["nats:"], connect(url, { signal, onConnection }) }`, and compile it into the frame
+page with `vignette bundle show.tsx --out public/vignette --transport ./nats-transport.ts` (or
+`bundle(show, { out, transports })`). Its module exports the transport, or an array of them.
+`connect` must reconnect by itself and start every connection with setup and the latest update;
+`reconnecting(url, open, options)` gives you the loop with backoff and `onConnection`, so a
+transport only implements one connection. React clients pass the same objects as
+`<Stream url transports={[nats]}>`.
 
 **Step 5. Serve the bundle directory** at the URLs you stated in step 3. That's it. Every target
 reads all three locations from the stream and opens
