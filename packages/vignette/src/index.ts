@@ -23,11 +23,14 @@ export {
   type SourceComponentProps,
   type SourceDefinition,
   type SourceDefinitionOf,
+  type SourceAudioProp,
   type SourceIdProp,
+  type SourceMedia,
   type SourcePropsOf,
   type SourcePropsSchemaType,
   type SourceSizeContext,
 } from "./core/define-source.js";
+export { Audio } from "./core/sources/audio.js";
 export { Browser } from "./core/sources/browser.js";
 export { Color } from "./core/sources/color.js";
 export {
@@ -44,6 +47,7 @@ export { Text } from "./core/sources/text.js";
 export { Video } from "./core/sources/video.js";
 
 export * from "./core/snapshot.js";
+export * from "./core/audio.js";
 export * from "./core/assets.js";
 export * from "./core/geometry.js";
 export { isStableId, STABLE_ID_RULE, StableIdSchema, type StableId } from "./core/ids.js";

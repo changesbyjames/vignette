@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+import type { ObsAudioState } from "./audio.js";
 import { ObsRequestError, readObsErrorCode, RESOURCE_NOT_FOUND } from "./errors.js";
 import { parseManagedName } from "./naming.js";
 import type {
+  ObservedObsFilter,
   ObservedObsInput,
   ObservedObsScene,
   ObservedObsSceneItem,
@@ -20,6 +22,12 @@ export const REQUIRED_OBS_REQUESTS: readonly string[] = [
   "GetInputList",
   "GetInputSettings",
   "GetInputMute",
+  "GetInputVolume",
+  "GetInputAudioBalance",
+  "GetInputAudioSyncOffset",
+  "GetInputAudioMonitorType",
+  "GetInputAudioTracks",
+  "GetSourceFilterList",
   "GetSceneItemList",
   "CreateScene",
   "RemoveScene",
@@ -27,6 +35,15 @@ export const REQUIRED_OBS_REQUESTS: readonly string[] = [
   "RemoveInput",
   "SetInputSettings",
   "SetInputMute",
+  "SetInputVolume",
+  "SetInputAudioBalance",
+  "SetInputAudioSyncOffset",
+  "SetInputAudioMonitorType",
+  "SetInputAudioTracks",
+  "CreateSourceFilter",
+  "RemoveSourceFilter",
+  "SetSourceFilterIndex",
+  "SetSourceFilterSettings",
   "CreateSceneItem",
   "RemoveSceneItem",
   "SetSceneItemTransform",
@@ -88,9 +105,44 @@ const InputSettingsSchema = z.object({ inputKind: z.string(), inputSettings: Jso
 /** `GetInputSettings`. */
 type InputSettings = z.output<typeof InputSettingsSchema>;
 
-const InputMuteSchema = z.object({ inputMuted: z.boolean() });
-/** `GetInputMute`. */
-type InputMute = z.output<typeof InputMuteSchema>;
+/**
+ * An input's audio, from the batch `readInput` sends: `GetInputMute`, `GetInputVolume`,
+ * `GetInputAudioBalance`, `GetInputAudioSyncOffset`, `GetInputAudioMonitorType` and
+ * `GetInputAudioTracks`, merged. OBS reports a silent volume's dB as null (minus infinity).
+ */
+const InputAudioSchema = z.object({
+  inputMuted: z.boolean(),
+  inputVolumeDb: z.number().nullable(),
+  inputAudioBalance: z.number(),
+  inputAudioSyncOffset: z.number(),
+  monitorType: z.string(),
+  inputAudioTracks: JsonObjectSchema,
+});
+/** An input's audio, as the observation batch reads it. */
+type InputAudio = z.output<typeof InputAudioSchema>;
+
+/** The audio requests `readInput` sends after `GetInputSettings`, in order. */
+const AUDIO_READS = [
+  "GetInputMute",
+  "GetInputVolume",
+  "GetInputAudioBalance",
+  "GetInputAudioSyncOffset",
+  "GetInputAudioMonitorType",
+  "GetInputAudioTracks",
+] as const;
+
+const FilterListSchema = z.object({
+  filters: z.array(
+    z.object({
+      filterName: z.string(),
+      filterKind: z.string(),
+      filterIndex: z.number(),
+      filterSettings: JsonObjectSchema,
+    }),
+  ),
+});
+/** `GetSourceFilterList`. */
+type FilterList = z.output<typeof FilterListSchema>;
 
 const SceneItemListSchema = z.object({
   sceneItems: z.array(
@@ -161,29 +213,65 @@ export async function bootstrapObsState(
 }
 
 /**
- * Settings and mute state in one batch; inputs without audio fail `GetInputMute`, which is fine.
- * `undefined` when OBS freed the input after listing it.
+ * Settings, audio and filters in one batch; inputs without audio fail the audio requests, which
+ * is fine. `undefined` when OBS freed the input after listing it.
  */
 async function readInput(
   transport: ObsTransport,
   input: InputList["inputs"][number],
 ): Promise<ObservedObsInput | undefined> {
-  const [settingsResponse, muteResponse] = await transport.callBatch([
-    { requestType: "GetInputSettings", requestData: { inputUuid: input.inputUuid } },
-    { requestType: "GetInputMute", requestData: { inputUuid: input.inputUuid } },
+  const byUuid = { inputUuid: input.inputUuid };
+  const [settingsResponse, filterResponse, ...audioResponses] = await transport.callBatch([
+    { requestType: "GetInputSettings", requestData: byUuid },
+    { requestType: "GetSourceFilterList", requestData: { sourceName: input.inputName } },
+    ...AUDIO_READS.map((requestType) => ({ requestType, requestData: byUuid })),
   ]);
   if (settingsResponse?.ok === false && settingsResponse.code === RESOURCE_NOT_FOUND) {
     return undefined;
   }
   const settings: InputSettings = InputSettingsSchema.parse(responseData(settingsResponse));
-  const mute: InputMute | undefined =
-    muteResponse?.ok === true ? InputMuteSchema.parse(muteResponse.responseData ?? {}) : undefined;
+  const filters: FilterList | undefined =
+    filterResponse?.ok === true
+      ? FilterListSchema.safeParse(filterResponse.responseData).data
+      : undefined;
+  const audio = inputAudio(audioResponses);
   return {
     inputName: input.inputName,
     inputUuid: input.inputUuid,
     inputKind: settings.inputKind,
     inputSettings: settings.inputSettings,
-    inputMuted: mute?.inputMuted,
+    audio,
+    filters: filters?.filters.map(observedFilter),
+  };
+}
+
+/** The input's audio when every audio read succeeded; an input without audio fails them. */
+function inputAudio(
+  responses: readonly (ObsBatchResponse | undefined)[],
+): ObsAudioState | undefined {
+  if (responses.length !== AUDIO_READS.length) return undefined;
+  if (!responses.every((response) => response?.ok === true)) return undefined;
+  const merged: Record<string, ObsJsonObject[string]> = {};
+  for (const response of responses) Object.assign(merged, response?.responseData);
+  const result = InputAudioSchema.safeParse(merged);
+  if (!result.success) return undefined;
+  const parsed: InputAudio = result.data;
+  return {
+    muted: parsed.inputMuted,
+    volumeDb: parsed.inputVolumeDb ?? Number.NEGATIVE_INFINITY,
+    balance: parsed.inputAudioBalance,
+    syncOffsetMs: parsed.inputAudioSyncOffset,
+    monitorType: parsed.monitorType,
+    tracks: parsed.inputAudioTracks,
+  };
+}
+
+function observedFilter(filter: FilterList["filters"][number]): ObservedObsFilter {
+  return {
+    filterName: filter.filterName,
+    filterKind: filter.filterKind,
+    filterIndex: filter.filterIndex,
+    filterSettings: filter.filterSettings,
   };
 }
 

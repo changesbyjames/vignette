@@ -12,4 +12,5 @@ export const Browser = defineSource({
     shutdownWhenHidden: z.boolean().default(false),
   }),
   size: (props, { canvas, layer }) => props.viewport ?? layer ?? canvas,
+  media: () => ({ audio: true, video: true }),
 });

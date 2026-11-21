@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { AudioChannelSchema, type AudioChannelInput } from "../core/audio.js";
 import type { Item, Snapshot, Source } from "../core/snapshot.js";
+import { OBS_DEFAULT_AUDIO, type ObsAudioState } from "./audio.js";
 import { bootstrapObsState } from "./bootstrap.js";
 import { executeObsPlan } from "./executor.js";
 import { managedSceneName, managedSourceName, registrySceneName } from "./naming.js";
-import type { ObservedObsSceneItem, ObservedObsState } from "./observed-state.js";
+import type {
+  ObservedObsFilter,
+  ObservedObsSceneItem,
+  ObservedObsState,
+} from "./observed-state.js";
 import { planObsUpdate, type ObsPlannerInput } from "./planner.js";
 import type { ObsHandle } from "./plugin.js";
 import { FakeObs } from "./testing.js";
@@ -79,6 +85,41 @@ function problems(input: Partial<ObsPlannerInput>): string {
   const result = plan(input);
   if (result.ok) throw new Error("Expected planning to fail.");
   return result.problems.join(" ");
+}
+
+/** A channel with defaults filled in. */
+function channel(input: AudioChannelInput) {
+  return AudioChannelSchema.parse(input);
+}
+
+/** The default snapshot with an audio channel on `bg`. */
+function audioSnapshot(input: AudioChannelInput): Snapshot {
+  return snapshot({ sources: [{ ...source("bg"), audio: channel(input) }] });
+}
+
+/** A handle for `bg` whose input plays sound. */
+function audioHandle(): ObsHandle {
+  const { input } = colorHandle();
+  return { input: { ...input, audio: true } };
+}
+
+/** `placedObserved()` with OBS reporting `bg`'s audio and filters. */
+function audioObserved(
+  audio: ObsAudioState = OBS_DEFAULT_AUDIO,
+  filters: readonly ObservedObsFilter[] = [],
+): ObservedObsState {
+  const state = placedObserved();
+  return { ...state, inputs: state.inputs.map((input) => ({ ...input, audio, filters })) };
+}
+
+/** A filter in the show's namespace. */
+function managedFilter(
+  id: string,
+  filterKind: string,
+  filterIndex: number,
+  filterSettings: ObservedObsFilter["filterSettings"],
+): ObservedObsFilter {
+  return { filterName: `vignette/${show}/${id}`, filterKind, filterIndex, filterSettings };
 }
 
 /** The managed scene `main` and input `bg`, with one item of `bg` in `main`. */
@@ -295,19 +336,158 @@ describe("planObsUpdate", () => {
     expect(kinds({ handles: new Map() })).toEqual(["create-scene", "create-scene"]);
   });
 
-  it("converges settings and mute state of an existing input", () => {
-    const state = placedObserved();
+  it("converges settings and each part of an input's audio that differs, once", () => {
+    const desired = audioSnapshot({ volumeDb: -6, monitor: "monitor-and-output", tracks: [1, 2] });
     const handle: ObsHandle = {
       input: {
         kind: "color_source_v3",
         settings: { color: 1, width: 1920, height: 1080 },
-        muted: true,
+        audio: true,
       },
     };
-    expect(kinds({ observed: state, handles: new Map([["bg", handle]]) })).toEqual([
+    const result = plan({ desired, observed: audioObserved(), handles: new Map([["bg", handle]]) });
+    if (!result.ok) throw new Error(result.problems.join(" "));
+    expect(result.plan.operations.map((operation) => operation.kind)).toEqual([
       "set-input-settings",
-      "set-input-mute",
+      "set-input-audio",
+      "set-input-audio",
+      "set-input-audio",
     ]);
+    expect(result.plan.operations.slice(1)).toMatchObject([
+      { change: { field: "volumeDb", value: -6 } },
+      { change: { field: "monitorType", value: "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT" } },
+      {
+        change: {
+          field: "tracks",
+          value: { "1": true, "2": true, "3": false, "4": false, "5": false, "6": false },
+        },
+      },
+    ]);
+
+    // OBS stores volume as a multiplier; a value within the tolerance is converged.
+    const converged = audioObserved({
+      ...OBS_DEFAULT_AUDIO,
+      volumeDb: -6.02,
+      monitorType: "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT",
+      tracks: { "1": true, "2": true, "3": false, "4": false, "5": false, "6": false },
+    });
+    expect(
+      kinds({ desired, observed: converged, handles: new Map([["bg", audioHandle()]]) }),
+    ).toEqual([]);
+  });
+
+  it("adds the show's master volume to every channel and mutes inputs of sources without one", () => {
+    const desired = { ...audioSnapshot({ volumeDb: -6 }), mix: { volumeDb: -3 } };
+    expect(
+      plan({ desired, observed: audioObserved(), handles: new Map([["bg", audioHandle()]]) }),
+    ).toMatchObject({
+      plan: { operations: [{ change: { field: "volumeDb", value: -9 } }] },
+    });
+    // `audio={false}`: the source has no channel, and its input is only muted.
+    expect(
+      plan({ observed: audioObserved(), handles: new Map([["bg", audioHandle()]]) }),
+    ).toMatchObject({ plan: { operations: [{ change: { field: "muted", value: true } }] } });
+    // An input OBS reports no audio for is left alone.
+    expect(
+      kinds({ desired, observed: placedObserved(), handles: new Map([["bg", audioHandle()]]) }),
+    ).toEqual([]);
+  });
+
+  it("converges managed filters in order and never touches an operator's", () => {
+    const operator: ObservedObsFilter = {
+      filterName: "Operator gate",
+      filterKind: "noise_gate_filter",
+      filterIndex: 0,
+      filterSettings: {},
+    };
+    const gain = managedFilter("level", "gain_filter", 1, { db: 0 });
+    const desired = audioSnapshot({
+      filters: [
+        { kind: "compressor", id: "comp" },
+        { kind: "gain", id: "level", db: 3 },
+      ],
+    });
+    const result = plan({
+      desired,
+      observed: audioObserved(OBS_DEFAULT_AUDIO, [
+        operator,
+        gain,
+        managedFilter("old", "eq", 2, {}),
+      ]),
+      handles: new Map([["bg", audioHandle()]]),
+    });
+    if (!result.ok) throw new Error(result.problems.join(" "));
+    expect(
+      result.plan.operations.map((operation) =>
+        "filterName" in operation ? `${operation.kind} ${operation.filterName}` : operation.kind,
+      ),
+    ).toEqual([
+      "remove-filter vignette/show/old",
+      "create-filter vignette/show/comp",
+      "set-filter-settings vignette/show/level",
+      // The new compressor goes after the gain, so the managed filters are restacked first.
+      "set-filter-index vignette/show/comp",
+      "set-filter-index vignette/show/level",
+    ]);
+    expect(result.plan.operations[1]).toMatchObject({
+      filterKind: "compressor_filter",
+      filterSettings: {
+        ratio: 10,
+        threshold: -18,
+        attack_time: 6,
+        release_time: 60,
+        output_gain: 0,
+      },
+    });
+
+    // In order, with the operator's filter first: nothing to do.
+    const ordered = audioObserved(OBS_DEFAULT_AUDIO, [
+      operator,
+      managedFilter("comp", "compressor_filter", 1, {
+        ratio: 10,
+        threshold: -18,
+        attack_time: 6,
+        release_time: 60,
+        output_gain: 0,
+      }),
+      managedFilter("level", "gain_filter", 2, { db: 3 }),
+    ]);
+    expect(
+      kinds({ desired, observed: ordered, handles: new Map([["bg", audioHandle()]]) }),
+    ).toEqual([]);
+    // A filter whose kind changed is replaced.
+    const changed = audioObserved(OBS_DEFAULT_AUDIO, [
+      managedFilter("comp", "limiter_filter", 0, {}),
+      managedFilter("level", "gain_filter", 1, { db: 3 }),
+    ]);
+    expect(
+      kinds({ desired, observed: changed, handles: new Map([["bg", audioHandle()]]) }),
+    ).toEqual(["remove-filter", "create-filter", "set-filter-index", "set-filter-index"]);
+  });
+
+  it("places a pictureless source as an enabled item outside the canvas, unstacked", () => {
+    const desired = snapshot({
+      sources: [source("bg"), { ...source("bed"), audio: channel({}) }],
+      scenes: [{ id: "main", items: [item("main.0", "bg")], audio: ["bed"] }],
+    });
+    const handles = new Map([
+      ["bg", colorHandle()],
+      ["bed", { input: { kind: "browser_source", settings: {}, audio: true } }],
+    ]);
+    const result = plan({ desired, handles });
+    if (!result.ok) throw new Error(result.problems.join(" "));
+    const bed = result.plan.operations.filter((operation) =>
+      "placement" in operation && operation.placement.kind === "created"
+        ? operation.placement.layerId === "audio:bed"
+        : operation.kind === "create-placement" && operation.sourceId === "bed",
+    );
+    expect(bed.map((operation) => operation.kind)).toEqual([
+      "create-placement",
+      "set-transform",
+      "set-enabled",
+    ]);
+    expect(bed[1]).toMatchObject({ transform: { positionX: -2, boundsWidth: 1, boundsHeight: 1 } });
+    expect(result.plan.operations.some((operation) => operation.kind === "set-order")).toBe(false);
   });
 
   it("sets the program scene only when activeScene changed since the last settled snapshot", () => {

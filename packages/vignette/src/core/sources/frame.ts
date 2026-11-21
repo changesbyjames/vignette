@@ -1,7 +1,7 @@
 import { createElement, type ReactElement } from "react";
 import { z } from "zod";
 
-import { defineSource, type SourceIdProp } from "../define-source.js";
+import { defineSource, type SourceAudioProp, type SourceIdProp } from "../define-source.js";
 
 /**
  * The `frame` source kind: a frame page identified by its name, with JSON params. `build` is the
@@ -16,6 +16,7 @@ const FrameSource = defineSource({
     build: z.string().min(1).optional(),
   }),
   size: (_props, { canvas, layer }) => layer ?? canvas,
+  media: () => ({ audio: true, video: true }),
 });
 
 /** Validates a frame's params; satisfied by the schema `frame()` was given. */
@@ -33,7 +34,7 @@ export interface FrameReference<Params> {
 }
 
 /** Props shared by every `<Frame>` placement. */
-export interface FrameBaseProps<Params> extends SourceIdProp {
+export interface FrameBaseProps<Params> extends SourceIdProp, SourceAudioProp {
   readonly of: FrameReference<Params>;
 }
 
@@ -60,6 +61,7 @@ export function Frame<Params>(props: FrameProps<Params>): ReactElement {
   const parsed = props.of.params.parse(props.params ?? {});
   return createElement(FrameSource, {
     id: props.id,
+    audio: props.audio,
     frame: props.of.name,
     // SAFETY: Frame params must be JSON; the `frame` kind's schema rejects anything else with an INVALID_PROPS diagnostic.
     params: parsed as z.input<typeof FrameSource.definition.props>["params"],

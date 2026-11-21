@@ -59,6 +59,24 @@ const boundaryOverrides = [
     },
   },
   {
+    // The browser media layer both browser targets share: Web Audio and delayed pictures.
+    files: [`${src}/web-media/**`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            nodeBuiltins,
+            intoDirectories(
+              ["obs", "dom", "react", "frame", "bundle", "vite", "cli"],
+              "web-media is shared by the browser targets and must not import any target.",
+            ),
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [`${src}/dom/**`, `${src}/react/**`],
     rules: {
       "no-restricted-imports": [

@@ -8,8 +8,12 @@ export interface ObsInput {
   readonly kind: string;
   /** The input's settings; the target converges them with `SetInputSettings`. */
   readonly settings: ObsJsonObject;
-  /** Audio mute state, converged with `SetInputMute`. Omit for inputs without audio. */
-  readonly muted?: boolean;
+  /**
+   * The input plays sound, so the target converges the source's audio channel on it: volume,
+   * mute, balance, sync, monitoring, tracks and managed filters. A source without a channel
+   * (`audio={false}`) has its input muted. Omit for inputs without audio.
+   */
+  readonly audio?: boolean;
 }
 
 /**

@@ -18,7 +18,7 @@ export const videoObs: ObsSourcePlugin<typeof Video> = {
           looping: source.props.loop,
           restart_on_activate: source.props.restartOnShow,
         },
-        muted: source.props.muted,
+        audio: true,
       },
       async event(event) {
         if (event.kind !== "media:restart") return;

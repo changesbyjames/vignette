@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
-import type { SourceDefinition } from "../core/define-source.js";
+import { AudioChannelSchema, MixSchema, type AudioChannel } from "../core/audio.js";
+import { PICTURE_ONLY, type SourceDefinition } from "../core/define-source.js";
 import type { Size } from "../core/geometry.js";
 import { diagnostic, type Diagnostic, type DiagnosticCode } from "../core/diagnostics.js";
 import { isStableId, STABLE_ID_RULE } from "../core/ids.js";
@@ -47,6 +48,8 @@ interface LowerContext {
   readonly canvas: Size;
   readonly definitions: Map<string, SourceDefinition>;
   readonly diagnostics: Diagnostic[];
+  /** IDs of lowered sources without a picture. */
+  readonly pictureless: Set<string>;
 }
 
 /**
@@ -88,7 +91,12 @@ export function lowerShow(container: HostContainer): LoweredShow {
     canvas: { width: canvas.width, height: canvas.height },
     definitions,
     diagnostics,
+    pictureless: new Set(),
   };
+  const mix =
+    root.props.mix === undefined
+      ? undefined
+      : parseInto(MixSchema, root.props.mix, "show.mix", context);
   const sharedSources: Source[] = [];
   const scenes: ShowTreeScene[] = [];
   for (const child of visible(root.children)) {
@@ -102,6 +110,8 @@ export function lowerShow(container: HostContainer): LoweredShow {
     activeScene: root.props.activeScene,
     sharedSources,
     scenes,
+    pictureless: context.pictureless,
+    mix,
   };
   return { tree, definitions, diagnostics };
 }
@@ -253,11 +263,14 @@ function lowerPlacement(
   const definition = node.props.definition;
   const props = sourceProps(node, `${path}.source`, context);
   if (props === undefined || !validSourceId(id, `${path}.source`, context)) return undefined;
+  const audio = sourceAudio(node, id, props, `${path}.source`, context);
+  if (audio === INVALID) return undefined;
   const canvas = context.canvas;
   return {
     id,
     kind: definition.kind,
     props: props.json,
+    audio,
     size: (layer) => definition.size(props.parsed, { canvas, layer }),
   };
 }
@@ -279,9 +292,53 @@ function lowerSharedSource(node: SourceHostNode, context: LowerContext): Source 
   const path = `source.${id}`;
   const props = sourceProps(node, path, context);
   if (props === undefined || !validSourceId(id, path, context)) return undefined;
+  const audio = sourceAudio(node, id, props, path, context);
+  if (audio === INVALID) return undefined;
   const definition = node.props.definition;
   const size = definition.size(props.parsed, { canvas: context.canvas });
-  return { id, kind: definition.kind, props: props.json, size };
+  return {
+    id,
+    kind: definition.kind,
+    props: props.json,
+    size,
+    audio,
+  };
+}
+
+/** A source whose `audio` prop could not be lowered, already reported. */
+const INVALID = Symbol("invalid audio");
+
+/**
+ * The source's audio channel, with defaults filled in, when its kind carries audio and its
+ * `audio` prop is not `false`; records a source without a picture. A channel on a kind without
+ * audio is `AUDIO_UNSUPPORTED`.
+ */
+function sourceAudio(
+  node: SourceHostNode,
+  id: string,
+  props: ParsedSourceProps,
+  path: string,
+  context: LowerContext,
+): AudioChannel | undefined | typeof INVALID {
+  const definition = node.props.definition;
+  const media = definition.media?.(props.parsed) ?? PICTURE_ONLY;
+  if (!media.video) context.pictureless.add(id);
+  const input = node.props.audio;
+  if (input === false) return undefined;
+  if (!media.audio) {
+    if (input === undefined) return undefined;
+    context.diagnostics.push(
+      diagnostic(
+        "AUDIO_UNSUPPORTED",
+        "error",
+        `${path}.audio`,
+        `A ${definition.kind} source has no audio, so it takes no audio channel.`,
+        [id],
+      ),
+    );
+    return INVALID;
+  }
+  return parseInto(AudioChannelSchema, input ?? {}, `${path}.audio`, context) ?? INVALID;
 }
 
 /** A kind's props as its `size` function takes them and as the snapshot carries them. */

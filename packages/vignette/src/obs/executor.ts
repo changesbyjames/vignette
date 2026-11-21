@@ -5,6 +5,7 @@ import { managedSceneName, managedSourceName, registrySceneName } from "./naming
 import {
   OBS_PHASES,
   operationsInPhase,
+  type ObsAudioChange,
   type ObsJsonObject,
   type ObsOperation,
   type ObsPlacementRef,
@@ -61,6 +62,8 @@ export interface ObsExecutionResult {
 /** Phases that never create addresses later operations need, so they can be one batch. */
 const BATCHED_PHASES: ReadonlySet<ObsPlanPhase> = new Set([
   "settings",
+  "audio",
+  "filters",
   "transforms",
   "ordering",
   "enable",
@@ -175,21 +178,84 @@ function operationRequest(
           overlay: false,
         },
       };
-    case "set-input-mute":
-      return {
-        requestType: "SetInputMute",
-        requestData: {
-          inputName: managedSourceName(show, operation.sourceId),
-          inputMuted: operation.muted,
-        },
-      };
+    case "set-input-audio":
+      return audioRequest(managedSourceName(show, operation.sourceId), operation.change);
     case "set-program-scene":
       return {
         requestType: "SetCurrentProgramScene",
         requestData: { sceneName: managedSceneName(show, operation.sceneId) },
       };
     default:
-      return itemRequest(operation, created);
+      return filterRequest(operation, show) ?? itemRequest(operation, created);
+  }
+}
+
+/** The request that sets one part of an input's audio. */
+function audioRequest(inputName: string, change: ObsAudioChange): ObsBatchRequest {
+  switch (change.field) {
+    case "muted":
+      return { requestType: "SetInputMute", requestData: { inputName, inputMuted: change.value } };
+    case "volumeDb":
+      return {
+        requestType: "SetInputVolume",
+        requestData: { inputName, inputVolumeDb: change.value },
+      };
+    case "balance":
+      return {
+        requestType: "SetInputAudioBalance",
+        requestData: { inputName, inputAudioBalance: change.value },
+      };
+    case "syncOffsetMs":
+      return {
+        requestType: "SetInputAudioSyncOffset",
+        requestData: { inputName, inputAudioSyncOffset: change.value },
+      };
+    case "monitorType":
+      return {
+        requestType: "SetInputAudioMonitorType",
+        requestData: { inputName, monitorType: change.value },
+      };
+    case "tracks":
+      return {
+        requestType: "SetInputAudioTracks",
+        requestData: { inputName, inputAudioTracks: change.value },
+      };
+    default:
+      throw new Error(`Unhandled audio change ${JSON.stringify(change)}.`);
+  }
+}
+
+/** Requests about a managed input's filters; undefined for any other operation. */
+function filterRequest(operation: ObsOperation, show: string): ObsBatchRequest | undefined {
+  if (operation.phase !== "filters") return undefined;
+  const target = {
+    sourceName: managedSourceName(show, operation.sourceId),
+    filterName: operation.filterName,
+  };
+  switch (operation.kind) {
+    case "remove-filter":
+      return { requestType: "RemoveSourceFilter", requestData: target };
+    case "create-filter":
+      return {
+        requestType: "CreateSourceFilter",
+        requestData: {
+          ...target,
+          filterKind: operation.filterKind,
+          filterSettings: operation.filterSettings,
+        },
+      };
+    case "set-filter-settings":
+      return {
+        requestType: "SetSourceFilterSettings",
+        requestData: { ...target, filterSettings: operation.filterSettings, overlay: false },
+      };
+    case "set-filter-index":
+      return {
+        requestType: "SetSourceFilterIndex",
+        requestData: { ...target, filterIndex: operation.filterIndex },
+      };
+    default:
+      return undefined;
   }
 }
 

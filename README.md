@@ -134,10 +134,81 @@ Layer props: `style`, `fit` (`cover` | `contain` | `stretch`), `align`, `crop`, 
 | --------- | ------------------------------- | ----------------------------------------------------------------- |
 | `Color`   | solid fill                      | `color="#rrggbb"` or `#rrggbbaa`                                  |
 | `Image`   | image asset                     | `src` is a file in your project                                   |
-| `Video`   | media file                      | `src`, `loop`, `muted`, `restartOnShow`                           |
+| `Video`   | media file                      | `src`, `loop`, `restartOnShow`                                    |
+| `Audio`   | sound file, no picture          | `src`, `loop`, `restartOnShow`; see Audio below                   |
 | `Browser` | web page                        | `url`, `viewport` (default: the layer size), `shutdownWhenHidden` |
 | `Frame`   | a React DOM component as a page | see Frames below                                                  |
 | `Text`    | styled text filling the layer   | `text`, `font` (a font file asset), `style`; see Text below       |
+
+### Audio
+
+Every source that carries sound (`Video`, `Audio`, `Browser`, `Frame`, and kinds such as `Moq`) has
+one **audio channel**, set with its `audio` prop and applied by every target:
+
+```tsx
+<Show id="weekly" canvas={hd} mix={{ volumeDb: -2, limiter: { thresholdDb: -1 } }}>
+  <Audio id="bed" src="./bed.mp3" loop audio={{ volumeDb: -18 }} />
+  <Scene id="main">
+    <Layer>
+      <Use source="bed" />
+    </Layer>
+    <Layer style={{ flex: 1 }}>
+      <Moq
+        url={relay}
+        broadcast="host"
+        size={hd}
+        audio={{
+          volumeDb: -3,
+          balance: 0,
+          syncOffsetMs: -120,
+          filters: [
+            { kind: "noise-gate", id: "gate" },
+            { kind: "compressor", id: "comp", ratio: 4 },
+          ],
+        }}
+      />
+    </Layer>
+  </Scene>
+</Show>
+```
+
+| Field          | Default | Meaning                                                                            |
+| -------------- | ------- | ---------------------------------------------------------------------------------- |
+| `volumeDb`     | `0`     | −100 (silent) to +26; `<Show mix>`'s `volumeDb` is added to every channel          |
+| `muted`        | `false` |                                                                                    |
+| `balance`      | `0`     | −1 (left) to 1 (right)                                                             |
+| `mono`         | `false` | downmix to mono                                                                    |
+| `syncOffsetMs` | `0`     | −950 to 20000; positive delays the sound, negative delays the **picture**          |
+| `monitor`      | `"off"` | `"monitor-only"` or `"monitor-and-output"`: OBS's local monitoring                 |
+| `tracks`       | `[1…6]` | OBS output tracks                                                                  |
+| `filters`      | `[]`    | in order: `gain`, `compressor`, `limiter`, `noise-gate`, `noise-suppression`, `eq` |
+
+`audio={false}` drops a source's sound altogether, so a target need not fetch it. A channel on a
+kind without sound is an `AUDIO_UNSUPPORTED` diagnostic.
+
+**Audio follows placement.** A source is heard only while the shown scene places it with a visible
+layer, in every target; this is how OBS mixes. Sound that runs under every scene is placed in every
+scene, like `bed` above with `<Use>` in each. A source with no picture (`<Audio>`, or
+`<Moq video={false}>`) is placed by a layer like any other, but takes no space in the layout.
+
+Each target applies what its medium can and reports the rest per source in
+`status.audio.unsupported`, never silently:
+
+| Feature                           | OBS                                            | DOM and React (Web Audio)                      |
+| --------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| volume, mute, balance, sync       | per-input requests                             | a strip of nodes per channel                   |
+| negative `syncOffsetMs`           | OBS's own negative offset                      | the picture is held in a delay line            |
+| `mono`                            | unsupported (obs-websocket does not expose it) | ✓                                              |
+| `monitor`, `tracks`               | ✓                                              | unsupported / ignored (a page has one output)  |
+| `gain`, `compressor`, `eq`        | managed filters, named `vignette/<show>/<id>`  | ✓ (`limiter` approximated with a compressor)   |
+| `noise-gate`, `noise-suppression` | managed filters                                | unsupported                                    |
+| `mix.limiter`                     | unsupported (OBS has no master bus)            | ✓                                              |
+| `Browser` and `Frame` sound       | ✓ (`reroute_audio`)                            | unsupported (a page cannot reach iframe sound) |
+
+Filters an operator adds to a managed input in OBS are left alone; the show's own sit before them. A
+browser starts sound only after a user gesture: `status.audio.state` is `blocked` until then, and
+the DOM target's `resume()` (or any pointer or key press on the page) starts it. The DOM target's
+`audioOutput` is the program mix as a `MediaStream`, for recording or publishing.
 
 ### Text
 
@@ -829,6 +900,10 @@ export const Moq = defineSource({
 The composer validates props with the schema, uses `size` for `fit`, and carries kind and props
 through the snapshot. Nothing is registered with the composer; importing the component is enough.
 
+A kind that makes sound, or has no picture, says so with `media`:
+`media: (props) => ({ audio: true, video: props.video })`. A source of a kind with `audio: true`
+gets an audio channel; one with `video: false` is placed in scenes but not laid out.
+
 ### The plugin lifetime
 
 Every target asks a plugin to **create** a handle when a source ID first appears in a snapshot,
@@ -898,6 +973,12 @@ export const moqDom: DomSourcePlugin<typeof Moq> = {
 A handle may also implement `activate()`, called when its element enters the shown scene; the
 built-in video uses it for `restartOnShow`.
 
+A handle whose source makes sound returns `media: { audio, video }`: the element or `MediaStream` it
+plays, and the video or canvas it shows. The target plays `audio` through its mixer, which applies
+the source's channel and unmutes the element once the page may play sound, so the plugin leaves it
+muted; it delays `video` while the channel's `syncOffsetMs` is negative. A React view does the same
+with `useSourceMedia(source.id, { audio, video })`.
+
 ### OBS plugin
 
 An input kind plus settings. `create` may be asynchronous and own whatever it takes to produce them.
@@ -945,8 +1026,9 @@ export const moqObsNative: ObsSourcePlugin<typeof Moq> = {
 ```
 
 A handle without `update` is re-created when its props change: `create` runs again and the old
-handle is disposed, which is what makes the three-line form correct. `input` may also carry `muted`
-for inputs with audio.
+handle is disposed, which is what makes the three-line form correct. `input.audio: true` says the
+input plays sound: the target then converges the source's audio channel on it (volume, mute,
+balance, sync, monitoring, tracks and managed filters), and mutes it for a source without one.
 
 While `create` is pending the target reports the source as `preparing` and the rest of the scene
 converges around it. A rejected `create` is a source-level error in status, not a crash.

@@ -6,7 +6,7 @@ import type { DomSourcePlugin } from "../plugin.js";
 /**
  * `<Video>` as a `<video>` playing the downloaded asset. It keeps playing while its scene is
  * hidden; `restartOnShow` rewinds it each time it enters the shown scene, and a `media:restart`
- * event rewinds it on demand.
+ * event rewinds it on demand. Its sound plays through the target's mixer, which unmutes it.
  */
 export const videoDom: DomSourcePlugin<typeof Video> = {
   kind: "video",
@@ -15,6 +15,7 @@ export const videoDom: DomSourcePlugin<typeof Video> = {
     video.playsInline = true;
     video.autoplay = true;
     video.preload = "auto";
+    video.muted = true;
     let props = source.props;
     await applyVideo(video, props, assets);
     const restart = () => {
@@ -23,6 +24,7 @@ export const videoDom: DomSourcePlugin<typeof Video> = {
     };
     return {
       element: video,
+      media: { audio: video, video },
       async update(next) {
         props = next.props;
         await applyVideo(video, props, assets);
@@ -49,13 +51,12 @@ async function applyVideo(
   assets: PluginAssets,
 ): Promise<void> {
   video.loop = props.loop;
-  video.muted = props.muted;
   const src = await assets.resolve(props.src);
   if (video.src !== src) video.src = src;
 }
 
 /** Autoplay policy may refuse unmuted playback until the page is interacted with. */
-function play(video: HTMLVideoElement): void {
+export function play(video: HTMLMediaElement): void {
   Promise.resolve()
     .then(async () => video.play())
     .catch(() => undefined);

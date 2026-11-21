@@ -1,4 +1,4 @@
-export { domTarget, type DomTargetOptions } from "./target.js";
+export { domTarget, type DomTarget, type DomTargetOptions } from "./target.js";
 export type { DomHandle, DomPluginContext, DomSourcePlugin } from "./plugin.js";
 export { browserDom } from "./sources/browser.js";
 export { colorDom } from "./sources/color.js";
@@ -6,6 +6,10 @@ export { frameDom } from "./sources/frame.js";
 export { imageDom } from "./sources/image.js";
 export { textDom } from "./sources/text.js";
 export { videoDom } from "./sources/video.js";
+export { audioDom } from "./sources/audio.js";
+export type { AudioInput } from "../web-media/mixer.js";
+export type { PictureInput } from "../web-media/delay-line.js";
+export type { SourceMedia } from "../web-media/session.js";
 export { fromSse } from "../stream/sse.js";
 export { connectStream, type StreamTransport } from "../stream/transport.js";
 export { fromWebSocket } from "../stream/websocket.js";

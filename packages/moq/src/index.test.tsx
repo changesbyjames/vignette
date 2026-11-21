@@ -1,4 +1,11 @@
-import { compose, Layer, Scene, Show, type Diagnostic } from "@strangecyan/vignette";
+import {
+  AudioChannelSchema,
+  compose,
+  Layer,
+  Scene,
+  Show,
+  type Diagnostic,
+} from "@strangecyan/vignette";
 import { describe, expect, it } from "vitest";
 
 import { Moq } from "./index.js";
@@ -31,10 +38,10 @@ describe("Moq", () => {
             size,
             latencyMs: 100,
             video: true,
-            audio: true,
             quality: "auto",
             disableWhenHidden: true,
           },
+          audio: AudioChannelSchema.parse({}),
         },
         expect.objectContaining({
           kind: "moq",

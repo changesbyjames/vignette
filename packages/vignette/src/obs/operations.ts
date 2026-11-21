@@ -29,6 +29,8 @@ export type ObsPlanPhase =
   | "inputs"
   | "placements"
   | "settings"
+  | "audio"
+  | "filters"
   | "transforms"
   | "ordering"
   | "enable"
@@ -95,12 +97,88 @@ export interface SetInputSettingsOperation extends ObsOperationBase {
   readonly inputSettings: ObsJsonObject;
 }
 
-/** Converges an input's audio mute state. */
-export interface SetInputMuteOperation extends ObsOperationBase {
-  readonly kind: "set-input-mute";
-  readonly phase: "settings";
+/** Mutes or unmutes an input. */
+export interface ObsMutedChange {
+  readonly field: "muted";
+  readonly value: boolean;
+}
+/** Sets an input's volume in dB. */
+export interface ObsVolumeChange {
+  readonly field: "volumeDb";
+  readonly value: number;
+}
+/** Sets an input's balance, from 0 (left) to 1 (right). */
+export interface ObsBalanceChange {
+  readonly field: "balance";
+  readonly value: number;
+}
+/** Sets an input's audio sync offset in ms. */
+export interface ObsSyncOffsetChange {
+  readonly field: "syncOffsetMs";
+  readonly value: number;
+}
+/** Sets an input's monitoring type, e.g. `OBS_MONITORING_TYPE_NONE`. */
+export interface ObsMonitorTypeChange {
+  readonly field: "monitorType";
+  readonly value: string;
+}
+/** Sets which output tracks an input feeds, by track number. */
+export interface ObsTracksChange {
+  readonly field: "tracks";
+  readonly value: ObsJsonObject;
+}
+
+/** One part of an input's audio, as the obs-websocket request that sets it takes it. */
+export type ObsAudioChange =
+  | ObsMutedChange
+  | ObsVolumeChange
+  | ObsBalanceChange
+  | ObsSyncOffsetChange
+  | ObsMonitorTypeChange
+  | ObsTracksChange;
+
+/** Converges one part of an input's audio. */
+export interface SetInputAudioOperation extends ObsOperationBase {
+  readonly kind: "set-input-audio";
+  readonly phase: "audio";
   readonly sourceId: string;
-  readonly muted: boolean;
+  readonly change: ObsAudioChange;
+}
+
+/** Removes a managed filter from a managed input. */
+export interface RemoveFilterOperation extends ObsOperationBase {
+  readonly kind: "remove-filter";
+  readonly phase: "filters";
+  readonly sourceId: string;
+  readonly filterName: string;
+}
+
+/** Adds a managed filter to a managed input, after its other filters. */
+export interface CreateFilterOperation extends ObsOperationBase {
+  readonly kind: "create-filter";
+  readonly phase: "filters";
+  readonly sourceId: string;
+  readonly filterName: string;
+  readonly filterKind: string;
+  readonly filterSettings: ObsJsonObject;
+}
+
+/** Converges a managed filter's settings. */
+export interface SetFilterSettingsOperation extends ObsOperationBase {
+  readonly kind: "set-filter-settings";
+  readonly phase: "filters";
+  readonly sourceId: string;
+  readonly filterName: string;
+  readonly filterSettings: ObsJsonObject;
+}
+
+/** Moves a managed filter to an index among the input's filters. */
+export interface SetFilterIndexOperation extends ObsOperationBase {
+  readonly kind: "set-filter-index";
+  readonly phase: "filters";
+  readonly sourceId: string;
+  readonly filterName: string;
+  readonly filterIndex: number;
 }
 
 /** Converges scene-item geometry. */
@@ -162,7 +240,11 @@ export type ObsOperation =
   | CreateInputOperation
   | CreatePlacementOperation
   | SetInputSettingsOperation
-  | SetInputMuteOperation
+  | SetInputAudioOperation
+  | RemoveFilterOperation
+  | CreateFilterOperation
+  | SetFilterSettingsOperation
+  | SetFilterIndexOperation
   | SetTransformOperation
   | SetOrderOperation
   | SetEnabledOperation
@@ -184,6 +266,8 @@ export const OBS_PHASES: readonly ObsPlanPhase[] = [
   "inputs",
   "placements",
   "settings",
+  "audio",
+  "filters",
   "transforms",
   "ordering",
   "enable",

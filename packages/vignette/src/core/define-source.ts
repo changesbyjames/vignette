@@ -1,6 +1,7 @@
 import { createElement, type ReactElement } from "react";
 import type { z } from "zod";
 
+import type { AudioChannelInput } from "./audio.js";
 import type { Size } from "./geometry.js";
 
 /** What a kind's `size` function knows when it is asked for a source's content size. */
@@ -13,6 +14,17 @@ export interface SourceSizeContext {
    */
   readonly layer?: Size;
 }
+
+/** What a source of a kind carries: sound, a picture, or both. */
+export interface SourceMedia {
+  /** The source can be heard, so it gets an audio channel unless its `audio` prop is `false`. */
+  readonly audio: boolean;
+  /** The source can be seen. Without a picture it is placed in scenes but never laid out. */
+  readonly video: boolean;
+}
+
+/** What a kind without a `media` function carries: a picture and no sound. */
+export const PICTURE_ONLY: SourceMedia = { audio: false, video: true };
 
 /** Props schema of a source kind: an object schema whose output is JSON. */
 export type SourcePropsSchemaType = z.ZodObject;
@@ -33,6 +45,8 @@ export interface SourceDefinition<Schema extends SourcePropsSchemaType = SourceP
   size(props: z.output<Schema>, context: SourceSizeContext): Size;
   /** Props whose string values are asset names, so the composer can list required assets. */
   readonly assets?: readonly (keyof z.output<Schema>)[];
+  /** What a source carries, from its props. Omitted: a picture and no sound. */
+  media?(props: z.output<Schema>): SourceMedia;
 }
 
 /** Anything that carries a source definition: every `defineSource` component and `Frame`. */
@@ -49,9 +63,20 @@ export interface SourceIdProp {
   readonly id?: string;
 }
 
-/** Props of a source component: the kind's schema input plus an optional `id`. */
+/** Optional audio channel accepted by every source component. */
+export interface SourceAudioProp {
+  /**
+   * The source's audio channel: volume, mute, balance, sync, monitoring, tracks and filters.
+   * `false` drops the source's audio altogether, so targets need not fetch it. Only kinds that
+   * carry audio take a channel.
+   */
+  readonly audio?: AudioChannelInput | false;
+}
+
+/** Props of a source component: the kind's schema input plus an optional `id` and `audio`. */
 export type SourceComponentProps<Schema extends SourcePropsSchemaType> = z.input<Schema> &
-  SourceIdProp;
+  SourceIdProp &
+  SourceAudioProp;
 
 /** A React component for one source kind, with its definition attached. */
 export interface SourceComponent<
@@ -73,6 +98,7 @@ export interface SourceHostProps {
   readonly definition: SourceDefinition;
   readonly props: SourceInput;
   readonly id?: string;
+  readonly audio?: AudioChannelInput | false;
 }
 
 /**
@@ -83,8 +109,8 @@ export function defineSource<Schema extends SourcePropsSchemaType>(
   definition: SourceDefinition<Schema>,
 ): SourceComponent<Schema> {
   function SourceElement(props: SourceComponentProps<Schema>): ReactElement {
-    const { id, ...rest } = props;
-    const elementProps: SourceHostProps = { definition, props: rest, id };
+    const { id, audio, ...rest } = props;
+    const elementProps: SourceHostProps = { definition, props: rest, id, audio };
     return createElement("source", elementProps);
   }
   SourceElement.definition = definition;

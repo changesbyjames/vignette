@@ -37,7 +37,10 @@ export const moqObs: ObsSourcePlugin<typeof Moq> = {
   },
 };
 
-/** The native input; without `update`, changed props re-create it. */
+/**
+ * The native input; without `update`, changed props re-create it. It fetches the audio track
+ * only for a source with an audio channel.
+ */
 function native(source: MoqSource): ObsHandle<typeof Moq> {
   const { props } = source;
   return {
@@ -48,10 +51,11 @@ function native(source: MoqSource): ObsHandle<typeof Moq> {
         broadcast: props.broadcast,
         latency_ms: props.latencyMs,
         video: props.video,
-        audio: props.audio,
+        audio: source.audio !== undefined,
         quality: props.quality,
         disable_when_hidden: props.disableWhenHidden,
       },
+      audio: true,
     },
   };
 }
@@ -94,7 +98,7 @@ function relayInput(props: MoqProps, address: string): ObsInput {
       // `moq` subscribes only while a player is connected, so this stops the download too.
       close_when_inactive: props.disableWhenHidden,
     },
-    muted: !props.audio,
+    audio: true,
   };
 }
 

@@ -1,4 +1,5 @@
 import type { SourceHostProps } from "../core/define-source.js";
+import type { MixInput } from "../core/audio.js";
 import type { Canvas, LayerProps, LayoutStyle } from "../core/snapshot.js";
 
 /** Host element types the show renderer accepts. */
@@ -9,6 +10,8 @@ export interface ShowHostProps {
   readonly id: string;
   readonly canvas: Canvas;
   readonly activeScene?: string;
+  /** The master bus: a volume added to every channel and an optional limiter. */
+  readonly mix?: MixInput;
 }
 
 /** Props of the `scene` host element rendered by `<Scene>`. */

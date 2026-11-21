@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AudioChannelSchema } from "@strangecyan/vignette";
 import type { ObsPluginContext } from "@strangecyan/vignette/obs";
 
 import { moqObs } from "./obs.js";
@@ -14,7 +15,6 @@ const live = {
     size,
     latencyMs: 250,
     video: true,
-    audio: false,
     quality: "hd",
     disableWhenHidden: false,
   },
@@ -34,7 +34,7 @@ function context(inputKinds: readonly string[]): ObsPluginContext {
 }
 
 describe("moqObs", () => {
-  it("creates a moq_source input with the source's settings", async () => {
+  it("creates a moq_source input with the source's settings, fetching audio only with a channel", async () => {
     const handle = await moqObs.create(live, context(["moq_source", "browser_source"]));
     expect(handle.input).toEqual({
       kind: "moq_source",
@@ -47,7 +47,14 @@ describe("moqObs", () => {
         quality: "hd",
         disable_when_hidden: false,
       },
+      audio: true,
     });
+
+    const heard = await moqObs.create(
+      { ...live, audio: AudioChannelSchema.parse({}) },
+      context(["moq_source", "browser_source"]),
+    );
+    expect(heard.input.settings).toMatchObject({ audio: true });
   });
 
   it("relays through the moq CLI when OBS lacks moq_source, and says when it is missing", async () => {

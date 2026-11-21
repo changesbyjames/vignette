@@ -1,0 +1,31 @@
+import type { Audio } from "../../core/sources/audio.js";
+import type { ObsSourcePlugin } from "../plugin.js";
+
+/**
+ * `<Audio>` as an `ffmpeg_source` playing the downloaded asset file. `restartOnShow` restarts it
+ * whenever its scene item becomes active, and a `media:restart` event restarts it on demand.
+ */
+export const audioObs: ObsSourcePlugin<typeof Audio> = {
+  kind: "audio",
+  async create(source, context) {
+    const file = await context.assets.resolve(source.props.src);
+    return {
+      input: {
+        kind: "ffmpeg_source",
+        settings: {
+          is_local_file: true,
+          local_file: file,
+          looping: source.props.loop,
+          restart_on_activate: source.props.restartOnShow,
+        },
+        audio: true,
+      },
+      async event(event) {
+        if (event.kind !== "media:restart") return;
+        await context.request(source.id, "TriggerMediaInputAction", {
+          mediaAction: "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+        });
+      },
+    };
+  },
+};

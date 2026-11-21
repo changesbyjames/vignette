@@ -39,6 +39,19 @@ export interface TargetConnection {
   readonly error?: Error;
 }
 
+/**
+ * A target's sound: whether it plays (`blocked` while a browser waits for a user gesture before
+ * it may, `unavailable` where the medium has no audio), and what of the snapshot's audio it
+ * cannot apply.
+ */
+export interface TargetAudio {
+  readonly state: "running" | "blocked" | "unavailable";
+  /** Per source ID, the channel fields and filter IDs this target cannot apply. */
+  readonly unsupported: Readonly<Record<string, readonly string[]>>;
+  /** The master bus settings this target cannot apply. */
+  readonly mix: readonly string[];
+}
+
 /** Lifetime state of one source's plugin handle. */
 export type SourceStatus = "preparing" | "live" | "error";
 
@@ -57,4 +70,6 @@ export interface TargetStatus {
   readonly error?: Error;
   /** The connection, for targets whose medium reports one. */
   readonly connection?: TargetConnection;
+  /** The audio, for targets whose medium plays it. */
+  readonly audio?: TargetAudio;
 }

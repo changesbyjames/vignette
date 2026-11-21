@@ -13,6 +13,7 @@ export { frameObs } from "./sources/frame.js";
 export { imageObs } from "./sources/image.js";
 export { textObs } from "./sources/text.js";
 export { videoObs } from "./sources/video.js";
+export { audioObs } from "./sources/audio.js";
 export { fromSse } from "../stream/sse.js";
 export { connectStream, type StreamTransport } from "../stream/transport.js";
 export { fromWebSocket } from "../stream/websocket.js";

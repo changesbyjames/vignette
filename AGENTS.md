@@ -43,6 +43,8 @@ either. Environment separation is enforced per directory of `packages/vignette/s
   `bundle`, `vite` or `cli`.
 - `obs` (the OBS target) may not import `dom` or `react`.
 - `dom` and `react` (browser targets) may not import `obs` or Node built-ins.
+- `web-media` (the Web Audio mixer and picture delay line both browser targets share) may not import
+  any target, client or tooling directory, or Node built-ins.
 - `frame`, `bundle`, `vite` and `cli` sit on top and may import the directories they need.
   `@strangecyan/vignette/frame` exports only `frame()`, because shows import it in Node;
   `mountFrames` lives in `@strangecyan/vignette/frame/mount` and is imported only by the generated

@@ -24,7 +24,13 @@ import {
   type RouteParams,
 } from "./kernel-machine.js";
 import { frameUrl, type PluginContextBase, type SourcePluginBase } from "./plugins.js";
-import type { SourceStatus, TargetConnection, TargetPhase, TargetStatus } from "./status.js";
+import type {
+  SourceStatus,
+  TargetAudio,
+  TargetConnection,
+  TargetPhase,
+  TargetStatus,
+} from "./status.js";
 
 /**
  * The contract every target has, built in or custom. A target consumes a stream, converges its
@@ -95,6 +101,12 @@ export interface CreateTargetOptions<
    * Returns a function that stops reporting, called on dispose.
    */
   connection?(report: (connection: TargetConnection) => void): () => void;
+  /**
+   * For media that play sound: called once at creation with a `report` function the medium calls
+   * whenever its audio state changes; the result shows as `status.audio`. Returns a function that
+   * stops reporting, called on dispose.
+   */
+  audio?(report: (audio: TargetAudio) => void): () => void;
   /** Extends the base plugin context with medium-specific members. */
   context?(base: PluginContextBase): Context;
   /**
@@ -235,6 +247,11 @@ export function createTarget<
           sendBack({ type: "connection", connection });
         }),
       ),
+      audio: fromCallback(({ sendBack }) =>
+        options.audio?.((audio) => {
+          sendBack({ type: "audio", audio });
+        }),
+      ),
     },
     actions: {
       disposeHandles: (_, handles) => {
@@ -347,6 +364,7 @@ function statusOf<Handle extends TargetHandle>(snapshot: KernelSnapshot<Handle>)
     sourceErrors,
     error: context.error,
     connection: context.connection,
+    audio: context.audio,
   };
 }
 
@@ -372,6 +390,7 @@ function sameStatus(left: TargetStatus, right: TargetStatus): boolean {
     left.assets === right.assets &&
     left.error === right.error &&
     left.connection === right.connection &&
+    left.audio === right.audio &&
     JSON.stringify(left.sources) === JSON.stringify(right.sources)
   );
 }
