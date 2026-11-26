@@ -24,6 +24,7 @@ import { subscribeToObsEvents } from "./events.js";
 import { executeObsPlan } from "./executor.js";
 import { obsMachine, type ObsDesired, type ObsMachineContext, type ObsOutcome } from "./machine.js";
 import { managedSourceName } from "./naming.js";
+import { needsCropToBounds } from "./planner.js";
 import type { ObsHandle, ObsPluginContext, ObsSourcePlugin } from "./plugin.js";
 import { freePort } from "./port.js";
 import { browserObs } from "./sources/browser.js";
@@ -162,6 +163,7 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
     ...(options.sources ?? []),
   ];
   const reloads = reloadPagesWhenConverged(actor, transport);
+  const stopCoverNote = noteCoverWithoutCropToBounds(actor);
   const dir = options.dir ?? defaultObsDirectory();
   let reportAudio: ((audio: TargetAudio) => void) | undefined = undefined;
   let lastAudio = "";
@@ -225,6 +227,7 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
     },
     async dispose() {
       reloads.stop();
+      stopCoverNote();
       actor.stop();
       await transport.disconnect().catch(() => undefined);
     },
@@ -314,6 +317,30 @@ function reloadPagesWhenConverged(actor: ObsActor, transport: ObsTransport): Pag
     stop() {
       subscription.unsubscribe();
     },
+  };
+}
+
+/**
+ * Warns once, the first time an observed OBS takes no `cropToBounds` (obs-websocket before 5.5.0,
+ * bundled with OBS Studio before 30.2) while the show has a whole-source `fit="cover"`. The
+ * planner then draws such layers with a crop computed from the declared source size, as before
+ * 3.1, which is wrong for a picture of another size; returns the unsubscribe.
+ */
+function noteCoverWithoutCropToBounds(actor: ObsActor): () => void {
+  let noted = false;
+  const subscription = actor.subscribe((snapshot) => {
+    // Nothing to say until OBS is observed and a snapshot is desired; never twice; never for an
+    // OBS that crops to bounds or a show without a whole-source cover.
+    const { observed, desired } = snapshot.context;
+    if (noted || observed === undefined || observed.cropToBounds === true) return;
+    if (desired === undefined || !needsCropToBounds(desired.snapshot)) return;
+    noted = true;
+    console.warn(
+      'vignette: this OBS is older than 30.2 (obs-websocket 5.5.0) and cannot crop a scene item to its bounds, so fit="cover" layers are cropped by each source\'s declared size, and a source whose real picture size differs from it is drawn wrongly. Update OBS to 30.2 or later.',
+    );
+  });
+  return () => {
+    subscription.unsubscribe();
   };
 }
 

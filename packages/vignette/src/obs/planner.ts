@@ -1,5 +1,5 @@
 import { DEFAULT_MIX, type Mix } from "../core/audio.js";
-import { intersectRects, type Size } from "../core/geometry.js";
+import { intersectRects, type ContentAlignment, type Size } from "../core/geometry.js";
 import {
   desiredObsAudio,
   OBS_DEFAULT_AUDIO,
@@ -610,7 +610,7 @@ function planItemProperties(
   observed: ObservedObsSceneItem | undefined,
 ): void {
   const { item, placement, dependsOn } = entry;
-  const transform = toObsTransform(item, sourceSize);
+  const transform = toObsTransform(item, sourceSize, planning.input.observed.cropToBounds === true);
   if (observed === undefined || !objectContains(observed.sceneItemTransform ?? {}, transform)) {
     planning.operations.push({
       kind: "set-transform",
@@ -781,10 +781,82 @@ function pruneItems(
 }
 
 /**
- * Converts compiled placement and clipping into OBS stretch bounds and source-pixel crop. A clip
- * (the canvas cutting the frame) shrinks the bounds and adds the cut part to the crop.
+ * The item's OBS transform. A whole-source `cover` or `contain` that OBS can fit by itself uses
+ * its bounds (`nativeFitTransform`), which need no source size; everything else uses stretch
+ * bounds and source-pixel crop (`pixelTransform`). Where OBS takes `cropToBounds`, every
+ * transform but `cover` sets it off, which items OBS never cropped already report.
  */
-function toObsTransform(item: Item, sourceSize: Size): ObsSceneItemTransform {
+function toObsTransform(
+  item: Item,
+  sourceSize: Size,
+  cropToBounds: boolean,
+): ObsSceneItemTransform {
+  const native = nativeFitTransform(item, cropToBounds);
+  if (native !== undefined) return native;
+  const transform = pixelTransform(item, sourceSize);
+  return cropToBounds ? { ...transform, cropToBounds: false } : transform;
+}
+
+/** OBS bounds types that fit a source by its real size, by fit. */
+const NATIVE_BOUNDS = { cover: "OBS_BOUNDS_SCALE_OUTER", contain: "OBS_BOUNDS_SCALE_INNER" };
+
+/**
+ * Lets OBS fit the whole source into the frame at whatever size its picture really is: `cover`
+ * as scale-outer bounds cropped to the bounds, `contain` as scale-inner bounds, aligned by the
+ * layer's `align`. For a source of its declared size the picture is the pixel path's, to within
+ * a pixel of rounding, and it stays right when the real size differs or changes. Undefined, for the pixel path, when:
+ *
+ * - the placement is not a whole-source fit (a `crop`, or a snapshot from before 3.1), or is
+ *   `stretch`, which the pixel path already draws without the source size;
+ * - the canvas clips the frame: the cut would have to be added to the crop in source pixels;
+ * - `cover`, and OBS takes no `cropToBounds` (obs-websocket before 5.5.0), so it would overflow;
+ * - `contain` with a rotation: OBS rotates the bounds about their corner, while the pixel path
+ *   rotates the fitted picture about its own, so the picture would land elsewhere.
+ */
+function nativeFitTransform(item: Item, cropToBounds: boolean): ObsSceneItemTransform | undefined {
+  const { fit, alignment } = item.placement;
+  if ((fit !== "cover" && fit !== "contain") || item.clip !== undefined) return undefined;
+  if (fit === "cover" ? !cropToBounds : item.rotation !== 0) return undefined;
+  const transform: ObsSceneItemTransform = {
+    positionX: item.frame.x,
+    positionY: item.frame.y,
+    rotation: item.rotation,
+    alignment: 5,
+    boundsType: NATIVE_BOUNDS[fit],
+    boundsAlignment: obsAlignment(alignment),
+    boundsWidth: item.frame.width,
+    boundsHeight: item.frame.height,
+    cropTop: 0,
+    cropRight: 0,
+    cropBottom: 0,
+    cropLeft: 0,
+  };
+  return cropToBounds ? { ...transform, cropToBounds: fit === "cover" } : transform;
+}
+
+/** OBS alignment flags: center is 0, then left 1, right 2, top 4, bottom 8. */
+function obsAlignment(alignment: ContentAlignment): number {
+  const horizontal = { left: 1, center: 0, right: 2 }[alignment.horizontal];
+  const vertical = { top: 4, center: 0, bottom: 8 }[alignment.vertical];
+  return horizontal | vertical;
+}
+
+/**
+ * Whether the snapshot places a whole-source `cover` that only `cropToBounds` lets OBS fit by
+ * itself, so an OBS without it draws that item from the declared source size.
+ */
+export function needsCropToBounds(snapshot: Snapshot): boolean {
+  return snapshot.scenes.some((scene) =>
+    scene.items.some((item) => item.placement.fit === "cover" && item.clip === undefined),
+  );
+}
+
+/**
+ * Converts compiled placement and clipping into OBS stretch bounds and source-pixel crop. A clip
+ * (the canvas cutting the frame) shrinks the bounds and adds the cut part to the crop. The crop
+ * is in pixels of the declared source size, so a picture of another size is drawn wrongly.
+ */
+function pixelTransform(item: Item, sourceSize: Size): ObsSceneItemTransform {
   const { destination, sourceCrop } = item.placement;
   const visible =
     item.clip === undefined ? destination : (intersectRects(destination, item.clip) ?? destination);

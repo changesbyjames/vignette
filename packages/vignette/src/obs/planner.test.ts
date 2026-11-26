@@ -176,6 +176,47 @@ function sceneItem(
   };
 }
 
+/**
+ * A camera declared 1920x1080 covering a 960x1080 slot: the compiled placement crops 480 declared
+ * pixels from each side. `fit` marks it as a whole-source fit unless `cropped`.
+ */
+function coverItem(
+  id: string,
+  overrides: Partial<Item> = {},
+  fit: "cover" | "contain" = "cover",
+): Item {
+  const frame = { x: 960, y: 0, width: 960, height: 1080 };
+  return item(id, "bg", {
+    frame,
+    placement: {
+      destination: fit === "cover" ? frame : { x: 960, y: 270, width: 960, height: 540 },
+      sourceCrop:
+        fit === "cover"
+          ? { top: 0, right: 480, bottom: 0, left: 480 }
+          : { top: 0, right: 0, bottom: 0, left: 0 },
+      alignment: { horizontal: "center", vertical: "center" },
+      fit,
+    },
+    ...overrides,
+  });
+}
+
+/** The transform the plan sets on the one item of `desired`. */
+function plannedTransform(
+  desired: Snapshot,
+  state: ObservedObsState = observed({ cropToBounds: true }),
+) {
+  const result = plan({ desired, observed: state });
+  if (!result.ok) throw new Error(result.problems.join(" "));
+  const operation = result.plan.operations.find((candidate) => candidate.kind === "set-transform");
+  return operation?.kind === "set-transform" ? operation.transform : undefined;
+}
+
+/** One scene `main` placing `items`. */
+function placing(...items: Item[]): Snapshot {
+  return snapshot({ scenes: [{ id: "main", items }] });
+}
+
 describe("planObsUpdate", () => {
   it("builds resources in dependency order and enables placements last", () => {
     expect(kinds({})).toEqual([
@@ -254,6 +295,107 @@ describe("planObsUpdate", () => {
         cropBottom: 12.5,
       },
     });
+  });
+
+  it("lets OBS fit a whole-source cover or contain itself, so the declared size does not matter", () => {
+    expect(plannedTransform(placing(coverItem("main.0")))).toEqual({
+      positionX: 960,
+      positionY: 0,
+      rotation: 0,
+      alignment: 5,
+      boundsType: "OBS_BOUNDS_SCALE_OUTER",
+      boundsAlignment: 0,
+      boundsWidth: 960,
+      boundsHeight: 1080,
+      cropTop: 0,
+      cropRight: 0,
+      cropBottom: 0,
+      cropLeft: 0,
+      cropToBounds: true,
+    });
+    // A rotated cover keeps its frame and pivot, so OBS bounds rotate the same way.
+    expect(plannedTransform(placing(coverItem("main.0", { rotation: 15 })))).toMatchObject({
+      rotation: 15,
+      boundsType: "OBS_BOUNDS_SCALE_OUTER",
+      cropToBounds: true,
+    });
+    const contain = coverItem("main.0", {}, "contain");
+    const aligned = {
+      ...contain,
+      placement: { ...contain.placement, alignment: { horizontal: "right", vertical: "top" } },
+    } satisfies Item;
+    expect(plannedTransform(placing(aligned))).toMatchObject({
+      positionX: 960,
+      positionY: 0,
+      boundsType: "OBS_BOUNDS_SCALE_INNER",
+      boundsAlignment: 6,
+      boundsWidth: 960,
+      boundsHeight: 1080,
+      cropLeft: 0,
+      cropToBounds: false,
+    });
+  });
+
+  it("keeps the declared-size pixel path where OBS bounds would not be exactly right", () => {
+    const pixel = { boundsType: "OBS_BOUNDS_STRETCH", cropLeft: 480, cropRight: 480 };
+    // An OBS without cropToBounds (obs-websocket before 5.5.0) would overflow a scale-outer fit.
+    const old = plannedTransform(placing(coverItem("main.0")), observed());
+    expect(old).toMatchObject(pixel);
+    expect(old).not.toHaveProperty("cropToBounds");
+    // Clipped by the canvas: the cut is added to the crop, in declared source pixels.
+    const clip = { x: 960, y: 0, width: 900, height: 1080 };
+    expect(plannedTransform(placing(coverItem("main.0", { clip })))).toMatchObject({
+      boundsType: "OBS_BOUNDS_STRETCH",
+      boundsWidth: 900,
+      cropToBounds: false,
+    });
+    // An author's crop: the placement is not a whole-source fit.
+    const cropped = coverItem("main.0");
+    const { fit: _fit, ...manual } = cropped.placement;
+    expect(plannedTransform(placing({ ...cropped, placement: manual }))).toMatchObject({
+      ...pixel,
+      cropToBounds: false,
+    });
+    // A rotated contain pivots about its fitted picture's corner, not the frame's.
+    expect(
+      plannedTransform(placing(coverItem("main.0", { rotation: 15 }, "contain"))),
+    ).toMatchObject({ boundsType: "OBS_BOUNDS_STRETCH", positionY: 270, boundsHeight: 540 });
+  });
+
+  it("converges native fits once, including items an older OBS or release placed by pixels", async () => {
+    const obs = new FakeObs();
+    obs.obsWebSocketVersion = "5.4.2";
+    await obs.connect({ url: "ws://fake" });
+    const desired = snapshot({
+      sources: [source("bg"), source("logo", { width: 400, height: 200 })],
+      scenes: [
+        { id: "main", items: [coverItem("main.0"), item("main.1", "logo")] },
+        { id: "side", items: [coverItem("side.0", {}, "contain")] },
+      ],
+    });
+    const handles = new Map([
+      ["bg", colorHandle()],
+      ["logo", colorHandle(4_278_255_360)],
+    ]);
+    const converge = async () => {
+      const result = planObsUpdate({
+        desired,
+        observed: await bootstrapObsState(obs, show),
+        handles,
+      });
+      if (!result.ok) throw new Error(result.problems.join(" "));
+      await executeObsPlan(obs, result.plan, () => true);
+      return result.plan.operations.filter((operation) => operation.kind === "set-transform");
+    };
+    expect(await converge()).toHaveLength(3);
+    expect(await converge()).toHaveLength(0);
+
+    // OBS upgraded: it reports cropToBounds off on every item, so only the cover changes.
+    obs.obsWebSocketVersion = "5.5.0";
+    expect((await converge()).map((operation) => operation.key)).toEqual([
+      "placement:transform:main:main.0",
+    ]);
+    expect(await converge()).toHaveLength(0);
   });
 
   it("removes stale items and scenes before the inputs they place, and never foreign ones", () => {

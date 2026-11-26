@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { AudioChannelSchema } from "../core/audio.js";
@@ -231,6 +231,47 @@ describe("obsTarget", () => {
     await until(target, (status) => status.connection?.phase === "retry-wait");
     expect(target.status.connection?.error?.message).toBe("The OBS connection closed (code 1006).");
     await target.dispose();
+  });
+
+  it("lets OBS fit a cover itself, and says once when this OBS cannot", async () => {
+    const cover = (id: string): Item => {
+      const placed = item(id, "chat", 0);
+      return { ...placed, placement: { ...placed.placement, fit: "cover" } };
+    };
+    const covered: Partial<Snapshot> = {
+      sources: [chat],
+      scenes: [{ id: "main", items: [cover("main.1")] }],
+    };
+    const transformOf = (obs: FakeObs) =>
+      obs.scenes.find((scene) => scene.sceneName === "vignette/show/main")?.items[0]
+        ?.sceneItemTransform;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const current = harness();
+      current.target.apply(setup());
+      current.target.apply(update(1, covered));
+      await until(current.target, converged(1));
+      expect(transformOf(current.obs)).toMatchObject({
+        boundsType: "OBS_BOUNDS_SCALE_OUTER",
+        cropToBounds: true,
+      });
+      expect(warn).not.toHaveBeenCalled();
+      await current.target.dispose();
+
+      const old = harness();
+      old.obs.obsWebSocketVersion = "5.4.2";
+      old.target.apply(setup());
+      old.target.apply(update(1, covered));
+      await until(old.target, converged(1));
+      old.target.apply(update(2, covered));
+      await until(old.target, converged(2));
+      expect(transformOf(old.obs)).toMatchObject({ boundsType: "OBS_BOUNDS_STRETCH" });
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain("cannot crop a scene item to its bounds");
+      await old.target.dispose();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("prunes scenes, items and inputs the snapshot no longer has", async () => {

@@ -77,7 +77,10 @@ const TransformSchema = z
 /** The transform fields convergence compares. */
 type Transform = z.output<typeof TransformSchema>;
 
-const VersionSchema = z.object({ availableRequests: z.array(z.string()) });
+const VersionSchema = z.object({
+  availableRequests: z.array(z.string()),
+  obsWebSocketVersion: z.string().optional(),
+});
 /** The part of `GetVersion` convergence reads. */
 type Version = z.output<typeof VersionSchema>;
 
@@ -204,12 +207,22 @@ export async function bootstrapObsState(
     show,
     inputKinds: kinds.inputKinds,
     missingRequests: REQUIRED_OBS_REQUESTS.filter((request) => !available.has(request)),
+    cropToBounds: takesCropToBounds(version.obsWebSocketVersion),
     programSceneName: program.currentProgramSceneName,
     scenes,
     // An input OBS freed after listing it is absent, as the next observation will show.
     inputs: inputs.filter((input) => input !== undefined),
     sceneItems: itemLists.flat(),
   };
+}
+
+/** Whether an obs-websocket version takes `cropToBounds` in scene item transforms (5.5.0+). */
+export function takesCropToBounds(version: string | undefined): boolean {
+  const match = /^(\d+)\.(\d+)/.exec(version ?? "");
+  if (match === null) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 5 || (major === 5 && minor >= 5);
 }
 
 /**

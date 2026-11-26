@@ -202,9 +202,23 @@ export const SourceSchema = z
 /** One source instance. */
 export type Source = z.output<typeof SourceSchema>;
 
-/** Fitted destination, source crop and alignment of one item's content. */
+/**
+ * Fitted destination, source crop and alignment of one item's content. `destination` and
+ * `sourceCrop` are computed from the source's declared `size`.
+ *
+ * `fit` is set when the content is the whole source (the layer sets no `crop`) fitted into the
+ * item's `frame` with `alignment`. A target that can fit a source at its real picture size (OBS
+ * bounds) may use it instead of `destination` and `sourceCrop`, so a picture whose size differs
+ * from the declared one is still drawn right. It is optional so that older targets, which drop
+ * it, keep reading `destination` and `sourceCrop`; snapshots from before 3.1 never carry it.
+ */
 export const ContentPlacementSchema = z
-  .object({ destination: RectSchema, sourceCrop: InsetsSchema, alignment: ContentAlignmentSchema })
+  .object({
+    destination: RectSchema,
+    sourceCrop: InsetsSchema,
+    alignment: ContentAlignmentSchema,
+    fit: FitSchema.optional(),
+  })
   .readonly();
 /** Fitted destination, source crop and alignment of one item's content. */
 export type ContentPlacement = z.output<typeof ContentPlacementSchema>;
