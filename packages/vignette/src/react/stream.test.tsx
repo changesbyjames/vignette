@@ -5,6 +5,9 @@ import { act, Component, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useState } from "react";
+
+import { AudioChannelSchema } from "../core/audio.js";
 import type { Item, Snapshot, Source } from "../core/snapshot.js";
 import type { Color } from "../core/sources/color.js";
 import { createAsyncQueue, type AsyncQueue } from "../stream/async-queue.js";
@@ -12,6 +15,7 @@ import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.
 import { encodeStreamMessageSse } from "../stream/sse-codec.js";
 import type { TargetStatus } from "../target/status.js";
 import { useStreamEvents, useStreamStatus } from "./hooks.js";
+import { useSourceMedia } from "./media.js";
 import type { ReactSourcePlugin } from "./plugin.js";
 import { Stage } from "./stage.js";
 import { Stream, type StreamProps } from "./stream.js";
@@ -146,6 +150,36 @@ function stubSse(): (message: StreamMessage) => void {
 
 function layer(container: HTMLElement, id: string): HTMLElement | null {
   return container.querySelector<HTMLElement>(`[data-vignette-layer="${id}"]`);
+}
+
+/** A sound with no picture of its own, played by an `<audio>` through the stream's mixer. */
+const ToneView: ReactSourcePlugin = {
+  kind: "tone",
+  View: function Tone({ source }) {
+    const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+    useSourceMedia(source.id, { audio });
+    return <audio ref={setAudio} muted />;
+  },
+};
+
+/** `voice` placed in `main` at -6 dB, and `bed` heard in `main` without a picture. */
+function soundUpdate(revision: number, activeScene: string): StreamMessage {
+  const tone = { kind: "tone", props: {}, size: { width: 640, height: 360 } };
+  const snapshot: Snapshot = {
+    revision,
+    id: "show",
+    canvas: { width: 1920, height: 1080 },
+    activeScene,
+    sources: [
+      { id: "voice", ...tone, audio: AudioChannelSchema.parse({ volumeDb: -6 }) },
+      { id: "bed", ...tone, audio: AudioChannelSchema.parse({}) },
+    ],
+    scenes: [
+      { id: "main", items: [item("voice", "voice", 0)], audio: ["bed"] },
+      { id: "side", items: [] },
+    ],
+  };
+  return { kind: "update", snapshot };
 }
 
 interface BoundaryProps {
@@ -321,6 +355,28 @@ describe("<Stream> and <Stage>", () => {
     queue.push({ kind: "event", event: { kind: "media:restart", sourceId: "intro" } });
     await settle();
     expect(received).toEqual([{ kind: "media:restart", sourceId: "intro" }]);
+  });
+
+  it("hears a source while a stage shows it, and renders a pictureless one once, hidden", async () => {
+    // jsdom has no Web Audio, so each element plays by itself: the mixer's fallback.
+    const [container, queue] = stream({ sources: [ToneView] }, <Stage />);
+    queue.push(setup());
+    queue.push(soundUpdate(1, "main"));
+    await settle();
+    const voice = container.querySelector<HTMLAudioElement>("[data-vignette-layer='voice'] audio");
+    const beds = container.querySelectorAll<HTMLAudioElement>(
+      "[data-vignette-pictureless-host] audio",
+    );
+    expect(voice?.muted).toBe(false);
+    expect(voice?.volume).toBeCloseTo(0.5, 2);
+    expect(beds).toHaveLength(1);
+    expect(beds[0]?.muted).toBe(false);
+
+    queue.push(soundUpdate(2, "side"));
+    await settle();
+    expect(voice?.muted).toBe(true);
+    expect(beds[0]?.muted).toBe(true);
+    expect(lastStatus()?.audio?.state).toBe("unavailable");
   });
 
   it("throws a clear error without a QueryClientProvider", () => {

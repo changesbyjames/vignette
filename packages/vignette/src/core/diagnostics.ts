@@ -21,7 +21,8 @@ export type DiagnosticCode =
   | "UNKNOWN_ACTIVE_SCENE"
   | "LAYER_HAS_BOTH"
   | "INVALID_TREE"
-  | "SHOW_IDENTITY_CHANGED";
+  | "SHOW_IDENTITY_CHANGED"
+  | "AUDIO_UNSUPPORTED";
 
 /** Deterministic authoring or compilation problem, reported in composer status. */
 export interface Diagnostic {

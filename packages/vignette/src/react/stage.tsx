@@ -10,6 +10,7 @@ import {
 import type { Canvas, Item, SnapshotScene } from "../core/snapshot.js";
 import { AppearanceContext, useStreamContext } from "./context.js";
 import { useScene, useSnapshot } from "./hooks.js";
+import { useHeard } from "./media.js";
 import { canvasStyle, contentStyle, fitScale, itemStyle } from "./placement.js";
 import { SourceView } from "./sources.js";
 
@@ -97,6 +98,9 @@ function SceneBox({ scene, shown }: SceneBoxProps): ReactNode {
         {scene.items.map((item, order) => (
           <ItemBox key={item.id} item={item} order={order} shown={shown} />
         ))}
+        {(scene.audio ?? []).map((id) => (
+          <Heard key={id} sourceId={id} heard={shown} />
+        ))}
       </AppearanceContext>
     </div>
   );
@@ -119,6 +123,18 @@ function useAppearances(shown: boolean): number {
   return next.count;
 }
 
+/** Props of {@link Heard}. */
+interface HeardProps {
+  readonly sourceId: string;
+  readonly heard: boolean;
+}
+
+/** A pictureless source of a scene: heard while its scene is shown. `<Stream>` renders it. */
+function Heard({ sourceId, heard }: HeardProps): ReactNode {
+  useHeard(sourceId, heard);
+  return null;
+}
+
 /** Props of {@link ItemBox}. */
 interface ItemBoxProps {
   readonly item: Item;
@@ -133,6 +149,7 @@ interface ItemBoxProps {
 function ItemBox({ item, order, shown }: ItemBoxProps): ReactNode {
   const { shared, sources } = useStreamContext();
   const source = sources.get(item.sourceId);
+  useHeard(item.sourceId, shown && item.visible);
   return (
     <div data-vignette-layer={item.id} style={itemStyle(item, order)}>
       {shared.has(item.sourceId) ? (

@@ -1,7 +1,9 @@
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
+import { AudioChannelSchema } from "../core/audio.js";
 import { isGroupNode, type LayoutNode, type ShowTree } from "../core/show-tree.js";
+import { Audio } from "../core/sources/audio.js";
 import { Browser } from "../core/sources/browser.js";
 import { Color } from "../core/sources/color.js";
 import { Layer, Scene, Show, Use } from "./elements.js";
@@ -119,9 +121,75 @@ describe("lowerShow", () => {
         kind: "browser",
         props: { url: "https://example.com/chat", shutdownWhenHidden: false },
         size: canvas,
+        // A page carries sound, so it has a channel with every default.
+        audio: AudioChannelSchema.parse({}),
       },
     ]);
     expect(layers(tree)[0]).toMatchObject({ id: "main.0", source: { ref: "chat" } });
+  });
+
+  it("gives sources that carry sound a channel, and records those without a picture", () => {
+    const { tree, diagnostics } = lower(
+      <Show id="weekly" canvas={canvas} mix={{ volumeDb: -3 }}>
+        <Audio
+          id="bed"
+          src="bed.mp3"
+          audio={{ volumeDb: -12, filters: [{ kind: "eq", id: "eq" }] }}
+        />
+        <Scene id="main">
+          <Layer>
+            <Browser url="https://example.com" audio={false} />
+          </Layer>
+          <Layer>
+            <Color color="#000000" />
+          </Layer>
+        </Scene>
+      </Show>,
+    );
+
+    expect(diagnostics).toEqual([]);
+    expect(tree?.mix).toEqual({ volumeDb: -3 });
+    expect(tree?.sharedSources[0]?.audio).toMatchObject({
+      volumeDb: -12,
+      muted: false,
+      tracks: [1, 2, 3, 4, 5, 6],
+      filters: [{ kind: "eq", id: "eq", lowDb: 0, midDb: 0, highDb: 0 }],
+    });
+    // `audio={false}` drops the channel; a colour has none to drop.
+    expect(
+      layers(tree).map((layer) =>
+        "source" in layer && "audio" in layer.source ? layer.source.audio : "none",
+      ),
+    ).toEqual([undefined, undefined]);
+    expect([...(tree?.pictureless ?? [])]).toEqual(["bed"]);
+  });
+
+  it("reports a channel on a kind without sound, and a filter ID used twice", () => {
+    const { diagnostics } = lower(
+      <Show id="weekly" canvas={canvas}>
+        <Scene id="main">
+          <Layer>
+            <Color color="#000000" audio={{ volumeDb: -6 }} />
+          </Layer>
+          <Layer>
+            <Browser
+              url="https://example.com"
+              audio={{
+                filters: [
+                  { kind: "gain", id: "a" },
+                  { kind: "limiter", id: "a" },
+                ],
+              }}
+            />
+          </Layer>
+        </Scene>
+      </Show>,
+    );
+
+    expect(diagnostics.map(({ code, path }) => `${code} ${path}`)).toEqual([
+      "AUDIO_UNSUPPORTED scene.main.layer.main.0.source.audio",
+      "INVALID_PROPS scene.main.layer.main.1.source.audio.filters.1.id",
+    ]);
   });
 
   it("binds inline source size to the laid-out layer", () => {

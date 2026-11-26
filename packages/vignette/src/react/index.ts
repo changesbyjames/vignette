@@ -10,6 +10,7 @@ export {
   useStreamStatus,
 } from "./hooks.js";
 export { useAsset } from "./assets.js";
+export { useSourceMedia, type SourceMediaElements } from "./media.js";
 export type { ReactSourcePlugin, ReactSourceViewProps } from "./plugin.js";
 export type { StreamEventListener } from "./client.js";
 export { BrowserView } from "./sources/browser.js";
@@ -18,6 +19,7 @@ export { FrameView } from "./sources/frame.js";
 export { ImageView } from "./sources/image.js";
 export { TextView } from "./sources/text.js";
 export { VideoView } from "./sources/video.js";
+export { AudioView } from "./sources/audio.js";
 export { fromSse } from "../stream/sse.js";
 export { connectStream, type StreamTransport } from "../stream/transport.js";
 export { fromWebSocket } from "../stream/websocket.js";

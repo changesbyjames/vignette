@@ -24,7 +24,8 @@ authoring side is in [README §2](../README.md#2-making-a-show).
 | --------- | --------------------------------------------- | -------------------------------------------- |
 | `color`   | filled `<div>`                                | `color_source_v3`                            |
 | `image`   | `<img>` of the downloaded asset (object URL)  | `image_source` of the cached file            |
-| `video`   | `<video>`; `loop`, `muted`, `restartOnShow`   | `ffmpeg_source`; same props, `media:restart` |
+| `video`   | `<video>`; `loop`, `restartOnShow`            | `ffmpeg_source`; same props, `media:restart` |
+| `audio`   | `<audio>`, not laid out                       | `ffmpeg_source` item outside the canvas      |
 | `browser` | sandboxed `<iframe>` at the source's viewport | `browser_source` at the laid-out size        |
 | `frame`   | `<iframe>` of the frame page                  | `browser_source` of the frame page           |
 | `text`    | styled `<div>`; `font` as an `@font-face`     | `browser_source` of a local page it writes   |
@@ -35,6 +36,14 @@ cross-origin page, so a page meant for both must make its own background transpa
 ## Differences
 
 - **Opacity** applies in React and the DOM; OBS scene items have no opacity, so OBS ignores it.
+- **Audio** follows placement everywhere: a source is heard only while the shown scene places it
+  with a visible layer (or lists it, for a source with no picture). Each target reports what of a
+  channel it cannot apply in `status.audio.unsupported`: OBS cannot set `mono` or limit the master
+  bus; browsers cannot reach the sound of a `Browser` or `Frame` iframe or of `<moq-watch>`, have no
+  `noise-gate`, `noise-suppression` or `monitor`, approximate `limiter`, and ignore `tracks`. A
+  negative `syncOffsetMs` delays the picture: natively in OBS, through a held-frame delay line in
+  browsers. Browsers play sound only after a user gesture (`status.audio.state` is `blocked` until
+  then).
 - **Shared sources in browsers** move between stages with `Element.moveBefore`. Without it (Safari,
   Firefox at the time of writing) the fallback reloads a moved `<iframe>`; OBS is unaffected.
 - **Inline sources in React** stay mounted across scene switches in a `<Stage>` that follows
@@ -50,5 +59,5 @@ cross-origin page, so a page meant for both must make its own background transpa
 ## Not guaranteed
 
 Font metrics and text layout inside pages, frame-accurate video sync, identical paint or color
-management, audio routing, transitions and filters, and adoption of manual edits to managed OBS
-resources.
+management, identical filter sound (each target has its own DSP), transitions and video filters, and
+adoption of manual edits to managed OBS resources.

@@ -1,3 +1,4 @@
+import type { AudioChannel, Mix } from "./audio.js";
 import type { Size } from "./geometry.js";
 import type { Canvas, LayerProps, LayoutStyle, Source, SourceProps } from "./snapshot.js";
 
@@ -10,6 +11,8 @@ export interface InlineSource {
   readonly id: string;
   readonly kind: string;
   readonly props: SourceProps;
+  /** The source's audio channel, when it carries audio. */
+  readonly audio?: AudioChannel;
   size(layer: Size): Size;
 }
 
@@ -53,6 +56,10 @@ export interface ShowTree {
   readonly activeScene?: string;
   readonly sharedSources: readonly Source[];
   readonly scenes: readonly ShowTreeScene[];
+  /** IDs of the sources, shared or inline, that have no picture; their layers are not laid out. */
+  readonly pictureless?: ReadonlySet<string>;
+  /** The master bus, when the show sets one. */
+  readonly mix?: Mix;
 }
 
 /** Tests whether a layout node groups other layers. */

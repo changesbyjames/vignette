@@ -15,7 +15,7 @@ import type { Snapshot, Source } from "../core/snapshot.js";
 import type { StreamMessage } from "../stream/messages.js";
 import type { AssetFetcher } from "../target/asset-store.js";
 import { createTarget, type Target, type TargetSourcePlugin } from "../target/kernel.js";
-import type { TargetConnection } from "../target/status.js";
+import type { TargetAudio, TargetConnection } from "../target/status.js";
 import { fileAssetStore } from "./asset-store.js";
 import { bootstrapObsState } from "./bootstrap.js";
 import { defaultObsDirectory } from "./directory.js";
@@ -32,6 +32,8 @@ import { frameObs } from "./sources/frame.js";
 import { imageObs } from "./sources/image.js";
 import { textObs } from "./sources/text.js";
 import { videoObs } from "./sources/video.js";
+import { audioObs } from "./sources/audio.js";
+import { obsAudioStatus } from "./audio.js";
 import type { ObsTransport } from "./transport.js";
 import { ObsWebSocketTransport } from "./websocket-transport.js";
 
@@ -96,6 +98,7 @@ const BUILTIN_PLUGINS: readonly ObsSourcePlugin[] = [
   imageObs,
   textObs,
   videoObs,
+  audioObs,
   browserObs,
   frameObs,
 ];
@@ -160,6 +163,8 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
   ];
   const reloads = reloadPagesWhenConverged(actor, transport);
   const dir = options.dir ?? defaultObsDirectory();
+  let reportAudio: ((audio: TargetAudio) => void) | undefined = undefined;
+  let lastAudio = "";
   const target = createTarget<ObsHandle, ObsPluginContext>({
     kind: "obs",
     sources: plugins.map((plugin) => afterObservation(plugin, actor)),
@@ -176,6 +181,12 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
       });
       return () => {
         subscription.unsubscribe();
+      };
+    },
+    audio(report) {
+      reportAudio = report;
+      return () => {
+        reportAudio = undefined;
       };
     },
     context: (base) => ({
@@ -202,7 +213,16 @@ export function obsTarget(options: ObsTargetOptions = {}): Target {
         return transport.call(requestType, { ...data, inputName });
       },
     }),
-    update: (snapshot, handles) => converge(actor, snapshot, handles),
+    update(snapshot, handles) {
+      // Report what of the snapshot's audio OBS cannot apply, when that changes.
+      const audio = obsAudioStatus(snapshot);
+      const key = JSON.stringify(audio);
+      if (key !== lastAudio) {
+        lastAudio = key;
+        reportAudio?.(audio);
+      }
+      return converge(actor, snapshot, handles);
+    },
     async dispose() {
       reloads.stop();
       actor.stop();

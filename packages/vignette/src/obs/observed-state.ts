@@ -1,3 +1,4 @@
+import type { ObsAudioState } from "./audio.js";
 import { parseManagedName } from "./naming.js";
 import type { ObsJsonObject, ObsSceneItemTransform } from "./operations.js";
 
@@ -7,13 +8,25 @@ export interface ObservedObsScene {
   readonly sceneUuid: string;
 }
 
-/** Managed input observed in OBS. `inputMuted` is absent for inputs without audio. */
+/** A filter observed on a managed input, managed or added by an operator. */
+export interface ObservedObsFilter {
+  readonly filterName: string;
+  readonly filterKind: string;
+  readonly filterIndex: number;
+  readonly filterSettings: ObsJsonObject;
+}
+
+/**
+ * Managed input observed in OBS. `audio` is absent for inputs without audio; `filters`, in
+ * order, when OBS did not list them.
+ */
 export interface ObservedObsInput {
   readonly inputName: string;
   readonly inputUuid: string;
   readonly inputKind: string;
   readonly inputSettings: ObsJsonObject;
-  readonly inputMuted?: boolean;
+  readonly audio?: ObsAudioState;
+  readonly filters?: readonly ObservedObsFilter[];
 }
 
 /** Scene item observed in a managed scene. */

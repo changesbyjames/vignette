@@ -42,19 +42,51 @@ export interface FakeObsSceneItem {
   sceneItemTransform: ObsJsonObject;
 }
 
-/** An input in the fake OBS. `inputMuted` is undefined for inputs without audio. */
+/** An input's audio in the fake OBS, as obs-websocket reports it. */
+export interface FakeObsAudio {
+  inputMuted: boolean;
+  inputVolumeDb: number;
+  /** From 0 (left) to 1 (right). */
+  inputAudioBalance: number;
+  inputAudioSyncOffset: number;
+  monitorType: string;
+  inputAudioTracks: ObsJsonObject;
+}
+
+/** A filter on an input in the fake OBS. */
+export interface FakeObsFilter {
+  readonly filterName: string;
+  readonly filterKind: string;
+  filterSettings: ObsJsonObject;
+}
+
+/** An input in the fake OBS. `audio` is undefined for inputs without audio. */
 export interface FakeObsInput {
   readonly inputName: string;
   readonly inputUuid: string;
   readonly inputKind: string;
   inputSettings: ObsJsonObject;
-  inputMuted?: boolean;
+  audio?: FakeObsAudio;
+  /** In order, first applied first. */
+  filters: FakeObsFilter[];
+}
+
+/** A new input's audio, as OBS starts it. */
+function defaultAudio(): FakeObsAudio {
+  return {
+    inputMuted: false,
+    inputVolumeDb: 0,
+    inputAudioBalance: 0.5,
+    inputAudioSyncOffset: 0,
+    monitorType: "OBS_MONITORING_TYPE_NONE",
+    inputAudioTracks: { "1": true, "2": true, "3": true, "4": true, "5": true, "6": true },
+  };
 }
 
 /** Input kinds the fake advertises unless a test changes them. */
 const DEFAULT_INPUT_KINDS = ["color_source_v3", "image_source", "ffmpeg_source", "browser_source"];
 
-/** Inputs of these kinds have audio, so they answer `GetInputMute`. */
+/** Inputs of these kinds have audio, so they answer `GetInputMute` and the other audio reads. */
 const AUDIO_KINDS = new Set(["ffmpeg_source", "browser_source"]);
 
 /**
@@ -163,6 +195,8 @@ export class FakeObs implements ObsTransport {
     return (
       this.readScenes(requestType, data) ??
       this.readInputs(requestType, data) ??
+      this.audioRequest(requestType, data) ??
+      this.filterRequest(requestType, data) ??
       this.writeResources(requestType, data) ??
       this.writeItem(requestType, data)
     );
@@ -217,14 +251,66 @@ export class FakeObs implements ObsTransport {
         const input = this.input(data);
         return { inputKind: input.inputKind, inputSettings: input.inputSettings };
       }
-      case "GetInputMute": {
-        const muted = this.input(data).inputMuted;
-        if (muted === undefined) throw new ObsRequestError(requestType, 604, "No audio.");
-        return { inputMuted: muted };
-      }
       default:
         return undefined;
     }
+  }
+
+  /** Requests that read or set an input's audio; undefined for any other request. */
+  private audioRequest(requestType: string, data: ObsJsonObject): ObsJsonObject | undefined {
+    const field = AUDIO_FIELDS.get(requestType.replace(/^[GS]et/u, ""));
+    if (field === undefined) return undefined;
+    const audio = this.input(data).audio;
+    if (audio === undefined) throw new ObsRequestError(requestType, 604, "No audio.");
+    if (requestType.startsWith("Get")) return { [field]: audio[field] };
+    if (field === "inputAudioTracks") {
+      audio.inputAudioTracks = { ...audio.inputAudioTracks, ...object(data, field) };
+    } else if (field === "inputMuted") {
+      audio.inputMuted = flag(data, field);
+    } else if (field === "monitorType") {
+      audio.monitorType = text(data, field);
+    } else {
+      audio[field] = count(data, field);
+    }
+    return {};
+  }
+
+  /** Requests about a source's filters; undefined for any other request. */
+  private filterRequest(requestType: string, data: ObsJsonObject): ObsJsonObject | undefined {
+    if (!requestType.includes("SourceFilter")) return undefined;
+    const input = this.input({ inputName: text(data, "sourceName") });
+    if (requestType === "GetSourceFilterList") {
+      return {
+        filters: input.filters.map((filter, filterIndex) => ({
+          filterEnabled: true,
+          filterIndex,
+          filterKind: filter.filterKind,
+          filterName: filter.filterName,
+          filterSettings: filter.filterSettings,
+        })),
+      };
+    }
+    const filterName = text(data, "filterName");
+    const existing = input.filters.find((filter) => filter.filterName === filterName);
+    if (requestType === "CreateSourceFilter") {
+      if (existing !== undefined) throw new ObsRequestError(requestType, 601, "Name taken.");
+      const filterKind = text(data, "filterKind");
+      input.filters.push({
+        filterName,
+        filterKind,
+        filterSettings: object(data, "filterSettings"),
+      });
+      return {};
+    }
+    if (existing === undefined) throw new ObsRequestError(requestType, 600, "No such filter.");
+    if (requestType === "RemoveSourceFilter") remove(input.filters, existing);
+    else if (requestType === "SetSourceFilterSettings") {
+      existing.filterSettings = object(data, "filterSettings");
+    } else if (requestType === "SetSourceFilterIndex") {
+      remove(input.filters, existing);
+      input.filters.splice(count(data, "filterIndex"), 0, existing);
+    } else throw new ObsRequestError(requestType, 204, "Unknown request type.");
+    return {};
   }
 
   /** Requests that create or remove scenes and inputs; undefined for any other request. */
@@ -254,9 +340,6 @@ export class FakeObs implements ObsTransport {
     switch (requestType) {
       case "SetInputSettings":
         this.input(data).inputSettings = object(data, "inputSettings");
-        return {};
-      case "SetInputMute":
-        this.input(data).inputMuted = flag(data, "inputMuted");
         return {};
       case "SetCurrentProgramScene":
         this.programSceneName = this.scene(data).sceneName;
@@ -358,7 +441,8 @@ export class FakeObs implements ObsTransport {
       inputUuid: this.uuid("input"),
       inputKind,
       inputSettings: object(data, "inputSettings"),
-      inputMuted: AUDIO_KINDS.has(inputKind) ? false : undefined,
+      filters: [],
+      audio: AUDIO_KINDS.has(inputKind) ? defaultAudio() : undefined,
     };
     this.inputs.push(input);
     const source: FakeSource = { name: inputName, uuid: input.inputUuid };
@@ -422,6 +506,16 @@ export class FakeObs implements ObsTransport {
     return `${kind}-${String(this.nextId++)}`;
   }
 }
+
+/** The field of `FakeObsAudio` each audio request reads or sets, by request name minus Get/Set. */
+const AUDIO_FIELDS = new Map<string, keyof FakeObsAudio>([
+  ["InputMute", "inputMuted"],
+  ["InputVolume", "inputVolumeDb"],
+  ["InputAudioBalance", "inputAudioBalance"],
+  ["InputAudioSyncOffset", "inputAudioSyncOffset"],
+  ["InputAudioMonitorType", "monitorType"],
+  ["InputAudioTracks", "inputAudioTracks"],
+]);
 
 /** A scene or input as something a scene item can show. */
 interface FakeSource {

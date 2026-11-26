@@ -14,7 +14,7 @@ import type { AssetEntry } from "../core/assets.js";
 import type { Snapshot, Source } from "../core/snapshot.js";
 import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
 import type { TargetHandle } from "./kernel.js";
-import type { SourceStatus, TargetAssetProgress, TargetConnection } from "./status.js";
+import type { SourceStatus, TargetAssetProgress, TargetAudio, TargetConnection } from "./status.js";
 
 /** What the kernel knows about the target it runs, fixed at creation. */
 export interface KernelInput {
@@ -56,6 +56,7 @@ export interface KernelContext<Handle> {
   readonly assets?: TargetAssetProgress;
   readonly handles: ReadonlyMap<string, HandleEntry<Handle>>;
   readonly connection?: TargetConnection;
+  readonly audio?: TargetAudio;
   /** The failure behind the `error` state, or the last failed apply while ready. */
   readonly error?: Error;
 }
@@ -157,6 +158,11 @@ export interface ConnectionEvent {
   readonly type: "connection";
   readonly connection: TargetConnection;
 }
+/** The medium reported its audio. */
+export interface AudioEvent {
+  readonly type: "audio";
+  readonly audio: TargetAudio;
+}
 /** `dispose()` was called. */
 export interface DisposeEvent {
   readonly type: "dispose";
@@ -175,6 +181,7 @@ export type KernelEvent<Handle> =
   | HandleCreatedEvent<Handle>
   | HandleFailedEvent
   | ConnectionEvent
+  | AudioEvent
   | DisposeEvent;
 
 /** Params of the `route` action. */
@@ -205,6 +212,7 @@ export function createKernelMachine<Handle extends TargetHandle>() {
       createHandle: fromCallback<EventObject, CreateInput>(missing),
       apply: fromPromise<ApplyOutput, ApplyPlan<Handle>>(missing),
       connection: fromCallback<EventObject>(() => undefined),
+      audio: fromCallback<EventObject>(() => undefined),
       follow: followStream,
     },
     guards: {
@@ -219,7 +227,7 @@ export function createKernelMachine<Handle extends TargetHandle>() {
   }).createMachine({
     id: "kernel",
     context: ({ input }) => ({ input, handles: new Map() }),
-    invoke: { src: "connection" },
+    invoke: [{ src: "connection" }, { src: "audio" }],
     initial: "idle",
     on: {
       setup: [
@@ -299,6 +307,7 @@ export function createKernelMachine<Handle extends TargetHandle>() {
         ],
       },
       connection: { actions: assign({ connection: ({ event }) => event.connection }) },
+      audio: { actions: assign({ audio: ({ event }) => event.audio }) },
       dispose: ".disposed",
     },
     states: {

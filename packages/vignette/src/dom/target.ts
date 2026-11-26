@@ -1,4 +1,8 @@
+import { z } from "zod";
+
 import type { Item, Snapshot, SnapshotScene, Source } from "../core/snapshot.js";
+import type { DelayLine } from "../web-media/delay-line.js";
+import { createMediaSession, type MediaSession, type SourceMedia } from "../web-media/session.js";
 import { createTarget, type Target } from "../target/kernel.js";
 import { objectUrlAssetStore } from "./asset-store.js";
 import type { DomHandle, DomPluginContext, DomSourcePlugin } from "./plugin.js";
@@ -9,6 +13,7 @@ import { frameDom } from "./sources/frame.js";
 import { imageDom } from "./sources/image.js";
 import { textDom } from "./sources/text.js";
 import { videoDom } from "./sources/video.js";
+import { audioDom } from "./sources/audio.js";
 import { DomStage } from "./stage.js";
 import { applyItemFrame } from "./styles.js";
 
@@ -28,6 +33,7 @@ const BUILTIN_PLUGINS: readonly DomSourcePlugin[] = [
   imageDom,
   textDom,
   videoDom,
+  audioDom,
   browserDom,
   frameDom,
 ];
@@ -39,18 +45,66 @@ const BUILTIN_PLUGINS: readonly DomSourcePlugin[] = [
  * connection across scene switches: it moves between layers with `moveBefore` where the browser
  * has it, and waits in a hidden container while the shown scene does not place it.
  */
-export function domTarget(container: HTMLElement, options: DomTargetOptions = {}): Target {
+export function domTarget(container: HTMLElement, options: DomTargetOptions = {}): DomTarget {
   const document = container.ownerDocument;
-  const renderer = createSceneRenderer(container, options.scene);
-  return createTarget<DomHandle, DomPluginContext>({
+  const session = createMediaSession(document);
+  const renderer = createSceneRenderer(container, options.scene, session);
+  const target = createTarget<DomHandle, DomPluginContext>({
     kind: "dom",
     sources: [...(options.builtins === false ? [] : BUILTIN_PLUGINS), ...(options.sources ?? [])],
     assets: objectUrlAssetStore(),
     context: (base) => ({ ...base, document }),
+    audio(report) {
+      report(session.status);
+      return session.subscribe(() => {
+        report(session.status);
+      });
+    },
     update: renderer.update,
-    dispose: renderer.dispose,
+    event(event) {
+      // A restarted source's held frames belong to the playback before the restart.
+      if (event.kind !== "media:restart") return;
+      const { sourceId }: AddressedEvent = AddressedEventSchema.parse(event);
+      session.reset(sourceId);
+    },
+    dispose() {
+      renderer.dispose();
+      session.dispose();
+    },
   });
+  return {
+    follow: (stream) => target.follow(stream),
+    apply: (message) => {
+      target.apply(message);
+    },
+    get status() {
+      return target.status;
+    },
+    subscribe: (listener) => target.subscribe(listener),
+    settled: (revision) => target.settled(revision),
+    dispose: () => target.dispose(),
+    resume: () => session.resume(),
+    get audioOutput() {
+      return session.output;
+    },
+  };
 }
+
+/** A DOM target, with the page's sound. */
+export interface DomTarget extends Target {
+  /**
+   * Starts sound after a user gesture, where autoplay policy waits for one; `status.audio.state`
+   * is `blocked` until then. The target also starts it on the page's first pointer or key press.
+   */
+  resume(): Promise<void>;
+  /** The program mix as a stream, for recording or publishing; undefined until sound starts. */
+  readonly audioOutput: MediaStream | undefined;
+}
+
+/** The optional source address of a show event. */
+const AddressedEventSchema = z.looseObject({ sourceId: z.string().optional() });
+/** The optional source address of a show event. */
+type AddressedEvent = z.output<typeof AddressedEventSchema>;
 
 /** The wrapper of one item, keyed by layer ID; `content` is the placed box inside it. */
 interface LayerRecord {
@@ -65,7 +119,11 @@ interface SceneRenderer {
   readonly dispose: () => void;
 }
 
-function createSceneRenderer(container: HTMLElement, sceneId: string | undefined): SceneRenderer {
+function createSceneRenderer(
+  container: HTMLElement,
+  sceneId: string | undefined,
+  session: MediaSession,
+): SceneRenderer {
   const document = container.ownerDocument;
   const stage = new DomStage(container);
   const parking = document.createElement("div");
@@ -91,7 +149,8 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
   function update(snapshot: Snapshot, handles: ReadonlyMap<string, DomHandle>): void {
     stage.update(snapshot);
     const scene = selectScene(snapshot, sceneId);
-    const live = new Set<Element>([...handles.values()].map((handle) => handle.element));
+    updateMedia(session, snapshot, scene, handles);
+    const live = liveElements(session, handles);
     const stale = new Map(layers);
     const next = new Map<string, LayerRecord>();
     const placed = new Set<string>();
@@ -106,16 +165,14 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
         item,
         handles.get(item.sourceId),
         sources.get(item.sourceId),
+        session.delayLine(item.sourceId),
       );
       if (shows) placed.add(item.sourceId);
     }
     park(next, handles, live);
     for (const record of stale.values()) record.wrapper.remove();
     layers = next;
-    for (const id of placed) {
-      if (!shown.has(id)) handles.get(id)?.activate?.();
-    }
-    shown = placed;
+    shown = activate(handles, placed, scene, shown);
   }
 
   /** Moves every handle the shown scene does not place into the hidden parking container. */
@@ -139,16 +196,75 @@ function createSceneRenderer(container: HTMLElement, sceneId: string | undefined
   };
 }
 
-/** Puts the handle's element in the layer, sized and fitted; false for a placeholder. */
+/** Every element the target may show: each handle's, and each delay line's canvas. */
+function liveElements(
+  session: MediaSession,
+  handles: ReadonlyMap<string, DomHandle>,
+): Set<Element> {
+  const live = new Set<Element>();
+  for (const [id, handle] of handles) {
+    live.add(handle.element);
+    const line = session.delayLine(id);
+    if (line !== undefined) live.add(line.canvas);
+  }
+  return live;
+}
+
+/**
+ * Activates every handle that entered the shown scene, and returns the sources it shows: those
+ * its items placed, and its pictureless sources, which nothing places.
+ */
+function activate(
+  handles: ReadonlyMap<string, DomHandle>,
+  placed: Set<string>,
+  scene: SnapshotScene | undefined,
+  shown: ReadonlySet<string>,
+): Set<string> {
+  for (const id of scene?.audio ?? []) if (handles.has(id)) placed.add(id);
+  for (const id of placed) {
+    if (!shown.has(id)) handles.get(id)?.activate?.();
+  }
+  return placed;
+}
+
+/**
+ * Converges the session's sound and delay lines: a source is heard while the shown scene places
+ * it with a visible item, or lists it among its pictureless sources.
+ */
+function updateMedia(
+  session: MediaSession,
+  snapshot: Snapshot,
+  scene: SnapshotScene | undefined,
+  handles: ReadonlyMap<string, DomHandle>,
+): void {
+  const audible = new Set(scene?.audio);
+  for (const item of scene?.items ?? []) {
+    if (item.visible && handles.has(item.sourceId)) audible.add(item.sourceId);
+  }
+  const media = new Map<string, SourceMedia>();
+  for (const [id, handle] of handles) if (handle.media !== undefined) media.set(id, handle.media);
+  session.update({ sources: snapshot.sources, mix: snapshot.mix, audible, media });
+}
+
+/**
+ * Puts the handle's element in the layer, sized and fitted, with its delay line's canvas over
+ * it while the picture is delayed; false for a placeholder.
+ */
 function placeContent(
   record: LayerRecord,
   item: Item,
   handle: DomHandle | undefined,
   source: Source | undefined,
+  line: DelayLine | undefined,
 ): boolean {
   if (handle === undefined || source === undefined) return false;
   moveInto(record.content, handle.element);
   applyContentPlacement(record.content, handle.element, source.size, item);
+  if (line !== undefined) {
+    // Last in the box, so it paints over the live element it delays.
+    if (record.content.lastChild !== line.canvas) record.content.append(line.canvas);
+    applyContentPlacement(record.content, line.canvas, source.size, item);
+  }
   return item.visible;
 }
 

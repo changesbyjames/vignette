@@ -2,6 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { AudioChannelSchema, type AudioChannelInput } from "../core/audio.js";
 import type { Item, Snapshot, Source } from "../core/snapshot.js";
 import type { SetupMessage, StreamMessage } from "../stream/messages.js";
 import type { DomSourcePlugin } from "./plugin.js";
@@ -202,6 +203,68 @@ describe("domTarget", () => {
     await target.dispose();
   });
 
+  it("hears a source only while the shown scene places it, at its channel's volume", async () => {
+    // jsdom has no Web Audio, so each element plays by itself: the mixer's fallback.
+    const container = mount();
+    const target = domTarget(container, { sources: [tone] });
+    target.apply(setup());
+    target.apply(soundSnapshot(1, "main", { volumeDb: -6 }));
+    await target.settled(1);
+    await waitFor(() => elements.size === 2);
+    const voice = elements.get("voice");
+    const bed = elements.get("bed");
+    expect(voice?.muted).toBe(false);
+    expect(voice?.volume).toBeCloseTo(0.5, 2);
+    // The bed has no picture: it is heard while its scene lists it, and never laid out.
+    expect(bed?.muted).toBe(false);
+    expect(container.querySelector("[data-vignette-layer] audio")).toBe(voice);
+    expect(target.status.audio).toEqual({
+      state: "unavailable",
+      // A page in an iframe plays as it is: only what its channel changes is out of reach.
+      unsupported: { chat: ["volumeDb"] },
+      mix: [],
+    });
+
+    target.apply(soundSnapshot(2, "brb", { volumeDb: -6 }));
+    await target.settled(2);
+    expect(voice?.muted).toBe(true);
+    expect(bed?.muted).toBe(true);
+
+    target.apply(soundSnapshot(3, "main", { muted: true }));
+    await target.settled(3);
+    expect(voice?.muted).toBe(true);
+    expect(bed?.muted).toBe(false);
+    await target.dispose();
+    elements.clear();
+  });
+
+  it("lays a delay line over a picture whose audio leads it, and removes it at zero", async () => {
+    // jsdom has no VideoFrame; a stand-in lets the delay line start.
+    vi.stubGlobal("VideoFrame", FakeVideoFrame);
+    try {
+      const container = mount();
+      const target = domTarget(container, { sources: [camera] });
+      target.apply(setup());
+      target.apply(cameraSnapshot(1, -400));
+      await target.settled(1);
+      await waitFor(() => container.querySelector("[data-vignette-delay-line]") !== null);
+      const content = container.querySelector("[data-vignette-layer='main.cam'] > div");
+      const line = container.querySelector<HTMLCanvasElement>("[data-vignette-delay-line]");
+      // Over the camera's own canvas, at its placement, hidden until it holds 400 ms of frames.
+      expect(line?.parentElement).toBe(content);
+      expect(content?.lastElementChild).toBe(line);
+      expect(line?.style).toMatchObject({ width: "1280px", height: "720px", visibility: "hidden" });
+
+      target.apply(cameraSnapshot(2, 0));
+      await target.settled(2);
+      expect(container.querySelector("[data-vignette-delay-line]")).toBeNull();
+      expect(content?.querySelector("canvas[data-camera]")).not.toBeNull();
+      await target.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("reports missing plugins without builtins and renders nothing", async () => {
     const container = mount();
     const target = domTarget(container, { builtins: false });
@@ -214,6 +277,89 @@ describe("domTarget", () => {
     await target.dispose();
   });
 });
+
+/** The `<audio>` each `tone` source plays, by source ID. */
+const elements = new Map<string, HTMLAudioElement>();
+
+/** A sound with no picture of its own, played by an `<audio>` through the target's mixer. */
+const tone: DomSourcePlugin = {
+  kind: "tone",
+  create(source, { document }) {
+    const audio = document.createElement("audio");
+    audio.muted = true;
+    elements.set(source.id, audio);
+    return { element: audio, media: { audio } };
+  },
+};
+
+/** `voice` placed in `main`, `bed` heard in `main` without a picture, and a silent `chat`. */
+function soundSnapshot(
+  revision: number,
+  activeScene: string,
+  voice: AudioChannelInput,
+): StreamMessage {
+  const sound = { kind: "tone", props: {}, size: { width: 640, height: 360 } };
+  const snapshot: Snapshot = {
+    revision,
+    id: "show",
+    canvas: { width: 1920, height: 1080 },
+    activeScene,
+    sources: [
+      { id: "voice", ...sound, audio: AudioChannelSchema.parse(voice) },
+      { id: "bed", ...sound, audio: AudioChannelSchema.parse({}) },
+      { ...chat, audio: AudioChannelSchema.parse({ volumeDb: -10 }) },
+    ],
+    scenes: [
+      {
+        id: "main",
+        items: [item("main.voice", "voice", 0, 640), item("main.chat", "chat", 640, 640)],
+        audio: ["bed"],
+      },
+      { id: "brb", items: [] },
+    ],
+  };
+  return { kind: "update", snapshot };
+}
+
+/** A picture drawn into a canvas, which a negative sync offset delays. */
+const camera: DomSourcePlugin = {
+  kind: "camera",
+  create(_source, { document }) {
+    const canvas = document.createElement("canvas");
+    canvas.dataset.camera = "";
+    canvas.width = 4;
+    canvas.height = 4;
+    return { element: canvas, media: { video: canvas } };
+  },
+};
+
+function cameraSnapshot(revision: number, syncOffsetMs: number): StreamMessage {
+  const snapshot: Snapshot = {
+    revision,
+    id: "show",
+    canvas: { width: 1920, height: 1080 },
+    sources: [
+      {
+        id: "cam",
+        kind: "camera",
+        props: {},
+        size: { width: 1280, height: 720 },
+        audio: AudioChannelSchema.parse({ syncOffsetMs }),
+      },
+    ],
+    scenes: [{ id: "main", items: [item("main.cam", "cam", 0, 1280)] }],
+  };
+  return { kind: "update", snapshot };
+}
+
+/** Enough of `VideoFrame` for the delay line to hold frames. */
+class FakeVideoFrame {
+  readonly displayWidth = 4;
+  readonly displayHeight = 4;
+  close(): void {
+    // Nothing is held.
+  }
+}
 
 /** Polls a condition across macrotasks, for handles that resolve asynchronously. */
 async function waitFor(condition: () => boolean): Promise<void> {

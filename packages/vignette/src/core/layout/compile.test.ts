@@ -80,6 +80,52 @@ describe("compileShow", () => {
     });
   });
 
+  it("takes layers without a picture out of layout and lists their sources on the scene", () => {
+    const row = { flexDirection: "row", width: "100%", height: "100%", gap: 20 } as const;
+    const result = compileShow(
+      {
+        id: "sound",
+        canvas: hd,
+        sharedSources: [{ id: "bed", kind: "audio", props: {}, size: hd }],
+        pictureless: new Set(["bed", "main.voice", "main.muted"]),
+        scenes: [
+          {
+            id: "main",
+            root: group("main", row, [
+              placed("main.left", layerSized("main.left"), { flex: 1 }),
+              placed("main.bed", { ref: "bed" }, {}),
+              placed("main.voice", fixed("main.voice", "audio"), { flex: 1 }),
+              placed("main.muted", fixed("main.muted", "audio"), {}, { visible: false }),
+              placed("main.right", layerSized("main.right"), { flex: 1 }),
+            ]),
+          },
+        ],
+      },
+      { revision: 1, layoutEngine: yogaLayoutEngine },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [scene] = result.snapshot.scenes;
+    // Only the two pictures share the row, with one gap between them.
+    expect(scene?.items.map(({ id, frame }) => ({ id, frame }))).toEqual([
+      { id: "main.left", frame: { x: 0, y: 0, width: 950, height: 1080 } },
+      { id: "main.right", frame: { x: 970, y: 0, width: 950, height: 1080 } },
+    ]);
+    // A hidden layer's source is not heard, but still exists.
+    expect(scene?.audio).toEqual(["bed", "main.voice"]);
+    expect(result.snapshot.sources.map((source) => source.id).sort()).toEqual([
+      "bed",
+      "main.left",
+      "main.muted",
+      "main.right",
+      "main.voice",
+    ]);
+    expect(result.diagnostics).toMatchObject([
+      { code: "INVALID_LAYOUT_VALUE", severity: "warning", path: "scene.main.main.voice" },
+    ]);
+  });
+
   it("vendors the Yoga build of the pinned yoga-layout dependency", () => {
     const yogaRoot = resolve(
       dirname(createRequire(import.meta.url).resolve("yoga-layout/load")),

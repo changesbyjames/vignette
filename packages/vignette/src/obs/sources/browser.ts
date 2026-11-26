@@ -6,7 +6,10 @@ import type { ObsInput, ObsSourcePlugin } from "../plugin.js";
 const TRANSPARENT_BODY_CSS =
   "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }";
 
-/** `<Browser>` as a `browser_source` whose viewport is the source's laid-out size. */
+/**
+ * `<Browser>` as a `browser_source` whose viewport is the source's laid-out size. Its audio is
+ * rerouted to OBS, so the source's channel controls it.
+ */
 export const browserObs: ObsSourcePlugin<typeof Browser> = {
   kind: "browser",
   create: (source) => ({
@@ -24,7 +27,9 @@ export function browserInput(url: string, size: Size, shutdown: boolean): ObsInp
       height: Math.round(size.height),
       css: TRANSPARENT_BODY_CSS,
       shutdown,
+      reroute_audio: true,
     },
+    audio: true,
   };
 }
 

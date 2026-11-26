@@ -11,6 +11,7 @@ import { deepFreeze } from "../objects.js";
 import {
   isGroupNode,
   isSourceRef,
+  type LayoutNode,
   type ShowTree,
   type ShowTreeScene,
   type SourceLayoutNode,
@@ -64,6 +65,7 @@ interface CompileContext {
   readonly shared: ReadonlyMap<string, Source>;
   readonly inlineSources: Source[];
   readonly diagnostics: Diagnostic[];
+  readonly pictureless: ReadonlySet<string>;
 }
 
 /**
@@ -78,6 +80,7 @@ export function compileShow(tree: ShowTree, options: CompileOptions): CompileRes
     shared: new Map(tree.sharedSources.map((source) => [source.id, source])),
     inlineSources: [],
     diagnostics: [],
+    pictureless: tree.pictureless ?? new Set(),
   };
 
   const scenes = tree.scenes.flatMap((scene) => compileScene(scene, options.layoutEngine, context));
@@ -93,6 +96,7 @@ export function compileShow(tree: ShowTree, options: CompileOptions): CompileRes
     activeScene: tree.activeScene,
     sources: stampFrameBuild([...tree.sharedSources, ...context.inlineSources], options.frameBuild),
     scenes,
+    mix: tree.mix,
   });
   return { ok: true, snapshot, diagnostics };
 }
@@ -113,11 +117,13 @@ function compileScene(
 ): readonly SnapshotScene[] {
   try {
     const items: Item[] = [];
-    const records = engine.layout([scene.root], context.canvas);
+    const audio: string[] = [];
+    const root = withoutPictureless(scene.root, `scene.${scene.id}`, true, audio, context);
+    const records = root === undefined ? [] : engine.layout([root], context.canvas);
     for (const record of records) {
       compileRecord(record, `scene.${scene.id}`, context.canvas, ROOT, items, context);
     }
-    return [{ id: scene.id, items }];
+    return [{ id: scene.id, items, audio: audio.length === 0 ? undefined : audio }];
   } catch (cause) {
     context.diagnostics.push(
       diagnostic(
@@ -133,6 +139,58 @@ function compileScene(
 }
 
 const ROOT: Inherited = { visible: true, opacity: 1 };
+
+/** Presentation a layer without a picture cannot use. */
+const PICTURE_PROPS = ["fit", "align", "crop", "opacity", "rotation"] as const;
+
+/**
+ * `node` without the layers that place a source with no picture, which take no part in layout.
+ * Each such layer that is visible adds its source to `audio`, the sources the scene is heard
+ * with; an inline one also joins the snapshot's sources, sized to the canvas. Layout and
+ * presentation set on such a layer is ignored, with a warning.
+ */
+function withoutPictureless(
+  node: LayoutNode,
+  path: string,
+  visible: boolean,
+  audio: string[],
+  context: CompileContext,
+): LayoutNode | undefined {
+  const shown = visible && node.layer.visible !== false;
+  if (isGroupNode(node)) {
+    const children = node.children.flatMap((child) => {
+      const kept = withoutPictureless(child, `${path}.${child.id}`, shown, audio, context);
+      return kept === undefined ? [] : [kept];
+    });
+    return { ...node, children };
+  }
+  const id = isSourceRef(node.source) ? node.source.ref : node.source.id;
+  if (!context.pictureless.has(id)) return node;
+  if (!isSourceRef(node.source)) {
+    const inline = node.source;
+    context.inlineSources.push({
+      id: inline.id,
+      kind: inline.kind,
+      props: inline.props,
+      size: inline.size(context.canvas),
+      audio: inline.audio,
+    });
+  }
+  const ignored = PICTURE_PROPS.filter((key) => node.layer[key] !== undefined);
+  if (Object.keys(node.style ?? {}).length > 0 || ignored.length > 0) {
+    context.diagnostics.push(
+      diagnostic(
+        "INVALID_LAYOUT_VALUE",
+        "warning",
+        path,
+        `Layer '${node.id}' places '${id}', which has no picture, so its style and presentation are ignored.`,
+        [node.id, id],
+      ),
+    );
+  }
+  if (shown) audio.push(id);
+  return undefined;
+}
 
 /** Groups pass their origin and presentation down; only layers that place a source become items. */
 function compileRecord(
@@ -218,6 +276,7 @@ function resolveSource(node: SourceLayoutNode, frame: Size, context: CompileCont
       kind: inline.kind,
       props: inline.props,
       size: inline.size({ width: frame.width, height: frame.height }),
+      audio: inline.audio,
     };
     context.inlineSources.push(source);
     return source;

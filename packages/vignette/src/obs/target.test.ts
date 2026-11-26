@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { AudioChannelSchema } from "../core/audio.js";
 import type { AssetEntry } from "../core/assets.js";
 import type { Item, Snapshot, Source } from "../core/snapshot.js";
 import type { SetupMessage, StreamMessage } from "../stream/messages.js";
@@ -509,11 +510,99 @@ describe("obsTarget", () => {
     await target.dispose();
   });
 
+  it("converges audio channels, managed filters and pictureless sources, and leaves an operator's filter", async () => {
+    const heard: Source = {
+      ...chat,
+      audio: AudioChannelSchema.parse({
+        volumeDb: -6,
+        balance: -1,
+        mono: true,
+        filters: [{ kind: "compressor", id: "comp", ratio: 4 }],
+      }),
+    };
+    const bed: Source = {
+      id: "bed",
+      kind: "audio",
+      props: { src: "logo.png", loop: true, restartOnShow: false },
+      size: { width: 1920, height: 1080 },
+      audio: AudioChannelSchema.parse({ volumeDb: -20 }),
+    };
+    const sound = (revision: number) =>
+      update(revision, {
+        sources: [bg, heard, bed],
+        mix: { volumeDb: -2 },
+        scenes: [
+          {
+            id: "main",
+            items: [item("main.0", "bg", 0), item("main.1", "chat", 0)],
+            audio: ["bed"],
+          },
+        ],
+      });
+    const { obs, target } = harness();
+    target.apply(setup("show"));
+    target.apply(sound(1));
+    await until(target, converged(1));
+
+    const input = (name: string) => obs.inputs.find((entry) => entry.inputName === name);
+    const page = input("vignette/show/chat");
+    expect(page?.inputSettings).toMatchObject({ reroute_audio: true });
+    expect(page?.audio).toMatchObject({
+      inputVolumeDb: -8,
+      inputAudioBalance: 0,
+      inputMuted: false,
+    });
+    expect(page?.filters).toEqual([
+      {
+        filterName: "vignette/show/comp",
+        filterKind: "compressor_filter",
+        filterSettings: {
+          ratio: 4,
+          threshold: -18,
+          attack_time: 6,
+          release_time: 60,
+          output_gain: 0,
+        },
+      },
+    ]);
+    expect(input("vignette/show/bed")?.audio?.inputVolumeDb).toBe(-22);
+    const main = obs.scenes.find((scene) => scene.sceneName === "vignette/show/main");
+    const bedItem = main?.items.find((entry) => entry.sourceName === "vignette/show/bed");
+    expect(bedItem).toMatchObject({
+      sceneItemEnabled: true,
+      sceneItemTransform: { positionX: -2 },
+    });
+    // obs-websocket cannot set an input's mono downmix.
+    expect(target.status.audio).toEqual({
+      state: "running",
+      unsupported: { chat: ["mono"] },
+      mix: [],
+    });
+
+    page?.filters.unshift({
+      filterName: "Operator gate",
+      filterKind: "noise_gate_filter",
+      filterSettings: {},
+    });
+    const before = obs.requests.length;
+    target.apply(sound(2));
+    await until(target, converged(2));
+    const writes = obs.requests
+      .slice(before)
+      .filter(({ requestType }) => /^(Set|Create|Remove)/u.test(requestType));
+    expect(writes).toEqual([]);
+    expect(page?.filters.map((filter) => filter.filterName)).toEqual([
+      "Operator gate",
+      "vignette/show/comp",
+    ]);
+    await target.dispose();
+  });
+
   it("restarts a video on a media:restart event", async () => {
     const video: Source = {
       id: "intro",
       kind: "video",
-      props: { src: "logo.png", loop: false, muted: true, restartOnShow: false },
+      props: { src: "logo.png", loop: false, restartOnShow: false },
       size: { width: 1920, height: 1080 },
     };
     const { obs, target } = harness();
@@ -525,7 +614,8 @@ describe("obsTarget", () => {
       }),
     );
     await until(target, converged(1));
-    expect(obs.inputs[0]?.inputMuted).toBe(true);
+    // A source without an audio channel has its input muted.
+    expect(obs.inputs[0]?.audio?.inputMuted).toBe(true);
 
     target.apply({ kind: "event", event: { kind: "media:restart", sourceId: "intro" } });
     await until(target, () => obs.calls("TriggerMediaInputAction").length === 1);

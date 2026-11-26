@@ -23,6 +23,7 @@ export type {
 export type {
   SourceStatus,
   TargetAssetProgress,
+  TargetAudio,
   TargetPhase,
   TargetConnection,
   TargetRevision,

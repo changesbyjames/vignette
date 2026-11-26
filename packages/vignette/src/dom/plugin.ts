@@ -1,4 +1,5 @@
 import type { ShowEvent } from "../stream/messages.js";
+import type { SourceMedia } from "../web-media/session.js";
 import type { PluginContextBase, SourceOf, SourcePluginBase } from "../target/plugins.js";
 
 /** What a DOM plugin receives: the base context plus the stage's owner document. */
@@ -13,6 +14,13 @@ export interface DomPluginContext extends PluginContextBase {
  */
 export interface DomHandle<Def = unknown> {
   readonly element: HTMLElement;
+  /**
+   * What the source plays and shows: its sound goes through the target's mixer, which applies
+   * the source's audio channel, and its picture through a delay line when the channel's sync
+   * offset is negative. Read after `create` and every `update`. A plugin that routes its sound
+   * here leaves its element muted; the mixer unmutes it once the page may play sound.
+   */
+  readonly media?: SourceMedia;
   /** The same source ID arrived with changed props or size. */
   update?(source: SourceOf<Def>): void | Promise<void>;
   /** The source ID is gone, or the target is disposed. */

@@ -1,9 +1,12 @@
+import { z } from "zod";
+
 import type { Snapshot } from "../core/snapshot.js";
 import type { SetupMessage, ShowEvent, StreamMessage } from "../stream/messages.js";
 import { connectStream, type StreamTransport } from "../stream/transport.js";
 import { createTarget } from "../target/kernel.js";
 import type { TargetConnection, TargetStatus } from "../target/status.js";
 import type { ReactSourcePlugin } from "./plugin.js";
+import { createStreamMedia, type StreamMedia } from "./media.js";
 import { createSharedSources, type SharedSources } from "./shared.js";
 
 /** Everything `<Stream>` provides, as one immutable value per change. */
@@ -40,6 +43,8 @@ export interface StreamClient {
   /** Resolves with the first setup message, for components that suspend until it arrives. */
   readonly setup: Promise<SetupMessage>;
   readonly shared: SharedSources;
+  /** The stream's sound and delayed pictures. */
+  readonly media: StreamMedia;
 }
 
 /** Creates the store of one `<Stream>`. */
@@ -53,6 +58,7 @@ export function createStreamClient(): StreamClient {
   const firstSetup = new Promise<SetupMessage>((resolve) => {
     resolveSetup = resolve;
   });
+  const media = createStreamMedia();
 
   function set(next: StreamState): void {
     state = next;
@@ -77,6 +83,7 @@ export function createStreamClient(): StreamClient {
     },
     setup: firstSetup,
     shared: createSharedSources(),
+    media,
     connect({ url, source }, { plugins, transports, checkPlugins }) {
       if (url === undefined && source === undefined) {
         throw new Error("<Stream> needs a `url` or a `source`.");
@@ -101,11 +108,25 @@ export function createStreamClient(): StreamClient {
             report = () => undefined;
           };
         },
+        audio(report) {
+          const send = () => {
+            if (media.status !== undefined) report(media.status);
+          };
+          send();
+          return media.subscribe(send);
+        },
         update(snapshot) {
-          if (active) set({ ...state, snapshot });
+          if (!active) return;
+          media.update(snapshot);
+          set({ ...state, snapshot });
         },
         event(event) {
           if (!active) return;
+          // A restarted source's held frames belong to the playback before the restart.
+          if (event.kind === "media:restart") {
+            const { sourceId }: AddressedEvent = AddressedEventSchema.parse(event);
+            media.reset(sourceId);
+          }
           for (const listener of events) listener(event);
         },
       });
@@ -141,6 +162,11 @@ export function createStreamClient(): StreamClient {
     },
   };
 }
+
+/** The optional source address of a show event. */
+const AddressedEventSchema = z.looseObject({ sourceId: z.string().optional() });
+/** The optional source address of a show event. */
+type AddressedEvent = z.output<typeof AddressedEventSchema>;
 
 /** Passes every message through, reporting each setup first. */
 async function* withSetup(

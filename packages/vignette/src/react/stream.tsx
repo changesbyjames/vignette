@@ -1,5 +1,6 @@
 import { QueryClientContext } from "@tanstack/react-query";
 import {
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -13,14 +14,20 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { Snapshot } from "../core/snapshot.js";
+import type { Item, Snapshot } from "../core/snapshot.js";
 import type { StreamMessage } from "../stream/messages.js";
 import type { StreamTransport } from "../stream/transport.js";
 import { revokeRemovedAssets } from "./assets.js";
 import { createStreamClient } from "./client.js";
-import { StreamContext, type StreamContextValue } from "./context.js";
+import {
+  AppearanceContext,
+  StreamContext,
+  useStreamContext,
+  type StreamContextValue,
+} from "./context.js";
 import type { ReactSourcePlugin } from "./plugin.js";
-import { SharedSourceView } from "./sources.js";
+import { SharedSourceView, SourceView } from "./sources.js";
+import { AudioView } from "./sources/audio.js";
 import { BrowserView } from "./sources/browser.js";
 import { ColorView } from "./sources/color.js";
 import { FrameView } from "./sources/frame.js";
@@ -59,6 +66,7 @@ const BUILTIN_PLUGINS: readonly ReactSourcePlugin[] = [
   ImageView,
   TextView,
   VideoView,
+  AudioView,
   BrowserView,
   FrameView,
 ];
@@ -100,6 +108,12 @@ export function Stream({
     revokeRemovedAssets(queryClient);
   }, [queryClient]);
   useEffect(
+    () => () => {
+      client.media.dispose();
+    },
+    [client],
+  );
+  useEffect(
     () =>
       client.connect(
         { url, source },
@@ -119,6 +133,7 @@ export function Stream({
     [snapshot],
   );
   const shared = useMemo(() => sharedSources(snapshot), [snapshot]);
+  const pictureless = useMemo(() => picturelessSources(snapshot), [snapshot]);
   useLayoutEffect(() => {
     client.shared.retain(shared);
   }, [client, shared]);
@@ -140,6 +155,11 @@ export function Stream({
     <StreamContext value={value}>
       {children}
       <div ref={attach} aria-hidden data-vignette-shared-host="" style={HOST_STYLE} />
+      <div aria-hidden data-vignette-pictureless-host="" style={HOST_STYLE}>
+        {pictureless.map((id) => (
+          <PicturelessView key={id} id={id} />
+        ))}
+      </div>
       {host === null
         ? null
         : [...shared].map((id) =>
@@ -165,6 +185,57 @@ const HOST_STYLE: CSSProperties = {
   visibility: "hidden",
   pointerEvents: "none",
 };
+
+/** Sources with no picture that some scene places, each once. */
+function picturelessSources(snapshot: Snapshot | undefined): readonly string[] {
+  return [...new Set(snapshot?.scenes.flatMap((scene) => scene.audio ?? []))];
+}
+
+/** Props of {@link PicturelessView}. */
+interface PicturelessViewProps {
+  readonly id: string;
+}
+
+/**
+ * A source with no picture, rendered once for the stream's life whatever stage shows its scene;
+ * its appearances count the times a stage started hearing it, for `restartOnShow`.
+ */
+function PicturelessView({ id }: PicturelessViewProps): ReactNode {
+  const { client, sources } = useStreamContext();
+  const read = () => client.media.appearances(id);
+  const appearances = useSyncExternalStore(
+    (listener) => client.media.subscribe(listener),
+    read,
+    read,
+  );
+  const source = sources.get(id);
+  if (source === undefined) return null;
+  return (
+    <AppearanceContext value={appearances}>
+      <Suspense fallback={null}>
+        <SourceView source={source} item={picturelessItem(id)} />
+      </Suspense>
+    </AppearanceContext>
+  );
+}
+
+/** The item a pictureless source's view gets: nothing to lay out. */
+function picturelessItem(sourceId: string): Item {
+  const none = { x: 0, y: 0, width: 0, height: 0 };
+  return {
+    id: sourceId,
+    sourceId,
+    frame: none,
+    placement: {
+      destination: none,
+      sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignment: { horizontal: "center", vertical: "center" },
+    },
+    visible: false,
+    opacity: 1,
+    rotation: 0,
+  };
+}
 
 /** Sources placed in more than one scene. */
 function sharedSources(snapshot: Snapshot | undefined): ReadonlySet<string> {

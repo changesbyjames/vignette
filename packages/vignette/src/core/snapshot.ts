@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AudioChannelSchema, MixSchema } from "./audio.js";
 import {
   ContentAlignmentSchema,
   HorizontalAlignmentSchema,
@@ -186,7 +187,8 @@ export type SourceProps = z.output<typeof SourcePropsSchema>;
 
 /**
  * One source instance. `kind` names its `defineSource`; `props` are validated by that kind's
- * schema; `size` is the content size the kind reported for fitting.
+ * schema; `size` is the content size the kind reported for fitting. `audio` is its channel,
+ * present exactly when the source carries audio.
  */
 export const SourceSchema = z
   .object({
@@ -194,6 +196,7 @@ export const SourceSchema = z
     kind: z.string().min(1),
     props: SourcePropsSchema,
     size: SizeSchema,
+    audio: AudioChannelSchema.optional(),
   })
   .readonly();
 /** One source instance. */
@@ -225,11 +228,19 @@ export const ItemSchema = z
 /** One laid-out layer that places a source. */
 export type Item = z.output<typeof ItemSchema>;
 
-/** One compiled scene: its items in rendering order, back to front. */
+/**
+ * One compiled scene: its items in rendering order, back to front, and `audio`, the sources with
+ * no picture it places (heard while the scene is shown, never laid out). Absent when there are
+ * none.
+ */
 export const SnapshotSceneSchema = z
-  .object({ id: StableIdSchema, items: z.array(ItemSchema).readonly() })
+  .object({
+    id: StableIdSchema,
+    items: z.array(ItemSchema).readonly(),
+    audio: z.array(StableIdSchema).readonly().optional(),
+  })
   .readonly();
-/** One compiled scene: its items in rendering order, back to front. */
+/** One compiled scene: its items in rendering order, back to front, and its pictureless sources. */
 export type SnapshotScene = z.output<typeof SnapshotSceneSchema>;
 
 /** Complete immutable desired state of a show at one revision. */
@@ -241,6 +252,8 @@ export const SnapshotSchema = z
     activeScene: StableIdSchema.optional(),
     sources: z.array(SourceSchema).readonly(),
     scenes: z.array(SnapshotSceneSchema).readonly(),
+    /** The master bus; absent means `DEFAULT_MIX`. */
+    mix: MixSchema.optional(),
   })
   .readonly();
 /** Complete immutable desired state of a show at one revision. */

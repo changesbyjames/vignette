@@ -1,6 +1,15 @@
+import { DEFAULT_MIX, type Mix } from "../core/audio.js";
 import { intersectRects, type Size } from "../core/geometry.js";
+import {
+  desiredObsAudio,
+  OBS_DEFAULT_AUDIO,
+  obsFilter,
+  type DesiredObsAudio,
+  type ObsAudioState,
+} from "./audio.js";
 import type { Item, Snapshot, SnapshotScene, Source } from "../core/snapshot.js";
 import {
+  managedFilterName,
   managedSceneName,
   managedSourceName,
   parseManagedName,
@@ -9,6 +18,7 @@ import {
 import {
   indexManagedObservedState,
   type ManagedObservedIndex,
+  type ObservedObsFilter,
   type ObservedObsInput,
   type ObservedObsScene,
   type ObservedObsSceneItem,
@@ -16,6 +26,7 @@ import {
 } from "./observed-state.js";
 import {
   validateOperationDependencies,
+  type ObsAudioChange,
   type ObsJsonObject,
   type ObsJsonValue,
   type ObsOperation,
@@ -62,6 +73,7 @@ interface Planning {
   readonly show: string;
   readonly managed: ManagedObservedIndex;
   readonly sources: ReadonlyMap<string, Source>;
+  readonly mix: Mix;
   readonly operations: ObsOperation[];
   readonly problems: string[];
   /** Create keys by scene ID, for scenes created by this plan. */
@@ -84,6 +96,7 @@ export function planObsUpdate(input: ObsPlannerInput): ObsPlanResult {
     show: input.desired.id,
     managed: indexManagedObservedState(input.observed),
     sources: new Map(input.desired.sources.map((source) => [source.id, source])),
+    mix: input.desired.mix ?? DEFAULT_MIX,
     operations: [],
     problems: [],
     sceneCreates: new Map(),
@@ -163,14 +176,14 @@ function planScenes(planning: Planning): void {
 }
 
 /**
- * Creates the source's input, or converges its settings and mute state. A source without a live
- * handle keeps whatever input it has. An input of the wrong kind is a problem: replacing it would
- * lose the filters an operator added.
+ * Creates the source's input, or converges its settings, audio and managed filters. A source
+ * without a live handle keeps whatever input it has. An input of the wrong kind is a problem:
+ * replacing it would lose the filters an operator added.
  */
 function planInput(planning: Planning, source: Source): void {
   const handle = planning.input.handles.get(source.id);
   if (handle === undefined) return;
-  const { kind, settings, muted } = handle.input;
+  const { kind, settings } = handle.input;
   if (!planning.input.observed.inputKinds.includes(kind)) {
     planning.problems.push(`OBS has no input kind '${kind}' for source '${source.id}'.`);
     return;
@@ -207,27 +220,216 @@ function planInput(planning: Planning, source: Source): void {
       inputSettings: settings,
     });
   }
-  planMute(planning, source.id, observed, muted);
+  if (handle.input.audio !== true) return;
+  planAudio(planning, source, observed);
+  planFilters(planning, source, observed);
 }
 
-/** Mutes or unmutes the input when its handle asks for a state OBS does not have. */
-function planMute(
+/**
+ * Converges each part of the input's audio that differs from the source's channel. A new input
+ * starts with OBS's defaults; an existing one whose audio OBS did not report has none.
+ */
+function planAudio(
+  planning: Planning,
+  source: Source,
+  observed: ObservedObsInput | undefined,
+): void {
+  const current = observed === undefined ? OBS_DEFAULT_AUDIO : observed.audio;
+  if (current === undefined) return;
+  const create = planning.inputCreates.get(source.id);
+  for (const change of audioChanges(desiredObsAudio(source.audio, planning.mix), current)) {
+    planning.operations.push({
+      kind: "set-input-audio",
+      key: `input:audio:${change.field}:${source.id}`,
+      phase: "audio",
+      dependsOn: create === undefined ? [] : [create],
+      destructive: false,
+      sourceId: source.id,
+      change,
+    });
+  }
+}
+
+/** OBS keeps volume as a multiplier, so dB within this of the desired value is converged. */
+const VOLUME_TOLERANCE_DB = 0.05;
+/** Balance within this of the desired value is converged. */
+const BALANCE_TOLERANCE = 0.001;
+
+/** The parts of `desired` that `current` does not already have. */
+function audioChanges(desired: DesiredObsAudio, current: ObsAudioState): ObsAudioChange[] {
+  return [...levelChanges(desired, current), ...routingChanges(desired, current)];
+}
+
+/** Changes to how loud the input is and where it sits: mute, volume and balance. */
+function levelChanges(desired: DesiredObsAudio, current: ObsAudioState): ObsAudioChange[] {
+  const changes: ObsAudioChange[] = [];
+  const { muted, volumeDb, balance } = desired;
+  if (muted !== undefined && muted !== current.muted)
+    changes.push({ field: "muted", value: muted });
+  if (volumeDb !== undefined && !near(volumeDb, current.volumeDb, VOLUME_TOLERANCE_DB)) {
+    changes.push({ field: "volumeDb", value: volumeDb });
+  }
+  if (balance !== undefined && !near(balance, current.balance, BALANCE_TOLERANCE)) {
+    changes.push({ field: "balance", value: balance });
+  }
+  return changes;
+}
+
+/** Changes to when and where the input is heard: sync offset, monitoring and tracks. */
+function routingChanges(desired: DesiredObsAudio, current: ObsAudioState): ObsAudioChange[] {
+  const changes: ObsAudioChange[] = [];
+  const { syncOffsetMs, monitorType, tracks } = desired;
+  if (syncOffsetMs !== undefined && syncOffsetMs !== current.syncOffsetMs) {
+    changes.push({ field: "syncOffsetMs", value: syncOffsetMs });
+  }
+  if (monitorType !== undefined && monitorType !== current.monitorType) {
+    changes.push({ field: "monitorType", value: monitorType });
+  }
+  if (tracks !== undefined && !objectContains(current.tracks, tracks)) {
+    changes.push({ field: "tracks", value: tracks });
+  }
+  return changes;
+}
+
+/** Whether two values are within `tolerance`; minus infinity is the quietest volume there is. */
+function near(desired: number, current: number, tolerance: number): boolean {
+  return Math.abs(Math.max(desired, -100) - Math.max(current, -100)) <= tolerance;
+}
+
+/** A managed filter the channel wants, by its OBS name. */
+interface DesiredFilter {
+  readonly filterName: string;
+  readonly filterKind: string;
+  readonly filterSettings: ObsJsonObject;
+}
+
+/**
+ * Converges the input's managed filters to the channel's, in order: removes those the channel no
+ * longer has (or whose kind changed), adds the missing ones after every other filter, converges
+ * settings, then restacks the managed filters first when their order is wrong. Filters an
+ * operator added are never touched. A new input has no filters; an existing one whose filters
+ * OBS did not list is left alone.
+ */
+function planFilters(
+  planning: Planning,
+  source: Source,
+  observed: ObservedObsInput | undefined,
+): void {
+  const current = observed === undefined ? [] : observed.filters;
+  if (current === undefined) return;
+  const desired: DesiredFilter[] = (source.audio?.filters ?? []).map((filter) => ({
+    filterName: managedFilterName(planning.show, filter.id),
+    ...obsFilter(filter),
+  }));
+  const kept = keptFilters(planning, source.id, current, desired);
+  for (const filter of desired) {
+    const existing = kept.get(filter.filterName);
+    if (existing === undefined) {
+      pushFilter(planning, source.id, "create", filter.filterName, filter);
+    } else if (!objectContains(existing.filterSettings, filter.filterSettings)) {
+      pushFilter(planning, source.id, "settings", filter.filterName, filter);
+    }
+  }
+  if (filtersOrdered(desired, kept)) return;
+  for (const [index, filter] of desired.entries()) {
+    pushFilter(planning, source.id, "index", filter.filterName, { filterIndex: index });
+  }
+}
+
+/**
+ * The input's managed filters that stay, by name; removes the others: those the channel no
+ * longer has, and those whose kind changed, which are created again.
+ */
+function keptFilters(
   planning: Planning,
   sourceId: string,
-  observed: ObservedObsInput | undefined,
-  muted: boolean | undefined,
+  current: readonly ObservedObsFilter[],
+  desired: readonly DesiredFilter[],
+): Map<string, ObservedObsFilter> {
+  const wanted = new Map(desired.map((filter) => [filter.filterName, filter]));
+  const kept = new Map<string, ObservedObsFilter>();
+  for (const filter of current) {
+    // Skip an operator's filter; keep a managed one of the wanted kind; remove the rest.
+    if (parseManagedName(filter.filterName, planning.show)?.id === undefined) continue;
+    const want = wanted.get(filter.filterName);
+    if (want?.filterKind === filter.filterKind) kept.set(filter.filterName, filter);
+    else pushFilter(planning, sourceId, "remove", filter.filterName, {});
+  }
+  return kept;
+}
+
+/** What one filter operation carries besides its input and name. */
+interface FilterChange {
+  readonly filterKind?: string;
+  readonly filterSettings?: ObsJsonObject;
+  readonly filterIndex?: number;
+}
+
+/** Adds one filter operation; creating one waits for its input when this plan creates it. */
+function pushFilter(
+  planning: Planning,
+  sourceId: string,
+  step: "remove" | "create" | "settings" | "index",
+  filterName: string,
+  change: FilterChange,
 ): void {
-  if (muted === undefined || observed?.inputMuted === muted) return;
   const create = planning.inputCreates.get(sourceId);
-  planning.operations.push({
-    kind: "set-input-mute",
-    key: `input:mute:${sourceId}`,
-    phase: "settings",
+  const base = {
+    key: `filter:${step}:${sourceId}:${filterName}`,
+    phase: "filters",
     dependsOn: create === undefined ? [] : [create],
-    destructive: false,
+    destructive: step === "remove",
     sourceId,
-    muted,
-  });
+    filterName,
+  } as const;
+  switch (step) {
+    case "remove":
+      planning.operations.push({ ...base, kind: "remove-filter" });
+      return;
+    case "create":
+      planning.operations.push({
+        ...base,
+        kind: "create-filter",
+        filterKind: change.filterKind ?? "",
+        filterSettings: change.filterSettings ?? {},
+      });
+      return;
+    case "settings":
+      planning.operations.push({
+        ...base,
+        kind: "set-filter-settings",
+        filterSettings: change.filterSettings ?? {},
+      });
+      return;
+    default:
+      planning.operations.push({
+        ...base,
+        kind: "set-filter-index",
+        filterIndex: change.filterIndex ?? 0,
+      });
+  }
+}
+
+/**
+ * Whether the managed filters are in the channel's order once missing ones are added after
+ * every other filter: the kept ones in increasing observed position, none after a new one.
+ */
+function filtersOrdered(
+  desired: readonly DesiredFilter[],
+  kept: ReadonlyMap<string, ObservedObsFilter>,
+): boolean {
+  let previous = Number.NEGATIVE_INFINITY;
+  let created = false;
+  for (const filter of desired) {
+    const existing = kept.get(filter.filterName);
+    if (existing === undefined) {
+      created = true;
+      continue;
+    }
+    if (created || existing.filterIndex <= previous) return false;
+    previous = existing.filterIndex;
+  }
+  return true;
 }
 
 /** One desired item as it will exist after the plan's placements phase. */
@@ -264,6 +466,103 @@ function planSceneItems(planning: Planning, scene: SnapshotScene): void {
     planItemProperties(planning, scene, entry, source.size, observedItem);
   }
   planOrder(planning, scene, present);
+  for (const sourceId of scene.audio ?? []) planAudioItem(planning, scene, sourceId);
+}
+
+/**
+ * Where a source with no picture sits: one pixel outside the canvas, so an input that would show
+ * something (a media source playing a stream's video) shows nothing, while its item stays active
+ * and OBS mixes its audio.
+ */
+const PICTURELESS_TRANSFORM: ObsSceneItemTransform = {
+  positionX: -2,
+  positionY: -2,
+  rotation: 0,
+  alignment: 5,
+  boundsType: "OBS_BOUNDS_STRETCH",
+  boundsAlignment: 5,
+  boundsWidth: 1,
+  boundsHeight: 1,
+  cropTop: 0,
+  cropRight: 0,
+  cropBottom: 0,
+  cropLeft: 0,
+};
+
+/**
+ * Places a source with no picture in the scene as an enabled item outside the canvas, which OBS
+ * mixes while the scene is on program. It is not stacked among the scene's items.
+ */
+function planAudioItem(planning: Planning, scene: SnapshotScene, sourceId: string): void {
+  const observedScene = planning.managed.scenes.get(scene.id);
+  const observedInput = planning.managed.inputs.get(sourceId);
+  const observedItem = findObservedItem(planning.managed, observedScene, observedInput);
+  // Layer IDs are stable IDs, which never contain ':', so this cannot collide with one.
+  const layerId = `audio:${sourceId}`;
+  const entry = audioItemEntry(planning, scene, observedScene, observedItem, layerId, sourceId);
+  if (entry === undefined) return;
+  const { placement, dependsOn } = entry;
+  if (!objectContains(observedItem?.sceneItemTransform ?? {}, PICTURELESS_TRANSFORM)) {
+    planning.operations.push({
+      kind: "set-transform",
+      key: `placement:transform:${scene.id}:${layerId}`,
+      phase: "transforms",
+      dependsOn,
+      destructive: false,
+      placement,
+      transform: PICTURELESS_TRANSFORM,
+    });
+  }
+  if (observedItem?.sceneItemEnabled === true) return;
+  planning.operations.push({
+    kind: "set-enabled",
+    key: `placement:enabled:${scene.id}:${layerId}`,
+    phase: "enable",
+    dependsOn,
+    destructive: false,
+    placement,
+    enabled: true,
+  });
+}
+
+/**
+ * The pictureless source's observed item, marked as still placed, or a new one; undefined while
+ * the source has no handle, which leaves its item as it is.
+ */
+function audioItemEntry(
+  planning: Planning,
+  scene: SnapshotScene,
+  observedScene: ObservedObsScene | undefined,
+  observedItem: ObservedObsSceneItem | undefined,
+  layerId: string,
+  sourceId: string,
+): PresentItem | undefined {
+  const item = picturelessItem(sourceId, layerId);
+  if (observedScene !== undefined && observedItem !== undefined) {
+    planning.matched.add(itemIdentity(observedScene.sceneUuid, observedItem.sceneItemId));
+    if (!planning.input.handles.has(sourceId)) return undefined;
+    return existingItem(item, observedScene, observedItem);
+  }
+  if (!planning.input.handles.has(sourceId) || !planning.sources.has(sourceId)) return undefined;
+  return createItem(planning, scene, item);
+}
+
+/** The item a pictureless source's placement is planned as; only its IDs are read. */
+function picturelessItem(sourceId: string, layerId: string): Item {
+  const none = { x: 0, y: 0, width: 0, height: 0 };
+  return {
+    id: layerId,
+    sourceId,
+    frame: none,
+    placement: {
+      destination: none,
+      sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignment: { horizontal: "center", vertical: "center" },
+    },
+    visible: true,
+    opacity: 1,
+    rotation: 0,
+  };
 }
 
 function existingItem(

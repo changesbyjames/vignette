@@ -44,22 +44,29 @@ export async function registerMoqWatch(): Promise<void> {
   await registration;
 }
 
-/** Appends the canvas `<moq-watch>` draws into. */
-export function appendMoqCanvas(watch: HTMLElement): void {
+/** Appends the canvas `<moq-watch>` draws into, and returns it. */
+export function appendMoqCanvas(watch: HTMLElement): HTMLCanvasElement {
   const canvas = watch.ownerDocument.createElement("canvas");
   canvas.setAttribute("aria-hidden", "true");
   canvas.style.display = "block";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   watch.append(canvas);
+  return canvas;
 }
 
-/** Maps a source's props onto `<moq-watch>`'s attributes and rendition selector. */
-export function applyMoqProps(watch: MoqWatchElement, props: MoqProps): void {
+/**
+ * Maps a source's props onto `<moq-watch>`'s attributes and rendition selector. `audio` says
+ * whether the source has an audio channel: without one the element is muted, which also stops
+ * the download; with one the element plays its own sound. `@moq/watch` 0.3 keeps its audio
+ * decoder private and silences it with its volume, so the target's mixer cannot reach a MoQ
+ * source's sound: the target reports the channel fields it cannot apply.
+ */
+export function applyMoqProps(watch: MoqWatchElement, props: MoqProps, audio: boolean): void {
   watch.setAttribute("url", props.url);
   watch.setAttribute("name", props.broadcast);
   watch.setAttribute("latency", String(props.latencyMs));
-  watch.toggleAttribute("muted", !props.audio);
+  watch.toggleAttribute("muted", !audio);
   watch.setAttribute("visible", visibility(props));
   watch.dataset.vignetteMoqQuality = props.quality;
   const name = props.quality === "auto" ? undefined : props.quality;

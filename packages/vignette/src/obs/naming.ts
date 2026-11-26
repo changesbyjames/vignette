@@ -22,6 +22,14 @@ export function managedSourceName(show: string, source: string): string {
 }
 
 /**
+ * The managed OBS filter name of a channel's filter, `vignette/<show>/<filter>`. Filters are
+ * named per input, so the filter ID need only be unique in its channel.
+ */
+export function managedFilterName(show: string, filter: string): string {
+  return [PREFIX, show, filter].join(SEPARATOR);
+}
+
+/**
  * Reads a name in a show's namespace: `{ id: undefined }` for the registry scene, `{ id }` for a
  * scene or input (OBS lists scenes and inputs separately, so the list says which). Anything else,
  * including another show's resources and operator-made ones, is `undefined`: never managed.
