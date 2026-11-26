@@ -247,8 +247,10 @@ white), `lineHeight`, `letterSpacing`, `textAlign`, `textWrap` (`wrap`, `nowrap`
 `pretty`), `textTransform`, `textShadow`, `verticalAlign` (`top`, `middle`, `bottom`) and
 `maxLines`. Line breaks in `text` are kept. `font` names a font file in your assets, downloaded and
 verified like an image, so no target needs it installed; without it, `fontFamily` must name a font
-the target has. In OBS a change is pushed into the open page rather than reloading it, so text can
-change on air, or as its scene cuts in, without an empty frame.
+the target has. In OBS a text is a page in a file: a change rewrites the file and the open page
+re-reads it rather than reloading, so text can change on air, or as its scene cuts in, without an
+empty frame. The page also re-reads its file whenever it loads or is resized, so it cannot stay on
+an old state.
 
 A source placed inside a layer is owned by that layer. To use one source in several places, declare
 it once at the show level with an `id` and place it with `<Use>`:
