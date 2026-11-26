@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Size } from "../geometry.js";
 import type { InlineSource, LayoutNode, ShowTree, SourceRef } from "../show-tree.js";
-import type { LayerProps, LayoutStyle } from "../snapshot.js";
+import { SnapshotSchema, type LayerProps, type LayoutStyle } from "../snapshot.js";
 import { compileShow } from "./compile.js";
 import { loadYoga } from "./load-yoga.js";
 import { yogaLayoutEngine } from "./yoga.js";
@@ -41,6 +41,64 @@ describe("compileShow", () => {
     expect(compileShow(tree, { revision: 3, layoutEngine })).toEqual(
       compileShow(tree, { revision: 3, layoutEngine: yogaLayoutEngine }),
     );
+  });
+
+  it("names a whole-source fit beside the same destination and crop, and only then", () => {
+    const tree = programmeTree();
+    const cropped: ShowTree = {
+      ...tree,
+      scenes: [
+        {
+          id: "cropped",
+          root: placed(
+            "cropped",
+            fixed("cropped", "video"),
+            { width: 960, height: 1080 },
+            { fit: "cover", crop: { left: 100 } },
+          ),
+        },
+      ],
+    };
+    const result = compileShow(
+      { ...tree, scenes: [...tree.scenes, ...cropped.scenes] },
+      { revision: 1, layoutEngine: yogaLayoutEngine },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const [programme, croppedScene] = result.snapshot.scenes;
+    expect(programme?.items.map(({ id, placement }) => ({ id, placement }))).toEqual([
+      {
+        id: "background",
+        placement: {
+          destination: { x: 0, y: 0, width: 1920, height: 1080 },
+          sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+          alignment: { horizontal: "center", vertical: "center" },
+          fit: "cover",
+        },
+      },
+      {
+        id: "video",
+        placement: {
+          destination: { x: 48, y: 48, width: 896, height: 984 },
+          sourceCrop: { top: 0, right: 468, bottom: 0, left: 468 },
+          alignment: { horizontal: "center", vertical: "center" },
+          fit: "cover",
+        },
+      },
+      {
+        id: "web",
+        placement: {
+          destination: { x: 976, y: 288, width: 896, height: 504 },
+          sourceCrop: { top: 0, right: 0, bottom: 0, left: 0 },
+          alignment: { horizontal: "center", vertical: "center" },
+          fit: "contain",
+        },
+      },
+    ]);
+    expect(croppedScene?.items[0]?.placement.fit).toBeUndefined();
+    // The snapshot schema keeps the field, and readers that do not know it strip it.
+    expect(SnapshotSchema.parse(result.snapshot)).toEqual(result.snapshot);
   });
 
   it("sizes inline sources from their layer's laid-out frame", () => {

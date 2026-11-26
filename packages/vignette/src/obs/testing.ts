@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 
-import { JsonObjectSchema, REQUIRED_OBS_REQUESTS } from "./bootstrap.js";
+import { JsonObjectSchema, REQUIRED_OBS_REQUESTS, takesCropToBounds } from "./bootstrap.js";
 import { ObsRequestError } from "./errors.js";
 import type { ObsJsonObject } from "./operations.js";
 import type { ObsClock } from "./target.js";
@@ -100,6 +100,11 @@ export class FakeObs implements ObsTransport {
   readonly scenes: FakeObsScene[] = [];
   readonly inputs: FakeObsInput[] = [];
   inputKinds: string[] = [...DEFAULT_INPUT_KINDS];
+  /**
+   * What `GetVersion` reports. From 5.5.0 item transforms report `cropToBounds` (off until set);
+   * below it, OBS neither reports nor takes it.
+   */
+  obsWebSocketVersion = "5.5.0";
   availableRequests: string[] = [...REQUIRED_OBS_REQUESTS, "TriggerMediaInputAction"];
   programSceneName: string | undefined = undefined;
   connected = false;
@@ -206,7 +211,11 @@ export class FakeObs implements ObsTransport {
   private readScenes(requestType: string, data: ObsJsonObject): ObsJsonObject | undefined {
     switch (requestType) {
       case "GetVersion":
-        return { obsVersion: "31.0.0", availableRequests: this.availableRequests };
+        return {
+          obsVersion: "31.0.0",
+          obsWebSocketVersion: this.obsWebSocketVersion,
+          availableRequests: this.availableRequests,
+        };
       case "GetInputKindList":
         return { inputKinds: this.inputKinds };
       case "GetSceneList":
@@ -228,7 +237,9 @@ export class FakeObs implements ObsTransport {
             sourceName: item.sourceName,
             sourceUuid: item.sourceUuid,
             sceneItemEnabled: item.sceneItemEnabled,
-            sceneItemTransform: item.sceneItemTransform,
+            sceneItemTransform: takesCropToBounds(this.obsWebSocketVersion)
+              ? { cropToBounds: false, ...item.sceneItemTransform }
+              : item.sceneItemTransform,
           })),
         };
       default:
@@ -402,10 +413,11 @@ export class FakeObs implements ObsTransport {
         return {};
       case "SetSceneItemTransform": {
         const item = this.item(scene, data);
-        item.sceneItemTransform = {
-          ...item.sceneItemTransform,
-          ...object(data, "sceneItemTransform"),
-        };
+        const written = object(data, "sceneItemTransform");
+        // An OBS before obs-websocket 5.5.0 ignores `cropToBounds`.
+        const { cropToBounds: _ignored, ...older } = written;
+        const taken = takesCropToBounds(this.obsWebSocketVersion) ? written : older;
+        item.sceneItemTransform = { ...item.sceneItemTransform, ...taken };
         return {};
       }
       case "SetSceneItemIndex": {

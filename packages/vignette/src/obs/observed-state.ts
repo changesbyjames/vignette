@@ -50,6 +50,12 @@ export interface ObservedObsState {
   readonly inputKinds: readonly string[];
   /** Requests convergence needs that this OBS does not advertise; non-empty blocks planning. */
   readonly missingRequests: readonly string[];
+  /**
+   * Whether scene item transforms take `cropToBounds`, which obs-websocket has from 5.5.0 (first
+   * bundled with OBS Studio 30.2). Absent means it does not, and `fit="cover"` is drawn with a
+   * source-pixel crop computed from the declared source size.
+   */
+  readonly cropToBounds?: boolean;
   /** Name of the current program scene, managed or not. */
   readonly programSceneName?: string;
   readonly scenes: readonly ObservedObsScene[];

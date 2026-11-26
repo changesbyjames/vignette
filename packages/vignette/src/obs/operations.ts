@@ -7,7 +7,11 @@ export interface ObsJsonObject {
   readonly [key: string]: ObsJsonValue;
 }
 
-/** OBS scene-item transform compiled from target-neutral placement geometry. */
+/**
+ * OBS scene-item transform compiled from target-neutral placement geometry. Where OBS takes it
+ * (obs-websocket 5.5.0 and later) it also carries `cropToBounds`, which crops a scale-outer fit
+ * to its bounds; an older OBS is never sent it.
+ */
 export interface ObsSceneItemTransform extends ObsJsonObject {
   readonly positionX: number;
   readonly positionY: number;

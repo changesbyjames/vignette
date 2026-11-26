@@ -128,6 +128,15 @@ flex boxes and cost nothing.
 Layer props: `style`, `fit` (`cover` | `contain` | `stretch`), `align`, `crop`, `opacity`,
 `rotation`, `visible`, `id`.
 
+`fit` scales the layer's source into its box (default `stretch`); `align` (`horizontal`: `left` |
+`center` | `right`, `vertical`: `top` | `center` | `bottom`, centered by default) says where the
+picture sits when `fit` leaves space or crops; `crop` removes source pixels from each edge before
+fitting. The composer fits by the `size` each source declares. A plain `cover` or `contain` (no
+`crop`) is also marked as one in the snapshot, and OBS then fits the source by its real picture
+size, so a camera whose resolution differs from its declared `size`, or changes, is still drawn
+right (section 6). Everything else, and the browser targets, place the picture by the declared
+`size`.
+
 ### Sources
 
 | Component | Renders as                      | Notes                                                             |
@@ -814,6 +823,21 @@ Sets the program scene when the snapshot has an `activeScene`.
 operator created are invisible to it. A stream for a different show ID than the one the target
 already manages is refused before any call to OBS.
 
+**Fitting.** A layer whose `fit` is `cover` or `contain` and that has no `crop` becomes an item OBS
+fits itself, by the source's real picture size: `contain` as scale-inner bounds, `cover` as
+scale-outer bounds cropped to them, both aligned by the layer's `align`. A source whose picture is
+not the `size` it declares (a network camera declared 1920×1080 that sends 1280×720), or that
+changes resolution, is still covered or contained right. These items still depend on the declared
+size, because OBS is given a crop in source pixels computed from it:
+
+- a layer with a `crop`;
+- a layer the canvas edge cuts, whose cut-off part is added to the crop;
+- a `contain` layer with a `rotation`, which would pivot elsewhere in OBS bounds;
+- a `cover` layer on an OBS older than 30.2 (obs-websocket 5.5.0), which cannot crop to bounds. The
+  target warns once (`console.warn`) when it meets such an OBS and the show has a `cover`.
+
+`stretch` never needs the size unless it is cropped or cut.
+
 **The asset stage.** When the setup message arrives, the target fetches every asset not already in
 its cache, verifies each hash, and only then applies updates. Updates that arrive early are queued,
 so the first scene appears complete rather than popping in.
@@ -899,7 +923,9 @@ export const Moq = defineSource({
 ```
 
 The composer validates props with the schema, uses `size` for `fit`, and carries kind and props
-through the snapshot. Nothing is registered with the composer; importing the component is enough.
+through the snapshot. For live video `size` is a guess: OBS fits a plain `cover` or `contain` by the
+real picture (section 6), but the browser targets, crops and cut layers use `size`. Nothing is
+registered with the composer; importing the component is enough.
 
 A kind that makes sound, or has no picture, says so with `media`:
 `media: (props) => ({ audio: true, video: props.video })`. A source of a kind with `audio: true`

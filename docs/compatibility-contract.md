@@ -8,7 +8,8 @@ authoring side is in [README §2](../README.md#2-making-a-show).
 - One canvas coordinate system; Yoga computes every layer's frame once, in the composer. No target
   lays out the scene itself.
 - Bottom-to-top order, `visible`, `rotation`, `crop`, `align`, and `fit` (`cover`, `contain`,
-  `stretch`) computed from each source's `size`.
+  `stretch`) computed from each source's `size`. For a source whose picture really is that size,
+  every target draws the same.
 - Identity by ID: the same source ID keeps its page, playback and connection; a new ID is a new
   thing (README §2, "Identity").
 - Shared sources are one live instance across scene switches in every target.
@@ -35,6 +36,11 @@ cross-origin page, so a page meant for both must make its own background transpa
 
 ## Differences
 
+- **Fit of a picture that is not its declared size.** OBS fits a `cover` or `contain` layer with no
+  `crop` by the source's real picture size (OBS bounds; `cover` needs OBS 30.2, obs-websocket 5.5.0,
+  or later), so a camera that sends another resolution than its `size` is still fitted right. The
+  browser targets, and OBS for a cropped layer, a layer the canvas cuts, a rotated `contain` and
+  `cover` on an older OBS, scale from the declared `size`.
 - **Opacity** applies in React and the DOM; OBS scene items have no opacity, so OBS ignores it.
 - **Audio** follows placement everywhere: a source is heard only while the shown scene places it
   with a visible layer (or lists it, for a source with no picture). Each target reports what of a

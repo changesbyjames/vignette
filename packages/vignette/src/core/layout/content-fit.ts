@@ -30,7 +30,10 @@ export interface ContentFitInput {
 /** A calculated placement or an explanation of invalid fitting inputs. */
 export type ContentFitResult = ContentFitSuccess | ContentFitFailure;
 
-/** Calculates deterministic contain, cover, or stretch placement and crop geometry. */
+/**
+ * Calculates deterministic contain, cover, or stretch placement and crop geometry from the
+ * declared source size. Without a manual crop the placement also names its `fit`.
+ */
 export function calculateContentPlacement(input: ContentFitInput): ContentFitResult {
   const alignment = input.alignment ?? CENTER_ALIGNMENT;
   const crop = completeCrop(input.manualCrop);
@@ -60,6 +63,10 @@ function calculateSizedPlacement(
     return { ok: false, message: "Manual crop removes the complete source area." };
   }
 
+  // The whole source is fitted when no edge is cropped; targets may then fit it themselves.
+  const whole = crop.top === 0 && crop.right === 0 && crop.bottom === 0 && crop.left === 0;
+  const fit = whole ? { fit: input.fit } : {};
+
   if (input.fit === "stretch") {
     return {
       ok: true,
@@ -67,6 +74,7 @@ function calculateSizedPlacement(
         destination: roundRect(input.destination),
         sourceCrop: roundInsets(crop),
         alignment,
+        ...fit,
       },
     };
   }
@@ -89,6 +97,7 @@ function calculateSizedPlacement(
         }),
         sourceCrop: roundInsets(crop),
         alignment,
+        ...fit,
       },
     };
   }
@@ -112,6 +121,7 @@ function calculateSizedPlacement(
         bottom: crop.bottom + verticalCrop * (1 - vertical),
       }),
       alignment,
+      ...fit,
     },
   };
 }
