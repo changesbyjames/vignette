@@ -13,15 +13,15 @@ import type { Moq } from "./index.js";
 import {
   appendMoqCanvas,
   applyMoqProps,
-  bridgeMoqAudio,
   clearMoqProps,
   registerMoqWatch,
   type MoqWatchElement,
 } from "./watch.js";
 
 /**
- * Renders `moq` sources in the DOM target as `<moq-watch>` drawing into a canvas, its sound
- * played through the target's mixer.
+ * Renders `moq` sources in the DOM target as `<moq-watch>` drawing into a canvas, which the
+ * target delays while the channel's sync offset is negative. The element plays its own sound
+ * (see `applyMoqProps`).
  */
 export const moqDom: DomSourcePlugin<typeof Moq> = {
   kind: "moq",
@@ -30,15 +30,13 @@ export const moqDom: DomSourcePlugin<typeof Moq> = {
     const watch: MoqWatchElement = document.createElement("moq-watch");
     const canvas = appendMoqCanvas(watch);
     applyMoqProps(watch, source.props, source.audio !== undefined);
-    const audio = "MediaStream" in globalThis ? bridgeMoqAudio(watch) : undefined;
     return {
       element: watch,
-      media: { audio: audio?.stream, video: canvas },
+      media: { video: canvas },
       update(next) {
         applyMoqProps(watch, next.props, next.audio !== undefined);
       },
       dispose() {
-        audio?.dispose();
         clearMoqProps(watch);
         watch.remove();
       },

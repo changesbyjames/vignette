@@ -204,6 +204,7 @@ Each target applies what its medium can and reports the rest per source in
 | `noise-gate`, `noise-suppression` | managed filters                                | unsupported                                    |
 | `mix.limiter`                     | unsupported (OBS has no master bus)            | ✓                                              |
 | `Browser` and `Frame` sound       | ✓ (`reroute_audio`)                            | unsupported (a page cannot reach iframe sound) |
+| `Moq` sound                       | ✓                                              | unsupported (`<moq-watch>` plays it itself)    |
 
 Filters an operator adds to a managed input in OBS are left alone; the show's own sit before them. A
 browser starts sound only after a user gesture: `status.audio.state` is `blocked` until then, and

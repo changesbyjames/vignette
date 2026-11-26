@@ -277,6 +277,13 @@ Implemented on `feat/audio`. Where it departs from the steps above:
   other than `off` is reported unsupported and plays to the program output; `tracks` is ignored.
   A `Browser` or `Frame` source reports only the channel fields set away from their defaults,
   because its iframe plays as it is.
+- MoQ in browsers plays its own sound: `@moq/watch` 0.3.0 has no public `audio.out.root` (its
+  decoder is a private field of the backend, and `volume` 0 mutes and stops it), so §5's bridge
+  cannot be built on it. `moqDom` and `MoqView` hand only the canvas to the target; the element is
+  muted without a channel and plays at its own volume with one, and the target reports the
+  channel's non-default fields as unsupported, as for `Browser` and `Frame`; it is heard whether or
+  not the shown scene places it. `@moq/watch` 0.6 exposes `element.audio.out.root`; bridging
+  needs that upgrade.
 - Without Web Audio (jsdom, old browsers) the mixer falls back to each media element's `muted` and
   `volume`, and `status.audio.state` is `unavailable`.
 - Element inputs stay muted until the `AudioContext` runs, so autoplay policy never stops their

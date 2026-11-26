@@ -54,14 +54,13 @@ describe("moqDom", () => {
     expect(watch.dataset.vignetteMoqQuality).toBe("auto");
     expect(watch.querySelector("canvas")).not.toBeNull();
 
-    // With a channel the element fetches audio but stays silent: the target's mixer plays it.
+    // With a channel the element fetches and plays the audio itself.
     await handle.update?.(
       source({ broadcast: "other", quality: "hd" }, AudioChannelSchema.parse({})),
     );
     expect(handle.element).toBe(watch);
     expect(watch.getAttribute("name")).toBe("other");
     expect(watch.hasAttribute("muted")).toBe(false);
-    expect(watch.getAttribute("volume")).toBe("0");
     expect(watch.getAttribute("visible")).toBe("0px");
     expect(watch.dataset.vignetteMoqQuality).toBe("hd");
 

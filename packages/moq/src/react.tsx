@@ -19,10 +19,8 @@ import type { Moq } from "./index.js";
 import {
   appendMoqCanvas,
   applyMoqProps,
-  bridgeMoqAudio,
   clearMoqProps,
   registerMoqWatch,
-  type MoqAudioBridge,
   type MoqWatchElement,
 } from "./watch.js";
 
@@ -32,32 +30,24 @@ export const MoqView: ReactSourcePlugin<typeof Moq> = {
   View: MoqWatchView,
 };
 
-/** What a mounted view plays and shows. */
-interface MoqMedia {
-  readonly canvas: HTMLCanvasElement;
-  readonly audio: MoqAudioBridge | undefined;
-}
-
 /** Registration starts on the first render and is shared by every view. */
 let registered: Promise<void> | undefined = undefined;
 
 /**
- * Mounts `<moq-watch>` with its canvas and audio bridge once, maps props onto it on every
- * change, and hands the bridge's stream and the canvas to the stream's mixer.
+ * Mounts `<moq-watch>` with its canvas once, maps props onto it on every change, and hands the
+ * canvas to the stream's media, which delays it while the channel's sync offset is negative. The
+ * element plays its own sound (see `applyMoqProps`).
  */
 function MoqWatchView({ source }: ReactSourceViewProps<typeof Moq>): ReactNode {
   registered ??= registerMoqWatch();
   use(registered);
   const watch = useRef<MoqWatchElement>(null);
-  const [media, setMedia] = useState<MoqMedia | undefined>(undefined);
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | undefined>(undefined);
   useLayoutEffect(() => {
     const element = watch.current;
     if (element === null) return undefined;
-    const canvas = appendMoqCanvas(element);
-    const audio = "MediaStream" in globalThis ? bridgeMoqAudio(element) : undefined;
-    setMedia({ canvas, audio });
+    setCanvas(appendMoqCanvas(element));
     return () => {
-      audio?.dispose();
       clearMoqProps(element);
       element.replaceChildren();
     };
@@ -66,7 +56,7 @@ function MoqWatchView({ source }: ReactSourceViewProps<typeof Moq>): ReactNode {
   useLayoutEffect(() => {
     if (watch.current !== null) applyMoqProps(watch.current, source.props, heard);
   }, [source.props, heard]);
-  useSourceMedia(source.id, { audio: media?.audio?.stream, video: media?.canvas });
+  useSourceMedia(source.id, { video: canvas });
   return createElement("moq-watch", {
     ref: watch,
     style: { display: "block", width: "100%", height: "100%" },

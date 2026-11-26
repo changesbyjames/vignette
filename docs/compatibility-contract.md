@@ -39,10 +39,11 @@ cross-origin page, so a page meant for both must make its own background transpa
 - **Audio** follows placement everywhere: a source is heard only while the shown scene places it
   with a visible layer (or lists it, for a source with no picture). Each target reports what of a
   channel it cannot apply in `status.audio.unsupported`: OBS cannot set `mono` or limit the master
-  bus; browsers cannot reach the sound of a `Browser` or `Frame` iframe, have no `noise-gate`,
-  `noise-suppression` or `monitor`, approximate `limiter`, and ignore `tracks`. A negative
-  `syncOffsetMs` delays the picture: natively in OBS, through a held-frame delay line in browsers.
-  Browsers play sound only after a user gesture (`status.audio.state` is `blocked` until then).
+  bus; browsers cannot reach the sound of a `Browser` or `Frame` iframe or of `<moq-watch>`, have no
+  `noise-gate`, `noise-suppression` or `monitor`, approximate `limiter`, and ignore `tracks`. A
+  negative `syncOffsetMs` delays the picture: natively in OBS, through a held-frame delay line in
+  browsers. Browsers play sound only after a user gesture (`status.audio.state` is `blocked` until
+  then).
 - **Shared sources in browsers** move between stages with `Element.moveBefore`. Without it (Safari,
   Firefox at the time of writing) the fallback reloads a moved `<iframe>`; OBS is unaffected.
 - **Inline sources in React** stay mounted across scene switches in a `<Stage>` that follows
